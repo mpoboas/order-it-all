@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order It All! - Admin Panel</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- PocketBase SDK -->
+    <script src="https://unpkg.com/pocketbase@0.21.1/dist/pocketbase.umd.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f7f8fc;
+            min-height: 100dvh;
+        }
+        
+        .material-icons {
+            font-family: 'Material Icons';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Modern gradient backgrounds - same as index.html */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .gradient-indigo {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+        
+        /* Card styling - same as index.html */
+        .modern-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .modern-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+        }
+        
+        /* Item cards - same as index.html */
+        .item-card {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            transition: all 0.2s ease;
+            border: 1px solid #f1f5f9;
+        }
+        
+        .item-card:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+        }
+        
+        /* Status indicators - same colors as index.html */
+        .status-pending {
+            color: #f59e0b;
+            background: #fef3c7;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-open {
+            color: #10b981;
+            background: #d1fae5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-closed {
+            color: #ef4444;
+            background: #fee2e2;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-found {
+            color: #10b981;
+            background: #d1fae5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-not_available {
+            color: #ef4444;
+            background: #fee2e2;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Modern buttons - same as index.html */
+        .btn-modern {
+            background: white;
+            border: none;
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary-modern {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 25px;
+            border: none;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-secondary-modern {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-secondary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-warning-modern {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-warning-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .btn-danger-modern {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-danger-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        /* Navigation tabs */
+        .nav-tab {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Loading animation */
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 1rem;
+            z-index: 1000;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            padding: 16px 20px;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Modal styling */
+        .modal-modern {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        /* Form styling */
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        /* Avatar styling */
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .avatar-large {
+            width: 48px;
+            height: 48px;
+            font-size: 18px;
+        }
+        
+        /* Glassmorphism effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Smooth animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Item emoji/icon */
+        .item-emoji {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Admin Authentication -->
+    <div id="auth-screen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="text-center text-white max-w-md w-full">
+            <div class="mb-8">
+                <div class="text-6xl mb-4">🛡️</div>
+                <h1 class="text-4xl font-bold mb-4">Admin Access</h1>
+                <p class="text-xl opacity-90">Enter admin password to continue</p>
+            </div>
+            
+            <div class="bg-white/20 backdrop-blur-md rounded-3xl p-8">
+                <h2 class="text-2xl font-semibold mb-6">Admin Login</h2>
+                <form id="auth-form" class="space-y-4">
+                    <input 
+                        type="password" 
+                        id="admin-password" 
+                        placeholder="Admin Password" 
+                        class="w-full px-6 py-4 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50"
+                    />
+                    <button type="submit" class="w-full py-4 bg-white text-purple-600 rounded-2xl font-semibold hover:bg-white/90 transition-all duration-300">
+                        Access Admin Panel 🚀
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 gradient-bg flex items-center justify-center z-50 hidden">
+        <div class="text-center text-white">
+            <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full loading-spinner mx-auto"></div>
+            <p class="mt-6 text-xl font-light">Loading Admin Panel...</p>
+        </div>
+    </div>
+
+    <!-- Main Admin App -->
+    <div id="admin-app" class="min-h-screen hidden">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Header -->
+            <header class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="material-icons text-indigo-600 text-3xl mr-3">admin_panel_settings</span>
+                        <h1 class="text-2xl font-bold text-gray-800">Admin Panel</h1>
+                    </div>
+                    <a href="index.html" class="btn-modern w-12 h-12 ml-4 flex items-center justify-center">
+                        <span class="material-icons text-gray-600">arrow_forward</span>
+                    </a>
+                </div>
+                
+                <!-- Navigation Tabs -->
+                <div class="mt-6">
+                    <div class="gradient-bg rounded-3xl p-2">
+                        <div class="flex gap-1 justify-center">
+                            <button class="nav-tab active" data-page="trips">
+                                <span class="material-icons text-sm mr-1">assignment</span>
+                                Trips
+                            </button>
+                            <button class="nav-tab" data-page="shopping">
+                                <span class="material-icons text-sm mr-1">shopping_cart</span>
+                                Shopping
+                            </button>
+                            <button class="nav-tab" data-page="history">
+                                <span class="material-icons text-sm mr-1">history</span>
+                                History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main>
+                <!-- Trips Management Page -->
+                <div id="trips-page" class="fade-in">
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Manage Trips</h2>
+                            <p class="text-gray-500">Create, edit, and manage grocery trips</p>
+                        </div>
+                        <button id="create-trip-btn" class="btn-primary-modern flex items-center">
+                            <span class="material-icons mr-2">add</span>
+                            Create Trip
+                        </button>
+                    </div>
+                    
+                    <div id="trips-list" class="space-y-4">
+                        <!-- Trips will be loaded here -->
+                    </div>
+
+                    <div id="no-trips" class="text-center py-16 hidden">
+                        <div class="text-6xl mb-4">📋</div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">No Trips Found</h3>
+                        <p class="text-gray-600">Create your first grocery trip to get started!</p>
+                    </div>
+                </div>
+
+                <!-- Shopping Mode Page -->
+                <div id="shopping-page" class="hidden">
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Shopping Mode</h2>
+                        <p class="text-gray-500">View and manage items while shopping</p>
+                        <div class="flex items-center gap-3 mt-4">
+                            <select id="trip-selector" class="form-input rounded-2xl min-w-48">
+                                <option value="">Select a trip...</option>
+                            </select>
+                            <button id="refresh-shopping" class="btn-modern w-12 h-12">
+                                <span class="material-icons text-gray-600">refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="shopping-list" class="space-y-4">
+                        <!-- Shopping list will be loaded here -->
+                    </div>
+
+                    <div id="no-shopping-items" class="text-center py-16 hidden">
+                        <div class="text-6xl mb-4">🛒</div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Select a Trip</h3>
+                        <p class="text-gray-600">Choose a trip from the dropdown to view shopping items</p>
+                    </div>
+                </div>
+
+                <!-- Trip History Page -->
+                <div id="history-page" class="hidden">
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Trip History</h2>
+                        <p class="text-gray-500">View completed trips and their details</p>
+                    </div>
+                    
+                    <div id="history-list" class="space-y-4">
+                        <!-- History will be loaded here -->
+                    </div>
+
+                    <div id="no-history" class="text-center py-16 hidden">
+                        <div class="text-6xl mb-4">📚</div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">No Trip History</h3>
+                        <p class="text-gray-600">No closed trips found</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Create Trip Modal -->
+        <div id="create-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
+            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg">
+                <div class="p-6">
+                    <h3 class="font-bold text-2xl mb-6 text-gray-800">Create New Trip</h3>
+                    <form id="create-trip-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Trip Name</label>
+                            <input type="text" id="trip-name" class="form-input" required />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                            <textarea id="trip-description" class="form-input" rows="3" placeholder="Brief description of the trip..."></textarea>
+                        </div>
+                        
+                        <div class="flex items-center justify-between pt-4">
+                            <button type="button" id="cancel-create-trip" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
+                            <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
+                                Create Trip
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Trip Modal -->
+        <div id="edit-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
+            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg">
+                <div class="p-6">
+                    <h3 class="font-bold text-2xl mb-6 text-gray-800">Edit Trip</h3>
+                    <form id="edit-trip-form" class="space-y-4">
+                        <input type="hidden" id="edit-trip-id" />
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Trip Name</label>
+                            <input type="text" id="edit-trip-name" class="form-input" required />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                            <textarea id="edit-trip-description" class="form-input" rows="3" placeholder="Brief description of the trip..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select id="edit-trip-status" class="form-input">
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center justify-between pt-4">
+                            <button type="button" id="cancel-edit-trip" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
+                            <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item Edit Modal -->
+        <div id="item-status-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
+            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg max-h-[90vh] flex flex-col">
+                <div class="p-6 pb-4">
+                    <h3 class="text-2xl font-bold text-gray-900">Edit Item</h3>
+                </div>
+                
+                <form id="item-status-form" class="flex flex-col flex-1 min-h-0">
+                    <input type="hidden" id="item-id" />
+                    
+                    <div class="flex-1 overflow-y-auto px-6">
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                                <input type="text" id="item-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                <input type="number" id="item-quantity" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required />
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price (€)</label>
+                                <input type="number" id="item-unit-price" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="0.00" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
+                                <input type="text" id="item-total-price" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly placeholder="Calculated automatically" />
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <span class="block text-sm font-medium text-gray-700 mb-2">Brand (optional)</span>
+                                <div class="flex items-center space-x-6">
+                                    <div class="flex items-center">
+                                        <input type="radio" name="item-brand" value="Official" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                        <label class="ml-2 block text-sm text-gray-900">Official</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" name="item-brand" value="Off-brand" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                        <label class="ml-2 block text-sm text-gray-900">Off-brand</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                <select id="item-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="pending">Pending</option>
+                                    <option value="found">Found</option>
+                                    <option value="not_available">Not Available</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+                            <textarea id="item-notes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Any additional notes..." rows="2"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 p-6 pt-4">
+                        <div class="flex items-center justify-between">
+                            <button type="button" id="cancel-item-status" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
+                            <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
+                                Update Item
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="fixed bottom-4 right-4 z-50">
+            <!-- Toasts will be added here -->
+        </div>
+    </div>
+
+    <script>
+        // Initialize PocketBase
+        const pb = new PocketBase('https://pb-orderit.povoas.top/');
+        
+        // Admin state
+        const AdminState = {
+            currentPage: 'trips',
+            trips: [],
+            selectedTrip: null,
+            shoppingItems: []
+        };
+
+        // Utility functions
+        const Utils = {
+            getInitials: (name) => {
+                return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
+            },
+            
+            getRelativeTime: (dateString) => {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diff = now - date;
+                
+                const minutes = Math.floor(diff / 60000);
+                const hours = Math.floor(diff / 3600000);
+                const days = Math.floor(diff / 86400000);
+                
+                if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+                if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                return 'Just now';
+            },
+            
+            showToast: (message, type = 'info') => {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                const bgColor = type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 
+                              type === 'error' ? 'bg-red-50 text-red-800 border-red-200' : 
+                              'bg-blue-50 text-blue-800 border-blue-200';
+                
+                toast.className = `toast border ${bgColor}`;
+                toast.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span>${message}</span>
+                        <button class="ml-4 text-gray-400 hover:text-gray-600" onclick="this.parentElement.parentElement.remove()">
+                            <span class="material-icons text-sm">close</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 5000);
+            },
+            
+            sanitize: (str) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            },
+            
+            getItemEmoji: (itemName) => {
+                const name = itemName.toLowerCase();
+                if (name.includes('banana')) return '🍌';
+                if (name.includes('milk')) return '🥛';
+                if (name.includes('avocado')) return '🥑';
+                if (name.includes('apple')) return '🍎';
+                if (name.includes('bread')) return '🍞';
+                if (name.includes('egg')) return '🥚';
+                if (name.includes('cheese')) return '🧀';
+                if (name.includes('meat')) return '🥩';
+                if (name.includes('fish')) return '🐟';
+                if (name.includes('vegetable')) return '🥬';
+                if (name.includes('fruit')) return '🍎';
+                return '🛒';
+            }
+        };
+
+        // Authentication
+        const Auth = {
+            authenticate: (password) => {
+                return password === 'juliuscesar';
+            },
+            
+            showAdminApp: () => {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('admin-app').classList.remove('hidden');
+                PageManager.show('trips');
+            }
+        };
+
+        // Page management
+        const PageManager = {
+            show: (pageName) => {
+                document.querySelectorAll('[id$="-page"]').forEach(page => {
+                    page.classList.add('hidden');
+                });
+                
+                const pageElement = document.getElementById(`${pageName}-page`);
+                if (pageElement) {
+                    pageElement.classList.remove('hidden');
+                    AdminState.currentPage = pageName;
+                    
+                    document.querySelectorAll('.nav-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                        if (tab.getAttribute('data-page') === pageName) {
+                            tab.classList.add('active');
+                        }
+                    });
+                    
+                    if (pageName === 'trips') {
+                        TripManager.loadTrips();
+                    } else if (pageName === 'shopping') {
+                        ShoppingManager.loadOpenTrips();
+                    } else if (pageName === 'history') {
+                        HistoryManager.loadClosedTrips();
+                    }
+                }
+            }
+        };
+
+        // Trip management
+        const TripManager = {
+            loadTrips: async () => {
+                try {
+                    const trips = await pb.collection('trips').getFullList({
+                        sort: '-created'
+                    });
+                    AdminState.trips = trips;
+                    TripManager.renderTrips();
+                } catch (error) {
+                    Utils.showToast('Failed to load trips', 'error');
+                    console.error('Error loading trips:', error);
+                }
+            },
+            
+            renderTrips: () => {
+                const tripsList = document.getElementById('trips-list');
+                const noTrips = document.getElementById('no-trips');
+                
+                if (AdminState.trips.length === 0) {
+                    tripsList.innerHTML = '';
+                    noTrips.classList.remove('hidden');
+                    return;
+                }
+                
+                noTrips.classList.add('hidden');
+                tripsList.innerHTML = AdminState.trips.map(trip => `
+                    <div class="modern-card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">${Utils.sanitize(trip.name)}</h2>
+                            <div class="status-${trip.status}">
+                                <span class="material-icons text-sm">${trip.status === 'open' ? 'hourglass_top' : 'close'}</span>
+                                <span class="capitalize">${trip.status}</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-4">${Utils.sanitize(trip.description || 'No description')}</p>
+                        <p class="text-sm text-gray-500 mb-4">Created ${Utils.getRelativeTime(trip.created)}</p>
+                        
+                        <div class="flex justify-end gap-2">
+                            <button class="btn-secondary-modern flex items-center" onclick="TripManager.editTrip('${trip.id}')">
+                                <span class="material-icons text-sm mr-1">edit</span>
+                                Edit
+                            </button>
+                            ${trip.status === 'open' ? `
+                                <button class="btn-warning-modern flex items-center" onclick="TripManager.closeTrip('${trip.id}')">
+                                    <span class="material-icons text-sm mr-1">lock</span>
+                                    Close
+                                </button>
+                            ` : ''}
+                            <button class="btn-danger-modern flex items-center" onclick="TripManager.deleteTrip('${trip.id}')">
+                                <span class="material-icons text-sm mr-1">delete</span>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+            
+            createTrip: async (tripData) => {
+                try {
+                    await pb.collection('trips').create({
+                        name: tripData.name,
+                        description: tripData.description || '',
+                        status: 'open',
+                        created_by: 'admin'
+                    });
+                    Utils.showToast('Trip created successfully!', 'success');
+                    TripManager.loadTrips();
+                    ModalManager.closeModal('create-trip-modal');
+                } catch (error) {
+                    Utils.showToast('Failed to create trip', 'error');
+                    console.error('Error creating trip:', error);
+                }
+            },
+            
+            editTrip: async (tripId) => {
+                try {
+                    const trip = await pb.collection('trips').getOne(tripId);
+                    
+                    document.getElementById('edit-trip-id').value = trip.id;
+                    document.getElementById('edit-trip-name').value = trip.name;
+                    document.getElementById('edit-trip-description').value = trip.description || '';
+                    document.getElementById('edit-trip-status').value = trip.status;
+                    
+                    ModalManager.openModal('edit-trip-modal');
+                } catch (error) {
+                    Utils.showToast('Failed to load trip details', 'error');
+                    console.error('Error loading trip:', error);
+                }
+            },
+            
+            updateTrip: async (tripId, tripData) => {
+                try {
+                    await pb.collection('trips').update(tripId, tripData);
+                    Utils.showToast('Trip updated successfully!', 'success');
+                    TripManager.loadTrips();
+                    ModalManager.closeModal('edit-trip-modal');
+                } catch (error) {
+                    Utils.showToast('Failed to update trip', 'error');
+                    console.error('Error updating trip:', error);
+                }
+            },
+            
+            closeTrip: async (tripId) => {
+                if (confirm('Are you sure you want to close this trip? This action cannot be undone.')) {
+                    try {
+                        await pb.collection('trips').update(tripId, { status: 'closed' });
+                        Utils.showToast('Trip closed successfully!', 'success');
+                        TripManager.loadTrips();
+                    } catch (error) {
+                        Utils.showToast('Failed to close trip', 'error');
+                        console.error('Error closing trip:', error);
+                    }
+                }
+            },
+            
+            deleteTrip: async (tripId) => {
+                if (confirm('Are you sure you want to delete this trip? This action cannot be undone and will delete all associated orders and items.')) {
+                    try {
+                        await pb.collection('trips').delete(tripId);
+                        Utils.showToast('Trip deleted successfully!', 'success');
+                        TripManager.loadTrips();
+                    } catch (error) {
+                        Utils.showToast('Failed to delete trip', 'error');
+                        console.error('Error deleting trip:', error);
+                    }
+                }
+            }
+        };
+
+        // Shopping management
+        const ShoppingManager = {
+            loadOpenTrips: async () => {
+                try {
+                    const trips = await pb.collection('trips').getFullList({
+                        sort: '-created'
+                    });
+                    const selector = document.getElementById('trip-selector');
+                    selector.innerHTML = '<option value="">Select a trip...</option>' +
+                        trips.map(trip => `<option value="${trip.id}">${Utils.sanitize(trip.name)} ${trip.status === 'closed' ? '(Closed)' : ''}</option>`).join('');
+                } catch (error) {
+                    Utils.showToast('Failed to load trips', 'error');
+                    console.error('Error loading trips:', error);
+                }
+            },
+            
+            loadShoppingList: async (tripId) => {
+                try {
+                    const orders = await pb.collection('orders').getFullList({
+                        filter: `trip_id = "${tripId}"`,
+                        sort: '-created'
+                    });
+                    
+                    const allItems = [];
+                    for (const order of orders) {
+                        const items = await pb.collection('items').getFullList({
+                            filter: `order_id = "${order.id}"`,
+                            sort: 'created'
+                        });
+                        items.forEach(item => {
+                            allItems.push({
+                                ...item,
+                                user_name: order.user_name
+                            });
+                        });
+                    }
+                    
+                    AdminState.shoppingItems = allItems;
+                    ShoppingManager.renderShoppingList();
+                } catch (error) {
+                    Utils.showToast('Failed to load shopping list', 'error');
+                    console.error('Error loading shopping list:', error);
+                }
+            },
+            
+            renderShoppingList: () => {
+                const shoppingList = document.getElementById('shopping-list');
+                const noItems = document.getElementById('no-shopping-items');
+                
+                if (AdminState.shoppingItems.length === 0) {
+                    shoppingList.innerHTML = '';
+                    noItems.classList.remove('hidden');
+                    return;
+                }
+                
+                noItems.classList.add('hidden');
+                
+                // Just show all items in a flat list, not grouped by person/order
+                shoppingList.innerHTML = `
+                    <div class="modern-card p-6">
+                        <div class="space-y-3">
+                            ${AdminState.shoppingItems.map(item => `
+                                <div class="bg-gray-100 rounded-xl overflow-hidden cursor-pointer" onclick="ShoppingManager.updateItemStatus('${item.id}')">
+                                    <div class="p-3">
+                                        <div class="flex items-start">
+                                            <div class="item-emoji mr-3">
+                                                ${
+                                                    item.image_url
+                                                        ? `<img src="${Utils.sanitize(item.image_url)}" alt="${Utils.sanitize(item.name)}" class="w-8 h-8 object-cover rounded-full" />`
+                                                        : Utils.getItemEmoji(item.name)
+                                                }
+                                            </div>
+                                            <div class="flex-grow">
+                                                <div class="flex justify-between items-start">
+                                                    <div>
+                                                        <p class="font-semibold text-gray-800">${Utils.sanitize(item.name)}</p>
+                                                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                                                            <div class="flex items-center mr-3">
+                                                                <span class="material-icons text-base mr-1">shopping_basket</span>
+                                                                <span>${item.quantity}</span>
+                                                            </div>
+                                                            ${item.brand ? `
+                                                                <div class="flex items-center">
+                                                                    <span class="material-icons text-base mr-1">label</span>
+                                                                    <span>${Utils.sanitize(item.brand)}</span>
+                                                                </div>
+                                                            ` : ''}
+                                                            ${item.user_name ? `
+                                                                <div class="flex items-center ml-3">
+                                                                    <span class="material-icons text-base mr-1">person</span>
+                                                                    <span>${Utils.sanitize(item.user_name)}</span>
+                                                                </div>
+                                                            ` : ''}
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3">
+                                                        ${item.price > 0 ? `
+                                                            <span class="font-semibold text-gray-800">${item.price.toFixed(2)}€</span>
+                                                        ` : ''}
+                                                        <span class="material-icons text-gray-400">chevron_right</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${item.notes ? `
+                                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-yellow-800">
+                                            <span class="font-medium">Notes:</span> ${Utils.sanitize(item.notes)}
+                                        </div>
+                                    ` : ''}
+                                    <div class="${
+                                        item.found_status === 'found' ? 'bg-green-500' :
+                                        item.found_status === 'not_available' ? 'bg-red-500' :
+                                        'bg-yellow-500'
+                                    } text-white text-xs font-medium py-1 px-3 flex items-center justify-center">
+                                        <span class="material-icons text-xs mr-1">${
+                                            item.found_status === 'found' ? 'check_circle' :
+                                            item.found_status === 'not_available' ? 'cancel' :
+                                            'hourglass_top'
+                                        }</span>
+                                        <span>${
+                                            item.found_status === 'found' ? 'Found' :
+                                            item.found_status === 'not_available' ? 'Not Available' :
+                                            'Pending'
+                                        }</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            },
+            
+            updateItemStatus: async (itemId) => {
+                try {
+                    const item = await pb.collection('items').getOne(itemId);
+                    
+                    document.getElementById('item-id').value = item.id;
+                    document.getElementById('item-name').value = item.name;
+                    document.getElementById('item-quantity').value = item.quantity;
+                    document.getElementById('item-unit-price').value = item.unit_price || '';
+                    document.getElementById('item-notes').value = item.notes || '';
+                    document.getElementById('item-status').value = item.found_status;
+                    
+                    const brandRadios = document.querySelectorAll('input[name="item-brand"]');
+                    brandRadios.forEach(radio => {
+                        radio.checked = radio.value === item.brand;
+                    });
+                    
+                    // Calculate and display total price
+                    const calculateTotal = () => {
+                        const quantity = parseFloat(document.getElementById('item-quantity').value) || 0;
+                        const unitPrice = parseFloat(document.getElementById('item-unit-price').value) || 0;
+                        const total = quantity * unitPrice;
+                        document.getElementById('item-total-price').value = total > 0 ? `€${total.toFixed(2)}` : '';
+                    };
+                    
+                    // Add event listeners for price calculation
+                    document.getElementById('item-quantity').addEventListener('input', calculateTotal);
+                    document.getElementById('item-unit-price').addEventListener('input', calculateTotal);
+                    
+                    // Initial calculation
+                    calculateTotal();
+                    
+                    ModalManager.openModal('item-status-modal');
+                } catch (error) {
+                    Utils.showToast('Failed to load item details', 'error');
+                    console.error('Error loading item:', error);
+                }
+            },
+            
+            saveItemStatus: async (itemId, status, unitPrice) => {
+                try {
+                    const name = document.getElementById('item-name').value.trim();
+                    const quantity = parseInt(document.getElementById('item-quantity').value);
+                    const notes = document.getElementById('item-notes').value.trim();
+                    const brandRadio = document.querySelector('input[name="item-brand"]:checked');
+                    const brand = brandRadio ? brandRadio.value : '';
+                    const unit_price = parseFloat(document.getElementById('item-unit-price').value) || 0;
+                    
+                    if (!name || !quantity) {
+                        Utils.showToast('Please fill in all required fields', 'error');
+                        return;
+                    }
+                    
+                    const updateData = {
+                        name,
+                        quantity,
+                        notes,
+                        brand,
+                        found_status: status,
+                        unit_price: unit_price,
+                        price: quantity * unit_price // Calculate total price
+                    };
+                    
+                    await pb.collection('items').update(itemId, updateData);
+                    Utils.showToast('Item updated successfully!', 'success');
+                    
+                    const tripSelector = document.getElementById('trip-selector');
+                    if (tripSelector && tripSelector.value) {
+                        ShoppingManager.loadShoppingList(tripSelector.value);
+                    }
+                    
+                    ModalManager.closeModal('item-status-modal');
+                } catch (error) {
+                    Utils.showToast('Failed to update item', 'error');
+                    console.error('Error updating item:', error);
+                }
+            },
+        };
+
+        // History management
+        const HistoryManager = {
+            loadClosedTrips: async () => {
+                try {
+                    const trips = await pb.collection('trips').getFullList({
+                        filter: 'status = "closed"',
+                        sort: '-updated'
+                    });
+                    HistoryManager.renderHistory(trips);
+                } catch (error) {
+                    Utils.showToast('Failed to load trip history', 'error');
+                    console.error('Error loading history:', error);
+                }
+            },
+            
+            renderHistory: (trips) => {
+                const historyList = document.getElementById('history-list');
+                const noHistory = document.getElementById('no-history');
+                
+                if (trips.length === 0) {
+                    historyList.innerHTML = '';
+                    noHistory.classList.remove('hidden');
+                    return;
+                }
+                
+                noHistory.classList.add('hidden');
+                historyList.innerHTML = trips.map(trip => `
+                    <div class="modern-card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">${Utils.sanitize(trip.name)}</h2>
+                            <div class="status-closed">
+                                <span class="material-icons text-sm">cancel</span>
+                                <span>Closed</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-4">${Utils.sanitize(trip.description || 'No description')}</p>
+                        <div class="text-sm text-gray-500">
+                            <p class="mb-1">Created: ${Utils.getRelativeTime(trip.created)}</p>
+                            <p>Closed: ${Utils.getRelativeTime(trip.updated)}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        };
+
+        // Modal management
+        const ModalManager = {
+            openModal: (modalId) => {
+                const modal = document.getElementById(modalId);
+                modal.classList.remove('hidden');
+            },
+            
+            closeModal: (modalId) => {
+                const modal = document.getElementById(modalId);
+                modal.classList.add('hidden');
+                
+                // Reset forms
+                const form = modal.querySelector('form');
+                if (form) form.reset();
+            }
+        };
+
+        // Event listeners
+        function initEventListeners() {
+            // Authentication form
+            document.getElementById('auth-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const password = document.getElementById('admin-password').value;
+                if (Auth.authenticate(password)) {
+                    Auth.showAdminApp();
+                } else {
+                    Utils.showToast('Invalid password', 'error');
+                }
+            });
+            
+            // Navigation tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = e.target.closest('.nav-tab').getAttribute('data-page');
+                    PageManager.show(page);
+                });
+            });
+            
+            // Create trip button
+            document.getElementById('create-trip-btn').addEventListener('click', () => {
+                ModalManager.openModal('create-trip-modal');
+            });
+            
+            // Create trip form
+            document.getElementById('create-trip-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('trip-name').value.trim();
+                const description = document.getElementById('trip-description').value.trim();
+                
+                if (name) {
+                    TripManager.createTrip({ name, description });
+                } else {
+                    Utils.showToast('Please enter a trip name', 'error');
+                }
+            });
+            
+            // Edit trip form
+            document.getElementById('edit-trip-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const tripId = document.getElementById('edit-trip-id').value;
+                const name = document.getElementById('edit-trip-name').value.trim();
+                const description = document.getElementById('edit-trip-description').value.trim();
+                const status = document.getElementById('edit-trip-status').value;
+                
+                if (name) {
+                    TripManager.updateTrip(tripId, { name, description, status });
+                } else {
+                    Utils.showToast('Please enter a trip name', 'error');
+                }
+            });
+            
+            // Trip selector
+            document.getElementById('trip-selector').addEventListener('change', (e) => {
+                const tripId = e.target.value;
+                if (tripId) {
+                    AdminState.selectedTrip = tripId;
+                    ShoppingManager.loadShoppingList(tripId);
+                } else {
+                    AdminState.selectedTrip = null;
+                    AdminState.shoppingItems = [];
+                    document.getElementById('shopping-list').innerHTML = '';
+                    document.getElementById('no-shopping-items').classList.remove('hidden');
+                }
+            });
+            
+            // Item status form
+            document.getElementById('item-status-form')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const itemId = document.getElementById('item-id').value;
+                const status = document.getElementById('item-status').value;
+                const unitPrice = document.getElementById('item-unit-price').value;
+                ShoppingManager.saveItemStatus(itemId, status, unitPrice);
+            });
+            
+            // Cancel buttons
+            document.getElementById('cancel-create-trip').addEventListener('click', () => {
+                ModalManager.closeModal('create-trip-modal');
+            });
+            
+            document.getElementById('cancel-edit-trip').addEventListener('click', () => {
+                ModalManager.closeModal('edit-trip-modal');
+            });
+            
+            document.getElementById('cancel-item-status').addEventListener('click', () => {
+                ModalManager.closeModal('item-status-modal');
+            });
+            
+            // Refresh shopping button
+            document.getElementById('refresh-shopping').addEventListener('click', () => {
+                const tripSelector = document.getElementById('trip-selector');
+                if (tripSelector && tripSelector.value) {
+                    ShoppingManager.loadShoppingList(tripSelector.value);
+                    Utils.showToast('Shopping list refreshed', 'success');
+                }
+            });
+            
+            // Close modals when clicking outside
+            document.querySelectorAll('.modal-modern').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) {
+                        ModalManager.closeModal(modal.id);
+                    }
+                });
+            });
+        }
+
+        // Initialize admin app
+        function initAdminApp() {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            
+            initEventListeners();
+            
+            // Make functions globally available
+            window.TripManager = TripManager;
+            window.ShoppingManager = ShoppingManager;
+            window.HistoryManager = HistoryManager;
+            
+            console.log('Modern admin panel initialized successfully');
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initAdminApp);
+    </script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+/* Custom styles for Order It All! */
+
+/* Mobile-first design with purple theme */
+body {
+    background-color: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Header styling */
+.app-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+/* Card styling */
+.order-card, .admin-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.item-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Status indicators */
+.status-pending {
+    color: #f59e0b;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.status-pending-dot {
+    background-color: #f59e0b;
+}
+
+.status-open-dot {
+    background-color: #10b981;
+}
+
+.status-closed-dot {
+    background-color: #ef4444;
+}
+
+/* Button styling */
+.btn-primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    color: white;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.btn-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-circle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Back button */
+.back-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+}
+
+/* Item images */
+.item-image {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Price styling */
+.price {
+    font-weight: 700;
+    color: #059669;
+    font-size: 1rem;
+}
+
+/* Quantity and brand info */
+.item-details {
+    color: #6b7280;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.item-details svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Smooth transitions */
+* {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: hsl(var(--b2));
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--p));
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--pf));
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Toast animations */
+.toast {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Order item animations */
+.order-item {
+    transition: all 0.3s ease;
+}
+
+.order-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Trip card hover effects */
+.trip-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.trip-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Status badges */
+.status-open {
+    background-color: hsl(var(--s));
+    color: hsl(var(--sc));
+}
+
+.status-closed {
+    background-color: hsl(var(--er));
+    color: hsl(var(--erc));
+}
+
+/* Found status indicators */
+.found-status-pending {
+    background-color: hsl(var(--w));
+    color: hsl(var(--wc));
+}
+
+.found-status-found {
+    background-color: hsl(var(--s));
+    color: hsl(var(--sc));
+}
+
+.found-status-not-available {
+    background-color: hsl(var(--er));
+    color: hsl(var(--erc));
+}
+
+/* Mobile-first responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .modal-box {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
+    }
+    
+    .grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .navbar-center {
+        display: none;
+    }
+    
+    .order-card, .admin-card {
+        margin: 0 0 1rem 0;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .container {
+        padding: 0 1rem;
+    }
+    
+    .order-card, .admin-card {
+        margin: 0 0 1rem 0;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    .modal,
+    .toast-container,
+    .btn {
+        display: none !important;
+    }
+    
+    .container {
+        max-width: none;
+        padding: 0;
+    }
+}
+
+/* Focus styles for accessibility */
+.btn:focus,
+.input:focus,
+.select:focus {
+    outline: 2px solid hsl(var(--p));
+    outline-offset: 2px;
+}
+
+/* Custom utility classes */
+.text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.backdrop-blur {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Animation for new items */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* Edit timer styles */
+.edit-timer {
+    font-size: 0.75rem;
+    color: hsl(var(--er));
+    font-weight: 500;
+}
+
+.edit-timer.warning {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Price display */
+.price-display {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+}
+
+/* Shopping list view */
+.shopping-list-item {
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.shopping-list-item:hover {
+    border-left-color: hsl(var(--p));
+    background-color: hsl(var(--b2));
+}
+
+/* User avatar styles */
+.user-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, hsl(var(--p)), hsl(var(--pf)));
+}
+
+/* Responsive grid for items */
+@media (min-width: 640px) {
+    .items-grid {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .backdrop-blur {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn,
+    .input,
+    .select {
+        border-width: 2px;
+    }
+    
+    .badge {
+        border: 1px solid currentColor;
+    }
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 1rem;
+    z-index: 1000;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    padding: 1rem;
+    max-width: 300px;
+} 
+
