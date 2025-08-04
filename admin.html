@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order It All! - Admin Panel</title>
+    <title>Admin - Order It All!</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -224,32 +225,6 @@
             box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
         }
         
-        /* Navigation tabs */
-        .nav-tab {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-        }
-        
-        .nav-tab:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        .nav-tab.active {
-            background: rgba(255, 255, 255, 0.95);
-            color: #667eea;
-            font-weight: 600;
-            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
-        }
-        
         /* Loading animation */
         .loading-spinner {
             animation: spin 1s linear infinite;
@@ -366,21 +341,21 @@
         <div class="text-center text-white max-w-md w-full">
             <div class="mb-8">
                 <div class="text-6xl mb-4">🛡️</div>
-                <h1 class="text-4xl font-bold mb-4">Admin Access</h1>
-                <p class="text-xl opacity-90">Enter admin password to continue</p>
+                <h1 class="text-4xl font-bold mb-4">Admin Panel</h1>
+                <p class="text-xl opacity-90">Introduza a palavra-passe de administrador para continuar</p>
             </div>
             
             <div class="bg-white/20 backdrop-blur-md rounded-3xl p-8">
-                <h2 class="text-2xl font-semibold mb-6">Admin Login</h2>
+                <h2 class="text-2xl font-semibold mb-6">Login de Administrador</h2>
                 <form id="auth-form" class="space-y-4">
                     <input 
                         type="password" 
                         id="admin-password" 
-                        placeholder="Admin Password" 
+                        placeholder="Palavra-passe de Administrador" 
                         class="w-full px-6 py-4 rounded-2xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50"
                     />
                     <button type="submit" class="w-full py-4 bg-white text-purple-600 rounded-2xl font-semibold hover:bg-white/90 transition-all duration-300">
-                        Access Admin Panel 🚀
+                        Login 🚀
                     </button>
                 </form>
             </div>
@@ -391,45 +366,33 @@
     <div id="loading-screen" class="fixed inset-0 gradient-bg flex items-center justify-center z-50 hidden">
         <div class="text-center text-white">
             <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full loading-spinner mx-auto"></div>
-            <p class="mt-6 text-xl font-light">Loading Admin Panel...</p>
+            <p class="mt-6 text-xl font-light">A carregar Admin Panel...</p>
         </div>
     </div>
 
     <!-- Main Admin App -->
     <div id="admin-app" class="min-h-screen hidden">
-        <div class="container mx-auto px-4 py-8">
-            <!-- Header -->
-            <header class="mb-8">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <span class="material-icons text-indigo-600 text-3xl mr-3">admin_panel_settings</span>
-                        <h1 class="text-2xl font-bold text-gray-800">Admin Panel</h1>
+        <!-- Header -->
+        <header class="gradient-bg text-white p-6 top-0 z-40">
+            <div class="container mx-auto flex items-center justify-between">
+                <div class="flex items-center">
+                    <span class="material-icons text-3xl mr-3">admin_panel_settings</span>
+                    <div>
+                        <h1 class="text-2xl font-bold">Admin Panel</h1>
+                        <p class="text-sm opacity-90">Gerir viagens e produtos</p>
                     </div>
-                    <a href="index.html" class="btn-modern w-12 h-12 ml-4 flex items-center justify-center">
-                        <span class="material-icons text-gray-600">arrow_forward</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="index.html" class="btn-modern w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 border border-white/30">
+                        <span class="material-icons text-white">shopping_cart</span>
+                    </a>    
+                    <a href="splitter.html" class="btn-modern w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 border border-white/30">
+                        <span class="material-icons text-white">calculate</span>
                     </a>
                 </div>
-                
-                <!-- Navigation Tabs -->
-                <div class="mt-6">
-                    <div class="gradient-bg rounded-3xl p-2">
-                        <div class="flex gap-1 justify-center">
-                            <button class="nav-tab active" data-page="trips">
-                                <span class="material-icons text-sm mr-1">assignment</span>
-                                Trips
-                            </button>
-                            <button class="nav-tab" data-page="shopping">
-                                <span class="material-icons text-sm mr-1">shopping_cart</span>
-                                Shopping
-                            </button>
-                            <button class="nav-tab" data-page="history">
-                                <span class="material-icons text-sm mr-1">history</span>
-                                History
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            </div>
+        </header>
+        <div class="container mx-auto px-4 py-8">
 
             <!-- Main Content -->
             <main>
@@ -437,12 +400,12 @@
                 <div id="trips-page" class="fade-in">
                     <div class="flex justify-between items-center mb-8">
                         <div>
-                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Manage Trips</h2>
-                            <p class="text-gray-500">Create, edit, and manage grocery trips</p>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Gerir Viagens</h2>
+                            <p class="text-gray-500">Criar, editar e gerir viagens de compras</p>
                         </div>
                         <button id="create-trip-btn" class="btn-primary-modern flex items-center">
                             <span class="material-icons mr-2">add</span>
-                            Create Trip
+                            Criar Viagem
                         </button>
                     </div>
                     
@@ -452,77 +415,113 @@
 
                     <div id="no-trips" class="text-center py-16 hidden">
                         <div class="text-6xl mb-4">📋</div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">No Trips Found</h3>
-                        <p class="text-gray-600">Create your first grocery trip to get started!</p>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Nenhuma Viagem Encontrada</h3>
+                        <p class="text-gray-600">Crie a sua primeira viagem de compras para começar!</p>
                     </div>
                 </div>
 
-                <!-- Shopping Mode Page -->
-                <div id="shopping-page" class="hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Shopping Mode</h2>
-                        <p class="text-gray-500">View and manage items while shopping</p>
-                        <div class="flex items-center gap-3 mt-4">
-                            <select id="trip-selector" class="form-input rounded-2xl min-w-48">
-                                <option value="">Select a trip...</option>
-                            </select>
-                            <button id="refresh-shopping" class="btn-modern w-12 h-12">
-                                <span class="material-icons text-gray-600">refresh</span>
-                            </button>
+                <!-- Trip Detail/Shopping Mode -->
+                <div id="trip-detail-page" class="hidden">
+                    <div class="flex items-center mb-8">
+                        <button id="back-to-trips" class="btn-modern w-12 h-12 mr-4">
+                            <span class="material-icons text-gray-600">chevron_left</span>
+                        </button>
+                        <div>
+                            <h2 id="trip-name" class="text-3xl font-bold text-gray-900 mb-2">Trip Name</h2>
+                            <p id="trip-description" class="text-gray-500">Trip description</p>
                         </div>
                     </div>
-                    
+                    <!-- Trip Statistics Cards -->
+                    <div id="admin-trip-stats" class="grid grid-cols-3 gap-4 mb-6 hidden">
+                        <div class="modern-card p-3">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                                    <span class="material-icons text-blue-600 text-sm">shopping_cart</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mb-1">Produtos</p>
+                                <p id="admin-total-items" class="text-xl font-bold text-gray-800">0</p>
+                            </div>
+                        </div>
+                        
+                        <div class="modern-card p-3">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mb-2">
+                                    <span class="material-icons text-orange-600 text-sm">pending</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mb-1">Por Comprar</p>
+                                <p id="admin-pending-items" class="text-xl font-bold text-gray-800">0</p>
+                            </div>
+                        </div>
+                        
+                        <div id="admin-actual-cost-card" class="modern-card p-3 hidden">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                                    <span class="material-icons text-green-600 text-sm">check_circle</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mb-1">Total</p>
+                                <p id="admin-actual-cost" class="text-xl font-bold text-gray-800">€0.00</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-5">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Pedidos</h2>
+                        </div>
+                        <button id="refresh-orders-btn" class="btn-modern w-12 h-12 flex items-center justify-center" title="Atualizar Pedidos">
+                            <span class="material-icons text-gray-600">refresh</span>
+                        </button>
+                    </div>
                     <div id="shopping-list" class="space-y-4">
                         <!-- Shopping list will be loaded here -->
                     </div>
 
                     <div id="no-shopping-items" class="text-center py-16 hidden">
                         <div class="text-6xl mb-4">🛒</div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Select a Trip</h3>
-                        <p class="text-gray-600">Choose a trip from the dropdown to view shopping items</p>
-                    </div>
-                </div>
-
-                <!-- Trip History Page -->
-                <div id="history-page" class="hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Trip History</h2>
-                        <p class="text-gray-500">View completed trips and their details</p>
-                    </div>
-                    
-                    <div id="history-list" class="space-y-4">
-                        <!-- History will be loaded here -->
-                    </div>
-
-                    <div id="no-history" class="text-center py-16 hidden">
-                        <div class="text-6xl mb-4">📚</div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">No Trip History</h3>
-                        <p class="text-gray-600">No closed trips found</p>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Nenhum Produto para Comprar</h3>
+                        <p class="text-gray-600">Ainda não foram feitos pedidos para esta viagem</p>
                     </div>
                 </div>
             </main>
         </div>
 
         <!-- Create Trip Modal -->
-        <div id="create-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
-            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg">
-                <div class="p-6">
-                    <h3 class="font-bold text-2xl mb-6 text-gray-800">Create New Trip</h3>
-                    <form id="create-trip-form" class="space-y-4">
+        <div id="create-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50 bg-black bg-opacity-50">
+            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-2xl transform transition-all">
+                <div class="p-8">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center mr-4">
+                            <span class="material-icons text-teal-600 text-xl">add_location</span>
+                        </div>
+                        <h3 class="font-bold text-2xl text-gray-800">Criar Nova Viagem</h3>
+                    </div>
+                    
+                    <form id="create-trip-form" class="space-y-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Trip Name</label>
-                            <input type="text" id="trip-name" class="form-input" required />
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Nome da Viagem</label>
+                            <input type="text" id="create-trip-name" 
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200" 
+                                   placeholder="ex. Compras de Verão 2024" 
+                                   required />
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
-                            <textarea id="trip-description" class="form-input" rows="3" placeholder="Brief description of the trip..."></textarea>
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Descrição (opcional)</label>
+                            <textarea id="create-trip-description" 
+                                      class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200" 
+                                      rows="3" 
+                                      placeholder="Breve descrição da viagem..."></textarea>
                         </div>
                         
-                        <div class="flex items-center justify-between pt-4">
-                            <button type="button" id="cancel-create-trip" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
-                            <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
-                                Create Trip
+                        <div class="flex items-center justify-between pt-6">
+                            <button type="button" id="cancel-create-trip" 
+                                    class="px-6 py-3 text-gray-600 font-semibold rounded-xl hover:bg-gray-100 transition-all duration-200">
+                                Cancelar
+                            </button>
+                            <button type="submit" 
+                                    class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center">
+                                <span class="material-icons mr-2">add</span>
+                                Criar Viagem
                             </button>
                         </div>
                     </form>
@@ -531,34 +530,51 @@
         </div>
 
         <!-- Edit Trip Modal -->
-        <div id="edit-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
-            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg">
-                <div class="p-6">
-                    <h3 class="font-bold text-2xl mb-6 text-gray-800">Edit Trip</h3>
-                    <form id="edit-trip-form" class="space-y-4">
+        <div id="edit-trip-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50 bg-black bg-opacity-50">
+            <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-2xl transform transition-all">
+                <div class="p-8">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mr-4">
+                            <span class="material-icons text-indigo-600 text-xl">edit_location</span>
+                        </div>
+                        <h3 class="font-bold text-2xl text-gray-800">Editar Viagem</h3>
+                    </div>
+                    
+                    <form id="edit-trip-form" class="space-y-6">
                         <input type="hidden" id="edit-trip-id" />
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Trip Name</label>
-                            <input type="text" id="edit-trip-name" class="form-input" required />
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Nome da Viagem</label>
+                            <input type="text" id="edit-trip-name" 
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200" 
+                                   required />
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
-                            <textarea id="edit-trip-description" class="form-input" rows="3" placeholder="Brief description of the trip..."></textarea>
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Descrição (opcional)</label>
+                            <textarea id="edit-trip-description" 
+                                      class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200" 
+                                      rows="3" 
+                                      placeholder="Breve descrição da viagem..."></textarea>
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select id="edit-trip-status" class="form-input">
-                                <option value="open">Open</option>
-                                <option value="closed">Closed</option>
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Estado</label>
+                            <select id="edit-trip-status" 
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                                <option value="open">A Decorrer</option>
+                                <option value="closed">Terminada</option>
                             </select>
                         </div>
                         
-                        <div class="flex items-center justify-between pt-4">
-                            <button type="button" id="cancel-edit-trip" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
-                            <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
-                                Save Changes
+                        <div class="flex items-center justify-between pt-6">
+                            <button type="button" id="cancel-edit-trip" 
+                                    class="px-6 py-3 text-gray-600 font-semibold rounded-xl hover:bg-gray-100 transition-all duration-200">
+                                Cancelar
+                            </button>
+                            <button type="submit" 
+                                    class="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center">
+                                <span class="material-icons mr-2">save</span>
+                                Guardar Alterações
                             </button>
                         </div>
                     </form>
@@ -570,8 +586,15 @@
         <div id="item-status-modal" class="modal-modern fixed inset-0 hidden flex items-center justify-center z-50">
             <div class="w-full max-w-md mx-4 bg-white rounded-3xl shadow-lg max-h-[90vh] flex flex-col">
                 <div class="p-6 pb-4">
-                    <h3 class="text-2xl font-bold text-gray-900">Edit Item</h3>
+                    <div class="flex items-center">
+                        <div id="modal-item-image" class="mr-3">
+                            <!-- Item image will be populated here -->
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-900">Editar Produto</h3>
+                    </div>
                 </div>
+
+                
                 
                 <form id="item-status-form" class="flex flex-col flex-1 min-h-0">
                     <input type="hidden" id="item-id" />
@@ -579,62 +602,62 @@
                     <div class="flex-1 overflow-y-auto px-6">
                         <div class="grid grid-cols-3 gap-4 mb-4">
                             <div class="col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
                                 <input type="text" id="item-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
                                 <input type="number" id="item-quantity" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required />
                             </div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price (€)</label>
-                                <input type="number" id="item-unit-price" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="0.00" />
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Preço Unitário (€)</label>
+                                <input type="number" id="item-unit-price" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="0,00" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
-                                <input type="text" id="item-total-price" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly placeholder="Calculated automatically" />
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Preço Total</label>
+                                <input type="text" id="item-total-price" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly placeholder="Calculado automaticamente" />
                             </div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                                <span class="block text-sm font-medium text-gray-700 mb-2">Brand (optional)</span>
+                                <span class="block text-sm font-medium text-gray-700 mb-2">Marca (opcional)</span>
                                 <div class="flex items-center space-x-6">
                                     <div class="flex items-center">
                                         <input type="radio" name="item-brand" value="Official" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
-                                        <label class="ml-2 block text-sm text-gray-900">Official</label>
+                                        <label class="ml-2 block text-sm text-gray-900">Original</label>
                                     </div>
                                     <div class="flex items-center">
                                         <input type="radio" name="item-brand" value="Off-brand" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
-                                        <label class="ml-2 block text-sm text-gray-900">Off-brand</label>
+                                        <label class="ml-2 block text-sm text-gray-900">Branca</label>
                                     </div>
                                 </div>
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                                 <select id="item-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="pending">Pending</option>
-                                    <option value="found">Found</option>
-                                    <option value="not_available">Not Available</option>
+                                    <option value="pending">Por comprar</option>
+                                    <option value="found">Comprado</option>
+                                    <option value="not_available">Não havia</option>
                                 </select>
                             </div>
                         </div>
                         
                         <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                            <textarea id="item-notes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Any additional notes..." rows="2"></textarea>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
+                            <textarea id="item-notes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Quaisquer notas adicionais..." rows="2"></textarea>
                         </div>
                     </div>
                     
                     <div class="border-t border-gray-200 p-6 pt-4">
                         <div class="flex items-center justify-between">
-                            <button type="button" id="cancel-item-status" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancel</button>
+                            <button type="button" id="cancel-item-status" class="px-6 py-3 text-gray-700 font-medium rounded-lg hover:bg-gray-100">Cancelar</button>
                             <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200">
-                                Update Item
+                                Atualizar Produto
                             </button>
                         </div>
                     </div>
@@ -651,7 +674,10 @@
     <script>
         // Initialize PocketBase
         const pb = new PocketBase('https://pb-orderit.povoas.top/');
-        
+                
+        // Disable auto-cancellation of orders
+        pb.autoCancellation(false);
+
         // Admin state
         const AdminState = {
             currentPage: 'trips',
@@ -666,6 +692,45 @@
                 return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
             },
             
+            cycleItemStatus: async (itemId, currentStatus) => {
+                try {
+                    // Cycle through statuses: pending -> found -> not_available -> pending
+                    let nextStatus;
+                    switch (currentStatus) {
+                        case 'pending':
+                            nextStatus = 'found';
+                            break;
+                        case 'found':
+                            nextStatus = 'not_available';
+                            break;
+                        case 'not_available':
+                            nextStatus = 'pending';
+                            break;
+                        default:
+                            nextStatus = 'pending';
+                    }
+                    
+                    // Update item status in database
+                    await pb.collection('items').update(itemId, {
+                        found_status: nextStatus
+                    });
+                    
+                    // Show success message
+                    const statusText = nextStatus === 'found' ? 'Comprado' : 
+                                     nextStatus === 'not_available' ? 'Não havia' : 
+                                     'Por comprar';
+                    Utils.showToast(`Produto marcado como ${statusText}`, 'success');
+                    
+                    // Reload shopping list to reflect changes
+                    if (AdminState.selectedTrip) {
+                        ShoppingManager.loadShoppingList(AdminState.selectedTrip);
+                    }
+                } catch (error) {
+                    Utils.showToast('Falha ao atualizar estado do produto', 'error');
+                    console.error('Error updating item status:', error);
+                }
+            },
+            
             getRelativeTime: (dateString) => {
                 const date = new Date(dateString);
                 const now = new Date();
@@ -675,10 +740,10 @@
                 const hours = Math.floor(diff / 3600000);
                 const days = Math.floor(diff / 86400000);
                 
-                if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-                if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-                if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-                return 'Just now';
+                if (days > 0) return `há ${days} dia${days > 1 ? 's' : ''}`;
+                if (hours > 0) return `há ${hours} hora${hours > 1 ? 's' : ''}`;
+                if (minutes > 0) return `há ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+                return 'Agora mesmo';
             },
             
             showToast: (message, type = 'info') => {
@@ -752,19 +817,8 @@
                     pageElement.classList.remove('hidden');
                     AdminState.currentPage = pageName;
                     
-                    document.querySelectorAll('.nav-tab').forEach(tab => {
-                        tab.classList.remove('active');
-                        if (tab.getAttribute('data-page') === pageName) {
-                            tab.classList.add('active');
-                        }
-                    });
-                    
                     if (pageName === 'trips') {
                         TripManager.loadTrips();
-                    } else if (pageName === 'shopping') {
-                        ShoppingManager.loadOpenTrips();
-                    } else if (pageName === 'history') {
-                        HistoryManager.loadClosedTrips();
                     }
                 }
             }
@@ -780,7 +834,7 @@
                     AdminState.trips = trips;
                     TripManager.renderTrips();
                 } catch (error) {
-                    Utils.showToast('Failed to load trips', 'error');
+                    Utils.showToast('Falha ao carregar viagens', 'error');
                     console.error('Error loading trips:', error);
                 }
             },
@@ -797,35 +851,56 @@
                 
                 noTrips.classList.add('hidden');
                 tripsList.innerHTML = AdminState.trips.map(trip => `
-                    <div class="modern-card p-6">
+                    <div class="modern-card p-6 cursor-pointer" onclick="TripManager.openTrip('${trip.id}')">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-xl font-bold text-gray-800">${Utils.sanitize(trip.name)}</h2>
                             <div class="status-${trip.status}">
                                 <span class="material-icons text-sm">${trip.status === 'open' ? 'hourglass_top' : 'close'}</span>
-                                <span class="capitalize">${trip.status}</span>
+                                <span class="capitalize">${trip.status === 'open' ? 'A Decorrer' : 'Terminada'}</span>
                             </div>
                         </div>
-                        <p class="text-gray-600 mb-4">${Utils.sanitize(trip.description || 'No description')}</p>
-                        <p class="text-sm text-gray-500 mb-4">Created ${Utils.getRelativeTime(trip.created)}</p>
+                        <p class="text-gray-600 mb-4">${Utils.sanitize(trip.description || 'Sem descrição')}</p>
+                        <p class="text-sm text-gray-500 mb-4">Criada ${Utils.getRelativeTime(trip.created)}</p>
                         
-                        <div class="flex justify-end gap-2">
+                        <div class="flex justify-end gap-2" onclick="event.stopPropagation()">
                             <button class="btn-secondary-modern flex items-center" onclick="TripManager.editTrip('${trip.id}')">
                                 <span class="material-icons text-sm mr-1">edit</span>
-                                Edit
+                                Editar
                             </button>
                             ${trip.status === 'open' ? `
                                 <button class="btn-warning-modern flex items-center" onclick="TripManager.closeTrip('${trip.id}')">
                                     <span class="material-icons text-sm mr-1">lock</span>
-                                    Close
+                                    Terminar
                                 </button>
-                            ` : ''}
+                            ` : `
+                                <button class="btn-primary-modern flex items-center" onclick="TripManager.createSplitFromTrip('${trip.id}')">
+                                    <span class="material-icons text-sm mr-1">calculate</span>
+                                    Dividir
+                                </button>
+                            `}
                             <button class="btn-danger-modern flex items-center" onclick="TripManager.deleteTrip('${trip.id}')">
                                 <span class="material-icons text-sm mr-1">delete</span>
-                                Delete
+                                Eliminar
                             </button>
                         </div>
                     </div>
                 `).join('');
+            },
+            
+            openTrip: async (tripId) => {
+                try {
+                    const trip = await pb.collection('trips').getOne(tripId);
+                    AdminState.selectedTrip = tripId;
+                    
+                    document.getElementById('trip-name').textContent = trip.name;
+                    document.getElementById('trip-description').textContent = trip.description || 'Sem descrição';
+                    
+                    PageManager.show('trip-detail');
+                    ShoppingManager.loadShoppingList(tripId);
+                } catch (error) {
+                    Utils.showToast('Failed to load trip details', 'error');
+                    console.error('Error loading trip:', error);
+                }
             },
             
             createTrip: async (tripData) => {
@@ -834,13 +909,13 @@
                         name: tripData.name,
                         description: tripData.description || '',
                         status: 'open',
-                        created_by: 'admin'
+                        created_by: localStorage.getItem('orderItAll_userName')
                     });
-                    Utils.showToast('Trip created successfully!', 'success');
+                    Utils.showToast('Viagem criada com sucesso!', 'success');
                     TripManager.loadTrips();
                     ModalManager.closeModal('create-trip-modal');
                 } catch (error) {
-                    Utils.showToast('Failed to create trip', 'error');
+                    Utils.showToast('Falha ao criar viagem', 'error');
                     console.error('Error creating trip:', error);
                 }
             },
@@ -864,83 +939,128 @@
             updateTrip: async (tripId, tripData) => {
                 try {
                     await pb.collection('trips').update(tripId, tripData);
-                    Utils.showToast('Trip updated successfully!', 'success');
+                    Utils.showToast('Viagem atualizada com sucesso!', 'success');
                     TripManager.loadTrips();
                     ModalManager.closeModal('edit-trip-modal');
                 } catch (error) {
-                    Utils.showToast('Failed to update trip', 'error');
+                    Utils.showToast('Falha ao atualizar viagem', 'error');
                     console.error('Error updating trip:', error);
                 }
             },
             
             closeTrip: async (tripId) => {
-                if (confirm('Are you sure you want to close this trip? This action cannot be undone.')) {
+                if (confirm('Tem a certeza de que quer terminar esta viagem? Esta acção não pode ser desfeita.')) {
                     try {
                         await pb.collection('trips').update(tripId, { status: 'closed' });
-                        Utils.showToast('Trip closed successfully!', 'success');
+                        Utils.showToast('Viagem terminada com sucesso!', 'success');
                         TripManager.loadTrips();
                     } catch (error) {
-                        Utils.showToast('Failed to close trip', 'error');
+                        Utils.showToast('Falha ao terminar viagem', 'error');
                         console.error('Error closing trip:', error);
                     }
                 }
             },
             
             deleteTrip: async (tripId) => {
-                if (confirm('Are you sure you want to delete this trip? This action cannot be undone and will delete all associated orders and items.')) {
+                if (confirm('Tem a certeza de que quer eliminar esta viagem? Esta acção não pode ser desfeita e irá eliminar todos os pedidos e produtos associados.')) {
                     try {
                         await pb.collection('trips').delete(tripId);
-                        Utils.showToast('Trip deleted successfully!', 'success');
+                        Utils.showToast('Viagem eliminada com sucesso!', 'success');
                         TripManager.loadTrips();
                     } catch (error) {
-                        Utils.showToast('Failed to delete trip', 'error');
+                        Utils.showToast('Falha ao eliminar viagem', 'error');
                         console.error('Error deleting trip:', error);
                     }
+                }
+            },
+            createSplitFromTrip: async (tripId) => {
+                try {
+                    // Get trip details
+                    const trip = await pb.collection('trips').getOne(tripId);
+                    
+                    // Get all orders for this trip
+                    const orders = await pb.collection('orders').getFullList({
+                        filter: `trip_id = "${tripId}"`,
+                        sort: 'created'
+                    });
+                    
+                    // Get all items for all orders
+                    const allItems = [];
+                    const participants = new Set();
+                    
+                    for (const order of orders) {
+                        const items = await pb.collection('items').getFullList({
+                            filter: `order_id = "${order.id}"`,
+                            sort: 'created'
+                        });
+                        
+                        // Add participant
+                        participants.add(order.user_name);
+                        
+                        // Process each item
+                        items.forEach(item => {
+                            allItems.push({
+                                name: item.name,
+                                price: item.price || 0,
+                                participants: [order.user_name], // Pre-check the person who ordered it
+                                quantity: item.quantity,
+                                brand: item.brand,
+                                notes: item.notes,
+                                found_status: item.found_status
+                            });
+                        });
+                    }
+                    
+                    if (allItems.length === 0) {
+                        Utils.showToast('Esta viagem não tem produtos para dividir', 'error');
+                        return;
+                    }
+                    
+                    // Create the split record
+                    const splitData = {
+                        name: trip.name,
+                        description: `Divisão automático criado da viagem: ${trip.description || trip.name}`,
+                        created_by: localStorage.getItem('orderItAll_userName'),
+                        participants: Array.from(participants),
+                        items: allItems
+                    };
+                    
+                    const split = await pb.collection('splits').create(splitData);
+                    
+                    Utils.showToast(`Divisão criada com sucesso! ${allItems.length} produtos, ${participants.size} participantes`, 'success');
+                    
+                    // Open the split in a new tab/window
+                    const splitUrl = `splitter.html?split=${split.id}`;
+                    window.open(splitUrl, '_blank');
+                    
+                } catch (error) {
+                    Utils.showToast('Falha ao criar divisão da viagem', 'error');
+                    console.error('Error creating split from trip:', error);
                 }
             }
         };
 
         // Shopping management
         const ShoppingManager = {
-            loadOpenTrips: async () => {
-                try {
-                    const trips = await pb.collection('trips').getFullList({
-                        sort: '-created'
-                    });
-                    const selector = document.getElementById('trip-selector');
-                    selector.innerHTML = '<option value="">Select a trip...</option>' +
-                        trips.map(trip => `<option value="${trip.id}">${Utils.sanitize(trip.name)} ${trip.status === 'closed' ? '(Closed)' : ''}</option>`).join('');
-                } catch (error) {
-                    Utils.showToast('Failed to load trips', 'error');
-                    console.error('Error loading trips:', error);
-                }
-            },
-            
             loadShoppingList: async (tripId) => {
                 try {
-                    const orders = await pb.collection('orders').getFullList({
-                        filter: `trip_id = "${tripId}"`,
-                        sort: '-created'
+                    // Fetch all items that belong to orders of the selected trip
+                    const items = await pb.collection('items').getFullList({
+                        expand: 'order_id',
+                        filter: `order_id.trip_id = "${tripId}"`,
+                        sort: 'created'
                     });
-                    
-                    const allItems = [];
-                    for (const order of orders) {
-                        const items = await pb.collection('items').getFullList({
-                            filter: `order_id = "${order.id}"`,
-                            sort: 'created'
-                        });
-                        items.forEach(item => {
-                            allItems.push({
-                                ...item,
-                                user_name: order.user_name
-                            });
-                        });
-                    }
-                    
-                    AdminState.shoppingItems = allItems;
+            
+                    // Map each item and attach user_name from expanded order
+                    AdminState.shoppingItems = items.map(item => ({
+                        ...item,
+                        user_name: item.expand?.order_id?.user_name || ''
+                    }));
+            
                     ShoppingManager.renderShoppingList();
+                    ShoppingManager.updateTripStats();
                 } catch (error) {
-                    Utils.showToast('Failed to load shopping list', 'error');
+                    Utils.showToast('Falha ao carregar lista de compras', 'error');
                     console.error('Error loading shopping list:', error);
                 }
             },
@@ -962,8 +1082,8 @@
                     <div class="modern-card p-6">
                         <div class="space-y-3">
                             ${AdminState.shoppingItems.map(item => `
-                                <div class="bg-gray-100 rounded-xl overflow-hidden cursor-pointer" onclick="ShoppingManager.updateItemStatus('${item.id}')">
-                                    <div class="p-3">
+                                <div class="bg-gray-100 rounded-xl overflow-hidden">
+                                    <div class="p-3 cursor-pointer" onclick="ShoppingManager.updateItemStatus('${item.id}')">
                                         <div class="flex items-start">
                                             <div class="item-emoji mr-3">
                                                 ${
@@ -1007,23 +1127,25 @@
                                     </div>
                                     ${item.notes ? `
                                         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-yellow-800">
-                                            <span class="font-medium">Notes:</span> ${Utils.sanitize(item.notes)}
+                                            <span class="font-medium">Notas:</span> ${Utils.sanitize(item.notes)}
                                         </div>
                                     ` : ''}
                                     <div class="${
                                         item.found_status === 'found' ? 'bg-green-500' :
                                         item.found_status === 'not_available' ? 'bg-red-500' :
                                         'bg-yellow-500'
-                                    } text-white text-xs font-medium py-1 px-3 flex items-center justify-center">
+                                    } text-white text-xs font-medium py-1 px-3 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" 
+                                    onclick="event.stopPropagation(); ShoppingManager.cycleItemStatus('${item.id}', '${item.found_status}')" 
+                                    title="Click to cycle status">
                                         <span class="material-icons text-xs mr-1">${
                                             item.found_status === 'found' ? 'check_circle' :
                                             item.found_status === 'not_available' ? 'cancel' :
                                             'hourglass_top'
                                         }</span>
                                         <span>${
-                                            item.found_status === 'found' ? 'Found' :
-                                            item.found_status === 'not_available' ? 'Not Available' :
-                                            'Pending'
+                                            item.found_status === 'found' ? 'Comprado' :
+                                            item.found_status === 'not_available' ? 'Não havia' :
+                                            'Por comprar'
                                         }</span>
                                     </div>
                                 </div>
@@ -1031,6 +1153,53 @@
                         </div>
                     </div>
                 `;
+            },
+            
+            updateTripStats: () => {
+                const statsContainer = document.getElementById('admin-trip-stats');
+                const totalItemsElement = document.getElementById('admin-total-items');
+                const pendingItemsElement = document.getElementById('admin-pending-items');
+                const actualCostElement = document.getElementById('admin-actual-cost');
+                const actualCostCard = document.getElementById('admin-actual-cost-card');
+                
+                let totalItems = 0;
+                let pendingItems = 0;
+                let actualCost = 0;
+                let hasFoundItems = false;
+                
+                // Calculate stats from all shopping items
+                AdminState.shoppingItems.forEach(item => {
+                    totalItems += 1;
+                    
+                    // Count pending items
+                    if (item.found_status === 'pending') {
+                        pendingItems += 1;
+                    }
+                    
+                    // Add to actual cost only if item is found
+                    if (item.found_status === 'found') {
+                        const itemCost = (item.unit_price || 0) * (item.quantity || 1) || item.price || 0;
+                        actualCost += item.price || itemCost;
+                        hasFoundItems = true;
+                    }
+                });
+                
+                // Update the display
+                if (totalItems > 0) {
+                    statsContainer.classList.remove('hidden');
+                    totalItemsElement.textContent = totalItems;
+                    pendingItemsElement.textContent = pendingItems;
+                    
+                    // Show actual cost only if there are found items
+                    if (hasFoundItems) {
+                        actualCostCard.classList.remove('hidden');
+                        actualCostElement.textContent = `€${actualCost.toFixed(2)}`;
+                    } else {
+                        actualCostCard.classList.add('hidden');
+                    }
+                } else {
+                    statsContainer.classList.add('hidden');
+                }
             },
             
             updateItemStatus: async (itemId) => {
@@ -1049,6 +1218,14 @@
                         radio.checked = radio.value === item.brand;
                     });
                     
+                    // Populate item image in modal header
+                    const modalImageContainer = document.getElementById('modal-item-image');
+                    if (item.image_url) {
+                        modalImageContainer.innerHTML = `<img src="${Utils.sanitize(item.image_url)}" alt="${Utils.sanitize(item.name)}" class="w-10 h-10 object-cover rounded-full" />`;
+                    } else {
+                        modalImageContainer.innerHTML = `<div class="w-10 h-10 flex items-center justify-center text-2xl">${Utils.getItemEmoji(item.name)}</div>`;
+                    }
+                    
                     // Calculate and display total price
                     const calculateTotal = () => {
                         const quantity = parseFloat(document.getElementById('item-quantity').value) || 0;
@@ -1066,7 +1243,7 @@
                     
                     ModalManager.openModal('item-status-modal');
                 } catch (error) {
-                    Utils.showToast('Failed to load item details', 'error');
+                    Utils.showToast('Falha ao carregar detalhes do produto', 'error');
                     console.error('Error loading item:', error);
                 }
             },
@@ -1081,7 +1258,7 @@
                     const unit_price = parseFloat(document.getElementById('item-unit-price').value) || 0;
                     
                     if (!name || !quantity) {
-                        Utils.showToast('Please fill in all required fields', 'error');
+                        Utils.showToast('Por favor preencha todos os campos obrigatórios', 'error');
                         return;
                     }
                     
@@ -1096,63 +1273,56 @@
                     };
                     
                     await pb.collection('items').update(itemId, updateData);
-                    Utils.showToast('Item updated successfully!', 'success');
+                    Utils.showToast('Produto atualizado com sucesso!', 'success');
                     
-                    const tripSelector = document.getElementById('trip-selector');
-                    if (tripSelector && tripSelector.value) {
-                        ShoppingManager.loadShoppingList(tripSelector.value);
+                    if (AdminState.selectedTrip) {
+                        ShoppingManager.loadShoppingList(AdminState.selectedTrip);
                     }
                     
                     ModalManager.closeModal('item-status-modal');
                 } catch (error) {
-                    Utils.showToast('Failed to update item', 'error');
+                    Utils.showToast('Falha ao atualizar produto', 'error');
                     console.error('Error updating item:', error);
                 }
             },
-        };
-
-        // History management
-        const HistoryManager = {
-            loadClosedTrips: async () => {
-                try {
-                    const trips = await pb.collection('trips').getFullList({
-                        filter: 'status = "closed"',
-                        sort: '-updated'
-                    });
-                    HistoryManager.renderHistory(trips);
-                } catch (error) {
-                    Utils.showToast('Failed to load trip history', 'error');
-                    console.error('Error loading history:', error);
-                }
-            },
             
-            renderHistory: (trips) => {
-                const historyList = document.getElementById('history-list');
-                const noHistory = document.getElementById('no-history');
-                
-                if (trips.length === 0) {
-                    historyList.innerHTML = '';
-                    noHistory.classList.remove('hidden');
-                    return;
+            cycleItemStatus: async (itemId, currentStatus) => {
+                try {
+                    // Cycle through statuses: pending -> found -> not_available -> pending
+                    let nextStatus;
+                    switch (currentStatus) {
+                        case 'pending':
+                            nextStatus = 'found';
+                            break;
+                        case 'found':
+                            nextStatus = 'not_available';
+                            break;
+                        case 'not_available':
+                            nextStatus = 'pending';
+                            break;
+                        default:
+                            nextStatus = 'pending';
+                    }
+                    
+                    // Update item status in database
+                    await pb.collection('items').update(itemId, {
+                        found_status: nextStatus
+                    });
+                    
+                    // Show success message
+                    const statusText = nextStatus === 'found' ? 'Comprado' : 
+                                     nextStatus === 'not_available' ? 'Não havia' : 
+                                     'Por comprar';
+                    Utils.showToast(`Produto marcado como ${statusText}`, 'success');
+                    
+                    // Reload shopping list to reflect changes
+                    if (AdminState.selectedTrip) {
+                        ShoppingManager.loadShoppingList(AdminState.selectedTrip);
+                    }
+                } catch (error) {
+                    Utils.showToast('Falha ao atualizar estado do produto', 'error');
+                    console.error('Error updating item status:', error);
                 }
-                
-                noHistory.classList.add('hidden');
-                historyList.innerHTML = trips.map(trip => `
-                    <div class="modern-card p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-xl font-bold text-gray-800">${Utils.sanitize(trip.name)}</h2>
-                            <div class="status-closed">
-                                <span class="material-icons text-sm">cancel</span>
-                                <span>Closed</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-600 mb-4">${Utils.sanitize(trip.description || 'No description')}</p>
-                        <div class="text-sm text-gray-500">
-                            <p class="mb-1">Created: ${Utils.getRelativeTime(trip.created)}</p>
-                            <p>Closed: ${Utils.getRelativeTime(trip.updated)}</p>
-                        </div>
-                    </div>
-                `).join('');
             }
         };
 
@@ -1182,17 +1352,14 @@
                 if (Auth.authenticate(password)) {
                     Auth.showAdminApp();
                 } else {
-                    Utils.showToast('Invalid password', 'error');
+                    Utils.showToast('Palavra-passe inválida', 'error');
                 }
             });
             
-            // Navigation tabs
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const page = e.target.closest('.nav-tab').getAttribute('data-page');
-                    PageManager.show(page);
-                });
+            // Back to trips button
+            document.getElementById('back-to-trips').addEventListener('click', () => {
+                PageManager.show('trips');
+                AdminState.selectedTrip = null;
             });
             
             // Create trip button
@@ -1201,44 +1368,63 @@
             });
             
             // Create trip form
-            document.getElementById('create-trip-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const name = document.getElementById('trip-name').value.trim();
-                const description = document.getElementById('trip-description').value.trim();
-                
-                if (name) {
-                    TripManager.createTrip({ name, description });
-                } else {
-                    Utils.showToast('Please enter a trip name', 'error');
-                }
-            });
+            const createTripForm = document.getElementById('create-trip-form');
+            if (createTripForm) {
+                createTripForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const nameElement = document.getElementById('create-trip-name');
+                    const descriptionElement = document.getElementById('create-trip-description');
+                    
+                    if (!nameElement || !descriptionElement) {
+                        Utils.showToast('Erro: elementos do formulário não encontrados', 'error');
+                        return;
+                    }
+                    
+                    const name = nameElement.value ? nameElement.value.trim() : '';
+                    const description = descriptionElement.value ? descriptionElement.value.trim() : '';
+                    
+                    if (name) {
+                        TripManager.createTrip({ name, description });
+                    } else {
+                        Utils.showToast('Por favor introduza um nome para a viagem', 'error');
+                    }
+                });
+            }
             
             // Edit trip form
-            document.getElementById('edit-trip-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const tripId = document.getElementById('edit-trip-id').value;
-                const name = document.getElementById('edit-trip-name').value.trim();
-                const description = document.getElementById('edit-trip-description').value.trim();
-                const status = document.getElementById('edit-trip-status').value;
-                
-                if (name) {
-                    TripManager.updateTrip(tripId, { name, description, status });
-                } else {
-                    Utils.showToast('Please enter a trip name', 'error');
-                }
-            });
+            const editTripForm = document.getElementById('edit-trip-form');
+            if (editTripForm) {
+                editTripForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const tripIdElement = document.getElementById('edit-trip-id');
+                    const nameElement = document.getElementById('edit-trip-name');
+                    const descriptionElement = document.getElementById('edit-trip-description');
+                    const statusElement = document.getElementById('edit-trip-status');
+                    
+                    if (!tripIdElement || !nameElement || !descriptionElement || !statusElement) {
+                        Utils.showToast('Erro: elementos do formulário não encontrados', 'error');
+                        return;
+                    }
+                    
+                    const tripId = tripIdElement.value || '';
+                    const name = nameElement.value ? nameElement.value.trim() : '';
+                    const description = descriptionElement.value ? descriptionElement.value.trim() : '';
+                    const status = statusElement.value || 'open';
+                    
+                    if (name && tripId) {
+                        TripManager.updateTrip(tripId, { name, description, status });
+                    } else {
+                        Utils.showToast('Por favor introduza um nome para a viagem', 'error');
+                    }
+                });
+            }
             
-            // Trip selector
-            document.getElementById('trip-selector').addEventListener('change', (e) => {
-                const tripId = e.target.value;
-                if (tripId) {
-                    AdminState.selectedTrip = tripId;
-                    ShoppingManager.loadShoppingList(tripId);
+            document.getElementById('refresh-orders-btn').addEventListener('click', () => {
+                if (AdminState.selectedTrip) {
+                    ShoppingManager.loadShoppingList(AdminState.selectedTrip);
+                    Utils.showToast('Pedidos atualizados', 'success');
                 } else {
-                    AdminState.selectedTrip = null;
-                    AdminState.shoppingItems = [];
-                    document.getElementById('shopping-list').innerHTML = '';
-                    document.getElementById('no-shopping-items').classList.remove('hidden');
+                    Utils.showToast('Nenhuma viagem seleccionada', 'error');
                 }
             });
             
@@ -1264,15 +1450,6 @@
                 ModalManager.closeModal('item-status-modal');
             });
             
-            // Refresh shopping button
-            document.getElementById('refresh-shopping').addEventListener('click', () => {
-                const tripSelector = document.getElementById('trip-selector');
-                if (tripSelector && tripSelector.value) {
-                    ShoppingManager.loadShoppingList(tripSelector.value);
-                    Utils.showToast('Shopping list refreshed', 'success');
-                }
-            });
-            
             // Close modals when clicking outside
             document.querySelectorAll('.modal-modern').forEach(modal => {
                 modal.addEventListener('click', (e) => {
@@ -1282,7 +1459,6 @@
                 });
             });
         }
-
         // Initialize admin app
         function initAdminApp() {
             document.getElementById('loading-screen').classList.add('hidden');
@@ -1293,9 +1469,8 @@
             // Make functions globally available
             window.TripManager = TripManager;
             window.ShoppingManager = ShoppingManager;
-            window.HistoryManager = HistoryManager;
             
-            console.log('Modern admin panel initialized successfully');
+            console.log('Admin panel initialized successfully');
         }
 
         // Initialize when DOM is loaded
