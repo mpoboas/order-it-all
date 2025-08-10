@@ -124,19 +124,21 @@
         }
         
         .checkbox-custom {
-            height: 22px;
-            width: 22px;
+            height: 20px;
+            width: 20px;
             color: #6366f1;
             border: 2px solid #d1d5db;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
             position: relative;
+            transform: scale(1.45);
+            transform-origin: center;
         }
         
         .checkbox-custom:hover {
             border-color: #6366f1;
-            transform: scale(1.1);
+            transform: scale(1.55);
         }
         
         .checkbox-custom:focus {
@@ -147,7 +149,7 @@
         .checkbox-custom:checked {
             background-color: #6366f1;
             border-color: #6366f1;
-            transform: scale(1.05);
+            transform: scale(1.5);
         }
         
         .add-button {
