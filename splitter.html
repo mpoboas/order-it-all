@@ -78,7 +78,9 @@
             letter-spacing: 0.05em;
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             border: none;
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
         
         .table-cell {
@@ -110,6 +112,9 @@
             color: white;
             font-weight: 600;
             border: none;
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
         }
         
         .total-row .table-cell {
@@ -366,7 +371,9 @@
         }
         
         .participant-header {
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 2;
             min-width: 120px;
         }
         
@@ -397,6 +404,17 @@
             background: #ef4444;
             color: white;
             transform: scale(1.1);
+        }
+
+        /* Sticky first column */
+        .sticky-col-left {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            background: white;
+        }
+        .sticky-col-left.table-header {
+            z-index: 4;
         }
         
         .item-remove {
@@ -567,8 +585,8 @@
 
                 <!-- Desktop Table - Hidden on Mobile -->
                 <div class="hidden md:block w-full px-4 py-6">
-                    <div class="table-container modern-card">
-                        <div class="overflow-x-auto">
+                    <div class="table-container modern-card relative">
+                        <div id="split-table-wrapper" class="overflow-x-auto max-h-[70vh] overflow-y-auto">
                             <table class="min-w-full">
                                 <thead id="split-table-head">
                                     <!-- Table header will be generated here -->
@@ -968,8 +986,9 @@
                 const thead = document.getElementById('split-table-head');
                 thead.innerHTML = `
                     <tr>
-                        <th class="table-header">Item</th>
-                        <th class="table-header table-cell-right">Preço</th>
+                        <th class="table-header sticky-col-left">Item</th>
+                        <th class="table-header table-cell-center">Preço</th>
+                        <th class="table-header table-cell-center">Todos</th>
                         ${participants.map((participant, index) => `
                             <th class="table-header table-cell-center participant-header">
                                 <input type="text" 
@@ -990,7 +1009,14 @@
                                 <span class="material-icons mr-2">person_add</span>
                             </button>
                         </th>
-                        <th class="table-header table-cell-right">Preço/Pessoa</th>
+                        <th class="table-header table-cell-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <span>Preço/Pessoa</span>
+                                <button class="btn-modern w-9 h-9" title="Ecrã Inteiro" onclick="SplitTableManager.openFullscreen()">
+                                    <span class="material-icons text-gray-600">fullscreen</span>
+                                </button>
+                            </div>
+                        </th>
                     </tr>
                 `;
             },
@@ -999,7 +1025,7 @@
                 const tbody = document.getElementById('split-table-body');
                 tbody.innerHTML = items.map((item, itemIndex) => `
                     <tr class="table-row hover:bg-gray-50 transition-all duration-300">
-                        <td class="table-cell font-medium">
+                        <td class="table-cell font-medium sticky-col-left">
                             <input type="text" 
                                    value="${item.name === 'Sample Item' || item.name === 'New Item' ? '' : Utils.sanitize(item.name)}" 
                                    placeholder="Nome do item"
@@ -1020,6 +1046,11 @@
                                 <span class="ml-2 text-gray-500 font-medium">€</span>
                             </div>
                         </td>
+                        <td class="table-cell table-cell-center">
+                            <input type="checkbox" class="checkbox-custom rounded"
+                                   ${item.participants.length === participants.length && participants.length > 0 ? 'checked' : ''}
+                                   onchange="SplitTableManager.toggleAllParticipants(${itemIndex}, this.checked)">
+                        </td>
                         ${participants.map(participant => `
                             <td class="table-cell table-cell-center">
                                 <input type="checkbox" class="checkbox-custom rounded" 
@@ -1038,12 +1069,13 @@
                     </tr>
                 `).join('') + `
                     <tr class="table-row hover:bg-gray-50 transition-all duration-300">
-                        <td class="table-cell">
+                        <td class="table-cell sticky-col-left">
                             <button class="add-button w-full text-left justify-start" onclick="SplitTableManager.addItem()" title="Adicionar item">
                                 <span class="material-icons text-base mr-3">add</span>
                                 <span class="font-medium">Adicionar Item</span>
                             </button>
                         </td>
+                        <td class="table-cell"></td>
                         <td class="table-cell"></td>
                         ${participants.map(() => '<td class="table-cell"></td>').join('')}
                         <td class="table-cell"></td>
@@ -1058,15 +1090,16 @@
                 
                 tfoot.innerHTML = `
                     <tr class="total-row">
-                        <td class="table-cell text-sm uppercase tracking-wider text-gray-600">Total Cada</td>
+                        <td class="table-cell text-sm uppercase tracking-wider text-gray-100 sticky-col-left">Total Cada</td>
+                        <td class="table-cell"></td>
                         <td class="table-cell"></td>
                         ${participants.map(participant => `
-                            <td class="table-cell table-cell-center text-indigo-600 font-bold">
+                            <td class="table-cell table-cell-center text-indigo-600 font-bold bg-gradient-to-r from-indigo-500 to-indigo-800">
                                 ${Utils.formatCurrency(totals[participant] || 0)}
                             </td>
                         `).join('')}
                         <td class="table-cell"></td>
-                        <td class="table-cell table-cell-right text-indigo-600 font-bold">
+                        <td class="table-cell table-cell-right text-indigo-600 font-bold bg-gradient-to-r from-indigo-500 to-indigo-800">
                             ${Utils.formatCurrency(Object.values(totals).reduce((sum, total) => sum + total, 0))}
                         </td>
                     </tr>
@@ -1232,6 +1265,15 @@
                 SplitTableManager.renderTable();
                 SplitTableManager.saveChanges();
             },
+
+            toggleAllParticipants: (itemIndex, checked) => {
+                if (!AppState.currentSplit) return;
+                const item = AppState.currentSplit.items[itemIndex];
+                const participants = AppState.currentSplit.participants || [];
+                item.participants = checked ? [...participants] : [];
+                SplitTableManager.renderTable();
+                SplitTableManager.saveChanges();
+            },
             
             renderMobileParticipants: (participants) => {
                 const container = document.getElementById('mobile-participants-list');
@@ -1387,6 +1429,58 @@
                 SplitTableManager.saveTimeout = setTimeout(() => {
                     SplitManager.saveSplit();
                 }, 1000);
+            },
+
+            openFullscreen: () => {
+                const wrapper = document.getElementById('split-table-wrapper');
+                const modal = document.getElementById('fullscreen-table-modal');
+                const content = document.getElementById('fullscreen-table-content');
+                const titleEl = document.getElementById('fullscreen-table-title');
+                if (!wrapper || !modal || !content) return;
+
+                // Create placeholder to restore original position
+                let placeholder = document.getElementById('split-table-wrapper-placeholder');
+                if (!placeholder) {
+                    placeholder = document.createElement('div');
+                    placeholder.id = 'split-table-wrapper-placeholder';
+                }
+                if (!placeholder.parentNode) {
+                    wrapper.parentNode.insertBefore(placeholder, wrapper);
+                }
+
+                // Move wrapper to modal content
+                content.appendChild(wrapper);
+                // Expand to full height inside modal
+                wrapper.classList.remove('max-h-[70vh]');
+                wrapper.classList.add('h-full');
+
+                // Show modal
+                modal.classList.remove('hidden');
+
+                // Set modal title to current split name
+                const splitName = (AppState.currentSplit && AppState.currentSplit.name)
+                    || document.getElementById('split-name')?.value
+                    || 'Divisão';
+                if (titleEl) titleEl.textContent = splitName;
+            },
+
+            closeFullscreen: () => {
+                const wrapper = document.getElementById('split-table-wrapper');
+                const modal = document.getElementById('fullscreen-table-modal');
+                const placeholder = document.getElementById('split-table-wrapper-placeholder');
+                const titleEl = document.getElementById('fullscreen-table-title');
+                if (!wrapper || !modal || !placeholder) return;
+
+                // Move wrapper back to original position
+                placeholder.parentNode.insertBefore(wrapper, placeholder);
+                // Restore sizing
+                wrapper.classList.remove('h-full');
+                wrapper.classList.add('max-h-[70vh]');
+
+                // Hide modal and remove placeholder
+                modal.classList.add('hidden');
+                placeholder.remove();
+                if (titleEl) titleEl.textContent = '';
             }
         };
 
@@ -1508,5 +1602,23 @@
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
+
+    <!-- Fullscreen Table Modal -->
+    <div id="fullscreen-table-modal" class="modal-modern fixed inset-0 hidden z-[100]">
+        <div class="w-full h-full flex flex-col bg-white">
+            <div class="flex items-center justify-between p-3 border-b">
+                <div class="flex items-center gap-2 text-gray-700">
+                    <span class="material-icons">table_view</span>
+                    <span id="fullscreen-table-title" class="font-semibold">&nbsp;</span>
+                </div>
+                <button class="btn-modern w-10 h-10" onclick="SplitTableManager.closeFullscreen()" title="Fechar">
+                    <span class="material-icons text-gray-600">close_fullscreen</span>
+                </button>
+            </div>
+            <div id="fullscreen-table-content" class="flex-1 overflow-hidden p-3">
+                <!-- Table wrapper will be moved here dynamically -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
