@@ -108,11 +108,12 @@ export default function TripDetailPage() {
     );
 
     // Search
-    const searchProducts = async () => {
-        if (!searchQuery.trim()) return;
+    const searchProducts = async (term?: string) => {
+        const queryToUse = typeof term === 'string' ? term : searchQuery;
+        if (!queryToUse.trim()) return;
         setSearchLoading(true);
         try {
-            const response = await fetch(`https://supersave.pt/web/api/newLastStateCall.php?search=${encodeURIComponent(searchQuery)}`);
+            const response = await fetch(`https://supersave.pt/web/api/newLastStateCall.php?search=${encodeURIComponent(queryToUse)}`);
             const data = await response.json();
             setSearchResults(data.products?.slice(0, 8) || []);
         } catch {
@@ -174,6 +175,7 @@ export default function TripDetailPage() {
     const openNewOrder = () => {
         resetForm();
         setShowOrderSheet(true);
+        searchProducts("Super Bock");
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -355,137 +357,152 @@ export default function TripDetailPage() {
                             const remaining = getRemainingEditTime(order.can_edit_until);
                             const isWarning = remaining > 0 && remaining < 60;
                             const orderTotal = order.items.reduce((acc, item) => acc + (item.price || 0), 0);
-                            const isFulfilled = order.items.length > 0 && order.items.every(i => i.found_status !== 'pending');
+
+                            const allProcessed = order.items.length > 0 && order.items.every(i => i.found_status !== 'pending');
+                            const allMissing = order.items.length > 0 && order.items.every(i => i.found_status === 'not_available');
 
                             return (
                                 <div
                                     key={order.id}
                                     className={cn(
-                                        'bg-white rounded-[24px] shadow-sm border border-[var(--border)] overflow-hidden animate-fade-in-up',
-                                        canEdit ? 'ring-2 ring-amber-400' : isFulfilled ? 'ring-2 ring-emerald-500' : ''
+                                        'rounded-[24px] shadow-sm overflow-hidden animate-fade-in-up',
+                                        allProcessed ? "p-[3px]" : "border border-[var(--border)]",
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white",
+                                        canEdit && !allProcessed && "ring-2 ring-amber-400"
                                     )}
                                     style={{ animationDelay: `${idx * 0.05}s` }}
                                 >
-                                    {/* Order Header */}
-                                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold">
-                                                {idx + 1}
+                                    <div className={cn("bg-white overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                        {allProcessed && (
+                                            <div className={cn(
+                                                "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
+                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                            )}>
+                                                {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">Pedido {idx + 1}</h3>
-                                                <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                    {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <div className="text-right">
-                                                <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                                <p className="text-sm font-black text-[var(--text-primary)]">
-                                                    {formatCurrency(orderTotal)}
-                                                </p>
-                                            </div>
-
-                                            {canEdit && (
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className={cn(
-                                                        'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
-                                                        isWarning ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'
-                                                    )}>
-                                                        ⏱️ {formatTime(remaining)}
-                                                    </span>
-                                                    <div className="flex gap-1">
-                                                        <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                        </button>
-                                                        <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </div>
+                                        )}
+                                        {/* Order Header */}
+                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold">
+                                                    {idx + 1}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                                <div>
+                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">Pedido {idx + 1}</h3>
+                                                    <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                        {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <div className="text-right">
+                                                    <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                    <p className="text-sm font-black text-[var(--text-primary)]">
+                                                        {formatCurrency(orderTotal)}
+                                                    </p>
+                                                </div>
 
-                                    {/* Items */}
-                                    <div className="divide-y divide-gray-50">
-                                        {order.items.map((item) => {
-                                            const status = getStatusConfig(item.found_status);
-                                            // Override status config to match Admin EXACTLY
-                                            const statusConfig = {
-                                                pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: 'hourglass_empty' },
-                                                found: { label: 'Comprado', bg: 'bg-emerald-500', icon: 'check' },
-                                                not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: 'close' },
-                                            }[item.found_status] || status;
-
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    className={cn(
-                                                        "relative group transition-all duration-200",
-                                                        item.found_status === 'found' ? "bg-emerald-50/30" :
-                                                            item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
-                                                    )}
-                                                >
-                                                    <div className="flex gap-4 items-start p-4">
-                                                        {/* Icon Placeholder */}
-                                                        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 text-gray-400">
-                                                            <span className="material-icons text-2xl">shopping_cart</span>
+                                                {canEdit && (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={cn(
+                                                            'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
+                                                            isWarning ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'
+                                                        )}>
+                                                            ⏱️ {formatTime(remaining)}
+                                                        </span>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                            </button>
+                                                            <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
                                                         </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
 
-                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                            <div className="flex justify-between items-start gap-2 mb-1">
-                                                                <h4 className={cn(
-                                                                    "font-bold text-[var(--text-primary)] text-base leading-tight",
-                                                                    item.found_status !== 'pending' && "opacity-50 line-through"
-                                                                )}>
-                                                                    {item.name}
-                                                                </h4>
-                                                                <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                    {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
-                                                                </span>
+                                        {/* Items */}
+                                        <div className="divide-y divide-gray-50">
+                                            {order.items.map((item) => {
+                                                const status = getStatusConfig(item.found_status);
+                                                // Override status config to match Admin EXACTLY
+                                                const statusConfig = {
+                                                    pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: 'hourglass_empty' },
+                                                    found: { label: 'Comprado', bg: 'bg-emerald-500', icon: 'check' },
+                                                    not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: 'close' },
+                                                }[item.found_status] || status;
+
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        className={cn(
+                                                            "relative group transition-all duration-200",
+                                                            item.found_status === 'found' ? "bg-emerald-50/30" :
+                                                                item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
+                                                        )}
+                                                    >
+                                                        <div className="flex gap-4 items-start p-4">
+                                                            {/* Icon Placeholder */}
+                                                            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 text-gray-400">
+                                                                <span className="material-icons text-2xl">shopping_cart</span>
                                                             </div>
 
-                                                            <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="material-icons text-sm text-slate-500">shopping_basket</span>
-                                                                    <span>{item.quantity}</span>
+                                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                <div className="flex justify-between items-start gap-2 mb-1">
+                                                                    <h4 className={cn(
+                                                                        "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                        item.found_status !== 'pending' && "opacity-50 line-through"
+                                                                    )}>
+                                                                        {item.name}
+                                                                    </h4>
+                                                                    <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                        {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
+                                                                    </span>
                                                                 </div>
 
-                                                                {item.brand && (
+                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="material-icons text-sm text-slate-500">local_offer</span>
-                                                                        <span>
-                                                                            {item.brand.toLowerCase().includes('official') ? 'Original' :
-                                                                                (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
-                                                                                    item.brand}
-                                                                        </span>
+                                                                        <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                        <span>{item.quantity}</span>
                                                                     </div>
-                                                                )}
+
+                                                                    {item.brand && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="material-icons text-sm text-slate-500">local_offer</span>
+                                                                            <span>
+                                                                                {item.brand.toLowerCase().includes('official') ? 'Original' :
+                                                                                    (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
+                                                                                        item.brand}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Wall-to-wall Notes */}
-                                                    {item.notes && (
-                                                        <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
-                                                            <span className="font-bold shrink-0">Notas:</span>
-                                                            <span className="italic">{item.notes}</span>
+                                                        {/* Wall-to-wall Notes */}
+                                                        {item.notes && (
+                                                            <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                                <span className="font-bold shrink-0">Notas:</span>
+                                                                <span className="italic">{item.notes}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Status Bar (Non-interactive) */}
+                                                        <div className={cn(
+                                                            "w-full py-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-white select-none",
+                                                            statusConfig.bg
+                                                        )}>
+                                                            <span className="material-icons text-xs">{statusConfig.icon}</span>
+                                                            {statusConfig.label}
                                                         </div>
-                                                    )}
-
-                                                    {/* Status Bar (Non-interactive) */}
-                                                    <div className={cn(
-                                                        "w-full py-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-white select-none",
-                                                        statusConfig.bg
-                                                    )}>
-                                                        <span className="material-icons text-xs">{statusConfig.icon}</span>
-                                                        {statusConfig.label}
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -495,148 +512,191 @@ export default function TripDetailPage() {
             </main>
 
             {/* FAB */}
-            {trip.status === 'open' && (
-                <button onClick={openNewOrder} className="fab" aria-label="Novo pedido">
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                    </svg>
-                </button>
-            )}
+            {
+                trip.status === 'open' && (
+                    <button onClick={openNewOrder} className="fab" aria-label="Novo pedido">
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                )
+            }
 
             {/* Bottom Sheet */}
-            {showOrderSheet && (
-                <>
-                    <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={() => setShowOrderSheet(false)} />
-                    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up" style={{ maxHeight: '90vh', paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
-                        {/* Handle */}
-                        <div className="sticky top-0 bg-white rounded-t-3xl z-10 pt-3 pb-2 px-5 border-b border-[var(--border)]">
-                            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
-                            <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                                    {editingOrderId ? 'Editar Pedido' : 'Novo Pedido'}
-                                </h2>
-                                <button onClick={() => setShowOrderSheet(false)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg">
-                                    <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+            {
+                showOrderSheet && (
+                    <>
+                        <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={() => setShowOrderSheet(false)} />
+                        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up" style={{ maxHeight: '90vh', paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
+                            {/* Handle */}
+                            <div className="sticky top-0 bg-white rounded-t-3xl z-10 pt-3 pb-2 px-5 border-b border-[var(--border)]">
+                                <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-xl font-bold text-[var(--text-primary)]">
+                                        {editingOrderId ? 'Editar Pedido' : 'Novo Pedido'}
+                                    </h2>
+                                    <button onClick={() => setShowOrderSheet(false)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg">
+                                        <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Scrollable content */}
+                            <div className="overflow-y-auto px-5 py-4 pb-32" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+                                {/* Items */}
+                                {orderItems.map((item, i) => (
+                                    <div key={i} className="mb-4 p-4 rounded-xl border-2 border-[var(--border)] bg-[var(--bg-secondary)]">
+                                        {/* Row 1: Name + Quantity */}
+                                        <div className="grid grid-cols-3 gap-3 mb-3">
+                                            <div className="col-span-2">
+                                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Nome do Produto</label>
+                                                <input type="text" value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} placeholder="ex. Bananas" className="input w-full" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Quantidade</label>
+                                                <input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)} className="input w-full text-center" />
+                                            </div>
+                                        </div>
+
+                                        {/* Row 2: Price + Total */}
+                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                            <div>
+                                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Preço p/Uni. (€)</label>
+                                                <input type="number" min={0} step={0.01} value={item.unit_price || ''} onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)} placeholder="0.00" className="input w-full" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Preço Total</label>
+                                                <input type="text" value={formatCurrency(item.quantity * item.unit_price)} disabled className="input w-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]" />
+                                            </div>
+                                        </div>
+
+                                        {/* Row 3: Brand */}
+                                        <div className="mb-3">
+                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Marca (opcional)</label>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="radio" name={`brand-${i}`} checked={item.brand === 'Official' || !item.brand} onChange={() => updateItem(i, 'brand', 'Official')} className="w-4 h-4 text-violet-600" />
+                                                    <span className="text-sm text-[var(--text-primary)]">Original</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="radio" name={`brand-${i}`} checked={item.brand === 'Off-brand'} onChange={() => updateItem(i, 'brand', 'Off-brand')} className="w-4 h-4 text-violet-600" />
+                                                    <span className="text-sm text-[var(--text-primary)]">Branca</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* Row 4: Notes */}
+                                        <div className="mb-3">
+                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Notas (opcional)</label>
+                                            <textarea value={item.notes} onChange={e => updateItem(i, 'notes', e.target.value)} placeholder="Qualquer requisito específico..." rows={2} className="input w-full resize-none" />
+                                        </div>
+
+                                        {/* Remove button */}
+                                        {orderItems.length > 1 && (
+                                            <button type="button" onClick={() => removeItem(i)} className="text-red-500 text-sm font-medium flex items-center gap-1 hover:underline">
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                Remover Produto
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Item Button */}
+                                <button type="button" onClick={addEmptyItem} className="w-full py-3 border-2 border-dashed border-[var(--border)] rounded-xl text-violet-600 font-medium hover:bg-violet-50 transition-colors mb-6 flex items-center justify-center gap-2">
+                                    <span className="text-lg">⊕</span> Adicionar Outro Produto
+                                </button>
+
+                                {/* Search Section */}
+                                <div className="mb-8">
+                                    <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2 px-1">
+                                        <span>🔍</span> Pesquisar Produtos
+                                    </h3>
+
+                                    {/* Modern Search Bar */}
+                                    <div className="relative mb-6 group">
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchProducts())}
+                                            placeholder="Pesquisar produto (ex: Super Bock)..."
+                                            className="input w-full pl-5 pr-14 py-4 rounded-2xl text-base shadow-sm border-gray-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all bg-gray-50/50 focus:bg-white"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => searchProducts()}
+                                            disabled={searchLoading}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-white text-violet-600 rounded-xl hover:bg-violet-50 disabled:opacity-50 transition-all shadow-sm border border-gray-100"
+                                        >
+                                            {searchLoading ? <LoadingSpinner size="sm" /> : (
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {/* Results List */}
+                                    {searchResults.length > 0 && (
+                                        <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1 safe-scroll">
+                                            {searchResults.map(p => {
+                                                const price = getBestPrice(p);
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        onClick={() => addFromSearch(p)}
+                                                        className="w-full p-4 bg-white rounded-2xl flex items-center gap-4 hover:bg-gray-50 active:scale-[0.99] transition-all text-left border border-gray-100 shadow-sm group"
+                                                    >
+                                                        {/* Bigger Image Container */}
+                                                        <div className="w-16 h-16 shrink-0 rounded-xl bg-gray-50 border border-gray-100 p-1 flex items-center justify-center">
+                                                            {p.imageURL ? (
+                                                                <img src={p.imageURL} alt={p.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                                            ) : (
+                                                                <span className="text-2xl opacity-30">🛒</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0 py-1">
+                                                            <p className="font-bold text-[var(--text-primary)] text-base leading-tight mb-1 line-clamp-2">{p.name}</p>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-xs font-medium text-[var(--text-muted)] bg-gray-100 px-2 py-0.5 rounded-md">{p.marca}</span>
+                                                                {price.price > 0 && (
+                                                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                        €{price.price.toFixed(2)}
+                                                                        <span className="font-normal opacity-70">• {price.store}</span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Add Action Button */}
+                                                        <div className="w-10 h-10 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-colors shadow-sm shrink-0">
+                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                            </svg>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Fixed submit button - above bottom nav */}
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-[var(--border)]" style={{ marginBottom: 'calc(var(--bottom-nav-height, 72px) + var(--safe-bottom, 0px))' }}>
+                                <button type="button" disabled={submitting} onClick={handleSubmit} className="w-full btn btn-primary py-4 text-lg font-semibold">
+                                    {submitting ? 'A guardar...' : editingOrderId ? 'Atualizar Pedido' : 'Fazer Pedido'}
                                 </button>
                             </div>
                         </div>
-
-                        {/* Scrollable content */}
-                        <div className="overflow-y-auto px-5 py-4" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-                            {/* Items */}
-                            {orderItems.map((item, i) => (
-                                <div key={i} className="mb-4 p-4 rounded-xl border-2 border-[var(--border)] bg-[var(--bg-secondary)]">
-                                    {/* Row 1: Name + Quantity */}
-                                    <div className="grid grid-cols-3 gap-3 mb-3">
-                                        <div className="col-span-2">
-                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Nome do Produto</label>
-                                            <input type="text" value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} placeholder="ex. Bananas" className="input w-full" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Quantidade</label>
-                                            <input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)} className="input w-full text-center" />
-                                        </div>
-                                    </div>
-
-                                    {/* Row 2: Price + Total */}
-                                    <div className="grid grid-cols-2 gap-3 mb-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Preço p/Uni. (€)</label>
-                                            <input type="number" min={0} step={0.01} value={item.unit_price || ''} onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)} placeholder="0.00" className="input w-full" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Preço Total</label>
-                                            <input type="text" value={formatCurrency(item.quantity * item.unit_price)} disabled className="input w-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]" />
-                                        </div>
-                                    </div>
-
-                                    {/* Row 3: Brand */}
-                                    <div className="mb-3">
-                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Marca (opcional)</label>
-                                        <div className="flex items-center gap-4">
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name={`brand-${i}`} checked={item.brand === 'Official' || !item.brand} onChange={() => updateItem(i, 'brand', 'Official')} className="w-4 h-4 text-violet-600" />
-                                                <span className="text-sm text-[var(--text-primary)]">Original</span>
-                                            </label>
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name={`brand-${i}`} checked={item.brand === 'Off-brand'} onChange={() => updateItem(i, 'brand', 'Off-brand')} className="w-4 h-4 text-violet-600" />
-                                                <span className="text-sm text-[var(--text-primary)]">Branca</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    {/* Row 4: Notes */}
-                                    <div className="mb-3">
-                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Notas (opcional)</label>
-                                        <textarea value={item.notes} onChange={e => updateItem(i, 'notes', e.target.value)} placeholder="Qualquer requisito específico..." rows={2} className="input w-full resize-none" />
-                                    </div>
-
-                                    {/* Remove button */}
-                                    {orderItems.length > 1 && (
-                                        <button type="button" onClick={() => removeItem(i)} className="text-red-500 text-sm font-medium flex items-center gap-1 hover:underline">
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
-                                            Remover Produto
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Add Item Button */}
-                            <button type="button" onClick={addEmptyItem} className="w-full py-3 border-2 border-dashed border-[var(--border)] rounded-xl text-violet-600 font-medium hover:bg-violet-50 transition-colors mb-6 flex items-center justify-center gap-2">
-                                <span className="text-lg">⊕</span> Adicionar Outro Produto
-                            </button>
-
-                            {/* Search Section */}
-                            <div className="mb-4">
-                                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                                    <span>🔍</span> Pesquisar Produtos
-                                </h3>
-                                <div className="flex gap-2 mb-3">
-                                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchProducts())} placeholder="Pesquisar produtos..." className="input flex-1" />
-                                    <button type="button" onClick={searchProducts} disabled={searchLoading} className="btn btn-accent px-4 rounded-full">
-                                        {searchLoading ? <LoadingSpinner size="sm" /> : (
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
-                                {searchResults.length > 0 && (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        {searchResults.map(p => {
-                                            const price = getBestPrice(p);
-                                            return (
-                                                <button key={p.id} type="button" onClick={() => addFromSearch(p)} className="w-full p-3 bg-[var(--bg-tertiary)] rounded-lg flex items-center gap-3 hover:bg-[var(--bg-secondary)] transition-colors text-left border border-[var(--border)]">
-                                                    {p.imageURL ? (
-                                                        <img src={p.imageURL} alt={p.name} className="w-12 h-12 object-contain rounded bg-white" />
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-2xl">🛒</div>
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-medium text-[var(--text-primary)] truncate text-sm">{p.name}</p>
-                                                        <p className="text-xs text-[var(--text-muted)]">{p.marca}</p>
-                                                        {price.price > 0 && <p className="text-xs text-emerald-600 font-medium">€{price.price.toFixed(2)} • {price.store}</p>}
-                                                    </div>
-                                                    <span className="text-violet-600 font-bold text-lg">+</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Fixed submit button - above bottom nav */}
-                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-[var(--border)]" style={{ marginBottom: 'calc(var(--bottom-nav-height, 72px) + var(--safe-bottom, 0px))' }}>
-                            <button type="button" disabled={submitting} onClick={handleSubmit} className="w-full btn btn-primary py-4 text-lg font-semibold">
-                                {submitting ? 'A guardar...' : editingOrderId ? 'Atualizar Pedido' : 'Fazer Pedido'}
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
+                    </>
+                )
+            }
+        </div >
     );
 }
