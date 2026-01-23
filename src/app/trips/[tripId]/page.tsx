@@ -252,13 +252,22 @@ export default function TripDetailPage() {
             return;
         }
         if (!confirm('Eliminar este pedido?')) return;
+
+        // Optimistic Update
+        const previousOrders = [...orders];
+        setOrders(current => current.filter(o => o.id !== orderId));
+
         try {
+            // Delete items first manually as per current logic
+            // Note: If backend handles cascade delete, this loop is redundant, but keeping for safety as per original code
             for (const item of order.items) await itemsApi.delete(item.id);
             await ordersApi.delete(orderId);
+
             showToast('Pedido eliminado', 'success');
-            loadData();
+            // No need to reload data if successful
         } catch {
             showToast('Erro ao eliminar', 'error');
+            setOrders(previousOrders); // Revert on failure
         }
     };
 
@@ -340,85 +349,139 @@ export default function TripDetailPage() {
                         <p className="text-[var(--text-secondary)] mb-4">Toca no + para fazer o primeiro!</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {orders.map((order, idx) => {
                             const canEdit = isOrderEditable(order.can_edit_until);
                             const remaining = getRemainingEditTime(order.can_edit_until);
                             const isWarning = remaining > 0 && remaining < 60;
+                            const orderTotal = order.items.reduce((acc, item) => acc + (item.price || 0), 0);
+                            const isFulfilled = order.items.length > 0 && order.items.every(i => i.found_status !== 'pending');
 
                             return (
                                 <div
                                     key={order.id}
-                                    className={cn('card overflow-hidden animate-fade-in-up', canEdit && 'ring-2 ring-amber-400')}
+                                    className={cn(
+                                        'bg-white rounded-[24px] shadow-sm border border-[var(--border)] overflow-hidden animate-fade-in-up',
+                                        canEdit ? 'ring-2 ring-amber-400' : isFulfilled ? 'ring-2 ring-emerald-500' : ''
+                                    )}
                                     style={{ animationDelay: `${idx * 0.05}s` }}
                                 >
                                     {/* Order Header */}
-                                    <div className="p-4 pb-3 flex justify-between items-center border-b border-[var(--border)]">
+                                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold">
                                                 {idx + 1}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-[var(--text-primary)]">Pedido {idx + 1}</p>
-                                                <p className="text-xs text-[var(--text-muted)]">{getRelativeTime(order.created)}</p>
+                                                <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">Pedido {idx + 1}</h3>
+                                                <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                    {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
+                                                </p>
                                             </div>
                                         </div>
-                                        {canEdit && (
-                                            <div className="flex items-center gap-2">
-                                                <span className={cn(
-                                                    'text-xs font-mono px-2 py-1 rounded-full',
-                                                    isWarning ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'
-                                                )}>
-                                                    ⏱️ {formatTime(remaining)}
-                                                </span>
-                                                <button onClick={() => handleEdit(order)} className="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </button>
-                                                <button onClick={() => handleDelete(order.id)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="text-right">
+                                                <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                <p className="text-sm font-black text-[var(--text-primary)]">
+                                                    {formatCurrency(orderTotal)}
+                                                </p>
                                             </div>
-                                        )}
+
+                                            {canEdit && (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className={cn(
+                                                        'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
+                                                        isWarning ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'
+                                                    )}>
+                                                        ⏱️ {formatTime(remaining)}
+                                                    </span>
+                                                    <div className="flex gap-1">
+                                                        <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Items */}
-                                    <div className="divide-y divide-[var(--border)]">
+                                    <div className="divide-y divide-gray-50">
                                         {order.items.map((item) => {
                                             const status = getStatusConfig(item.found_status);
-                                            const brandLabel = item.brand === 'Official' ? 'Original' : item.brand === 'Off-brand' ? 'Branca' : '';
+                                            // Override status config to match Admin EXACTLY
+                                            const statusConfig = {
+                                                pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: 'hourglass_empty' },
+                                                found: { label: 'Comprado', bg: 'bg-emerald-500', icon: 'check' },
+                                                not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: 'close' },
+                                            }[item.found_status] || status;
+
                                             return (
-                                                <div key={item.id}>
-                                                    <div className="p-4 flex items-start gap-3">
-                                                        <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center text-xl flex-shrink-0">
-                                                            🛒
+                                                <div
+                                                    key={item.id}
+                                                    className={cn(
+                                                        "relative group transition-all duration-200",
+                                                        item.found_status === 'found' ? "bg-emerald-50/30" :
+                                                            item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
+                                                    )}
+                                                >
+                                                    <div className="flex gap-4 items-start p-4">
+                                                        {/* Icon Placeholder */}
+                                                        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 text-gray-400">
+                                                            <span className="material-icons text-2xl">shopping_cart</span>
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-medium text-[var(--text-primary)] truncate">{item.name}</p>
-                                                            <div className="flex flex-wrap gap-2 mt-1 text-xs text-[var(--text-muted)]">
-                                                                <span className="flex items-center gap-1">
-                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                                                                    </svg>
-                                                                    {item.quantity}
+
+                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                            <div className="flex justify-between items-start gap-2 mb-1">
+                                                                <h4 className={cn(
+                                                                    "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                    item.found_status !== 'pending' && "opacity-50 line-through"
+                                                                )}>
+                                                                    {item.name}
+                                                                </h4>
+                                                                <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                    {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
                                                                 </span>
-                                                                {brandLabel && <span>• {brandLabel}</span>}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                    <span>{item.quantity}</span>
+                                                                </div>
+
+                                                                {item.brand && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="material-icons text-sm text-slate-500">local_offer</span>
+                                                                        <span>
+                                                                            {item.brand.toLowerCase().includes('official') ? 'Original' :
+                                                                                (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
+                                                                                    item.brand}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        {item.price > 0 && (
-                                                            <span className="font-semibold text-[var(--text-primary)]">{formatCurrency(item.price)}</span>
-                                                        )}
                                                     </div>
+
+                                                    {/* Wall-to-wall Notes */}
                                                     {item.notes && (
-                                                        <div className="mx-4 mb-3 p-2 rounded-lg bg-amber-50 border-l-3 border-amber-400 text-xs text-amber-800">
-                                                            💬 {item.notes}
+                                                        <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                            <span className="font-bold shrink-0">Notas:</span>
+                                                            <span className="italic">{item.notes}</span>
                                                         </div>
                                                     )}
-                                                    <div className={cn(status.bg, 'text-white text-xs font-medium py-1.5 text-center')}>
-                                                        {status.icon} {status.label}
+
+                                                    {/* Status Bar (Non-interactive) */}
+                                                    <div className={cn(
+                                                        "w-full py-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-white select-none",
+                                                        statusConfig.bg
+                                                    )}>
+                                                        <span className="material-icons text-xs">{statusConfig.icon}</span>
+                                                        {statusConfig.label}
                                                     </div>
                                                 </div>
                                             );

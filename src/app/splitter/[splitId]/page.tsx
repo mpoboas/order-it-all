@@ -94,15 +94,26 @@ export default function SplitDetailPage() {
         return () => subscriptions.unsubscribeAll();
     }, [loadSplit]);
 
-    const saveSplit = async (updated: Partial<Split>) => {
+    const saveSplit = async (updatedFields: Partial<Split>) => {
         if (!split) return;
-        setSaving(true);
+
+        // Deep clone for rollback safety
+        const previousSplit = JSON.parse(JSON.stringify(split));
+
+        // Optimistic update
+        const newSplit = { ...split, ...updatedFields };
+        setSplit(newSplit);
+
+        // Debounce saving indicator for better UX on rapid typing
+        if (!saving) setSaving(true);
+
         try {
-            const result = await splitsApi.update(splitId, updated);
-            setSplit(result);
+            await splitsApi.update(splitId, updatedFields);
+            // We don't overwrite with server response to avoid UI jumps while editing
         } catch (error) {
             console.error('Error saving split:', error);
-            showToast('Erro ao guardar', 'error');
+            showToast('Erro ao guardar alteração', 'error');
+            setSplit(previousSplit); // Rollback
         } finally {
             setSaving(false);
         }
@@ -121,11 +132,16 @@ export default function SplitDetailPage() {
     const removeParticipant = async (name: string) => {
         if (!split || split.participants.length <= 1) return;
         if (!confirm(`Remover ${name}?`)) return;
+
         const updatedItems = split.items.map(item => ({
             ...item,
             participants: item.participants.filter(p => p !== name),
         }));
-        await saveSplit({ participants: split.participants.filter(p => p !== name), items: updatedItems });
+
+        await saveSplit({
+            participants: split.participants.filter(p => p !== name),
+            items: updatedItems
+        });
     };
 
     const updateParticipantName = async (oldName: string, newName: string) => {
@@ -149,38 +165,43 @@ export default function SplitDetailPage() {
 
     const removeItem = async (idx: number) => {
         if (!split) return;
-        await saveSplit({ items: split.items.filter((_, i) => i !== idx) });
+        const newItems = split.items.filter((_, i) => i !== idx);
+        await saveSplit({ items: newItems });
     };
 
     const toggleParticipant = async (itemIdx: number, participant: string) => {
         if (!split) return;
-        const items = [...split.items];
+
+        // Deep clone items to avoid mutation issues
+        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
         const item = items[itemIdx];
+
         if (item.participants.includes(participant)) {
             item.participants = item.participants.filter(p => p !== participant);
         } else {
             item.participants = [...item.participants, participant];
         }
+
         await saveSplit({ items });
     };
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
         if (!split) return;
-        const items = [...split.items];
+        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
         items[itemIdx].participants = checked ? [...split.participants] : [];
         await saveSplit({ items });
     };
 
     const updateItemName = async (idx: number, name: string) => {
         if (!split) return;
-        const items = [...split.items];
+        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
         items[idx].name = name;
         await saveSplit({ items });
     };
 
     const updateItemPrice = async (idx: number, price: number) => {
         if (!split) return;
-        const items = [...split.items];
+        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
         items[idx].price = price;
         await saveSplit({ items });
     };

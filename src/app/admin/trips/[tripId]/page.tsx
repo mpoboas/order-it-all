@@ -378,121 +378,127 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             <p className="text-[var(--text-secondary)] text-sm mb-6">Nenhum produto pedido para esta viagem.</p>
                         </div>
                     ) : (
-                        userGroups.map((group) => (
-                            <div key={group.userName} className="bg-white rounded-[24px] shadow-sm border border-[var(--border)] overflow-hidden">
-                                {/* Group Header */}
-                                <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex -space-x-1 overflow-hidden">
-                                            <Avatar name={group.userName} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
+                        userGroups.map((group) => {
+                            const isFulfilled = group.items.length > 0 && group.items.every(i => i.found_status !== 'pending');
+                            return (
+                                <div key={group.userName} className={cn(
+                                    "bg-white rounded-[24px] shadow-sm border border-[var(--border)] overflow-hidden",
+                                    isFulfilled && "ring-2 ring-emerald-500"
+                                )}>
+                                    {/* Group Header */}
+                                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex -space-x-1 overflow-hidden">
+                                                <Avatar name={group.userName} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
+                                                <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                    {group.items.length} {group.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(group.orderCreated)}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
-                                            <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                {group.items.length} {group.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(group.orderCreated)}
+                                        <div className="text-right">
+                                            <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                            <p className="text-sm font-black text-[var(--text-primary)]">
+                                                {formatCurrency(group.items.reduce((acc, item) => acc + (item.price || 0), 0))}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                        <p className="text-sm font-black text-[var(--text-primary)]">
-                                            {formatCurrency(group.items.reduce((acc, item) => acc + (item.price || 0), 0))}
-                                        </p>
-                                    </div>
-                                </div>
 
-                                {/* Items List */}
-                                <div className="divide-y divide-gray-50">
-                                    {group.items.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className={cn(
-                                                "relative group transition-all duration-200",
-                                                item.found_status === 'found' ? "bg-emerald-50/30" :
-                                                    item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
-                                            )}
-                                        >
-                                            <div className="flex gap-4 items-start p-4 pb-4">
-                                                {/* Image Placeholder or Icon */}
-                                                <div
-                                                    onClick={() => openEditItemModal(item)}
-                                                    className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 cursor-pointer text-gray-400"
-                                                >
-                                                    <span className="material-icons text-2xl">shopping_cart</span>
-                                                </div>
-
-                                                <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
-                                                    <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
-                                                        <h4 className={cn(
-                                                            "font-bold text-[var(--text-primary)] text-base leading-tight",
-                                                            item.found_status !== 'pending' && "opacity-50 line-through"
-                                                        )}>
-                                                            {item.name}
-                                                        </h4>
-                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                            {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-4 text-sm font-medium text-slate-600">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="material-icons text-lg text-slate-500">shopping_basket</span>
-                                                            <span>{item.quantity}</span>
-                                                        </div>
-
-                                                        {item.brand && (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="material-icons text-lg text-slate-500">local_offer</span>
-                                                                <span>
-                                                                    {item.brand.toLowerCase().includes('official') ? 'Original' :
-                                                                        (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
-                                                                            item.brand}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Notes - Full Width, glued to status bar */}
-                                            {item.notes && (
-                                                <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
-                                                    <span className="font-bold shrink-0">Notas:</span>
-                                                    <span className="italic">{item.notes}</span>
-                                                </div>
-                                            )}
-
-                                            {/* Status Bar / Cycle Button */}
+                                    {/* Items List */}
+                                    <div className="divide-y divide-gray-50">
+                                        {group.items.map((item) => (
                                             <div
-                                                onClick={(e) => cycleStatus(item, e)}
+                                                key={item.id}
                                                 className={cn(
-                                                    "w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none",
-                                                    item.found_status === 'pending' ? "bg-amber-500 text-amber-700 hover:bg-amber-600" :
-                                                        item.found_status === 'found' ? "bg-emerald-500" : "bg-red-500"
+                                                    "relative group transition-all duration-200",
+                                                    item.found_status === 'found' ? "bg-emerald-50/30" :
+                                                        item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
                                                 )}
                                             >
-                                                {item.found_status === 'pending' ? (
-                                                    <span className="flex items-center gap-1">
-                                                        <span className="material-icons text-sm">hourglass_empty</span>
-                                                        Por comprar
-                                                    </span>
-                                                ) : item.found_status === 'found' ? (
-                                                    <>
-                                                        <span className="material-icons text-sm">check</span>
-                                                        Comprado
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="material-icons text-sm">close</span>
-                                                        Não tinha
-                                                    </>
+                                                <div className="flex gap-4 items-start p-4 pb-4">
+                                                    {/* Image Placeholder or Icon */}
+                                                    <div
+                                                        onClick={() => openEditItemModal(item)}
+                                                        className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 cursor-pointer text-gray-400"
+                                                    >
+                                                        <span className="material-icons text-2xl">shopping_cart</span>
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
+                                                        <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
+                                                            <h4 className={cn(
+                                                                "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                item.found_status !== 'pending' && "opacity-50 line-through"
+                                                            )}>
+                                                                {item.name}
+                                                            </h4>
+                                                            <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                <span>{item.quantity}</span>
+                                                            </div>
+
+                                                            {item.brand && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="material-icons text-sm text-slate-500">local_offer</span>
+                                                                    <span>
+                                                                        {item.brand.toLowerCase().includes('official') ? 'Original' :
+                                                                            (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
+                                                                                item.brand}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Notes - Full Width, glued to status bar */}
+                                                {item.notes && (
+                                                    <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                        <span className="font-bold shrink-0">Notas:</span>
+                                                        <span className="italic">{item.notes}</span>
+                                                    </div>
                                                 )}
+
+                                                {/* Status Bar / Cycle Button */}
+                                                <div
+                                                    onClick={(e) => cycleStatus(item, e)}
+                                                    className={cn(
+                                                        "w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none",
+                                                        item.found_status === 'pending' ? "bg-amber-500 text-amber-700 hover:bg-amber-600" :
+                                                            item.found_status === 'found' ? "bg-emerald-500" : "bg-red-500"
+                                                    )}
+                                                >
+                                                    {item.found_status === 'pending' ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="material-icons text-sm">hourglass_empty</span>
+                                                            Por comprar
+                                                        </span>
+                                                    ) : item.found_status === 'found' ? (
+                                                        <>
+                                                            <span className="material-icons text-sm">check</span>
+                                                            Comprado
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="material-icons text-sm">close</span>
+                                                            Não tinha
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </main>
