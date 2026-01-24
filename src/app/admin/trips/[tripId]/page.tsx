@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
+import { summarizeTrip } from '@/app/actions/ai';
+import { useUser } from '@/context/UserContext';
 import type { Trip, Item } from '@/lib/types';
 import { formatCurrency, cn, getRelativeTime, getProductEmoji } from '@/lib/utils';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
@@ -20,7 +22,9 @@ interface ShoppingItem extends Item {
 }
 
 interface UserGroup {
+    userId: string;
     userName: string;
+    userAvatar?: string;
     orderCreated: string; // approximate (from the first item or order record)
     items: ShoppingItem[];
 }
@@ -30,6 +34,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const [trip, setTrip] = useState<Trip | null>(null);
     const [loading, setLoading] = useState(true);
     const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+    const { user } = useUser();
+
+    // AI
+    const [showAiSheet, setShowAiSheet] = useState(false);
+    const [aiSummary, setAiSummary] = useState<any>(null);
+    const [aiLoading, setAiLoading] = useState(false);
 
     // Modals
     const [showEditItemModal, setShowEditItemModal] = useState(false);
@@ -75,18 +85,25 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             const newGroups: Record<string, UserGroup> = {};
 
             results.forEach(({ order, items }) => {
-                if (!newGroups[order.user_name]) {
-                    newGroups[order.user_name] = {
-                        userName: order.user_name,
+                const user = order.expand?.user;
+                const groupKey = user?.id || order.user_name;
+                const displayName = user?.name || order.user_name || 'Desconhecido';
+                const avatarUrl = user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined;
+
+                if (!newGroups[groupKey]) {
+                    newGroups[groupKey] = {
+                        userId: groupKey,
+                        userName: displayName,
+                        userAvatar: avatarUrl,
                         orderCreated: order.created,
                         items: []
                     };
                 }
 
                 items.forEach(item => {
-                    newGroups[order.user_name].items.push({
+                    newGroups[groupKey].items.push({
                         ...item,
-                        user_name: order.user_name,
+                        user_name: displayName,
                         order_id: order.id,
                         order_created: order.created
                     });
@@ -271,6 +288,38 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
+    // AI Handler
+    const handleAiSummarize = async () => {
+        if (!user?.geminiApiKey) {
+            showToast('Configura a tua API Key do Gemini no perfil primeiro!', 'error');
+            return;
+        }
+
+        setAiLoading(true);
+        try {
+            // Collect all pending items
+            const allItems = userGroups.flatMap(g =>
+                g.items
+                    .filter(i => i.found_status === 'pending')
+                    .map(i => ({ name: i.name, quantity: i.quantity, notes: i.notes }))
+            );
+
+            if (allItems.length === 0) {
+                showToast('Não há itens por comprar!', 'error');
+                setAiLoading(false);
+                return;
+            }
+
+            const result = await summarizeTrip(allItems, user.geminiApiKey);
+            setAiSummary(result);
+        } catch (error: any) {
+            console.error(error);
+            showToast('Erro na IA: ' + error.message, 'error');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     // Helper for Segmented Control
     const SegmentedControl = ({
         options,
@@ -359,12 +408,33 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             + Novo Pedido
                         </Button>
                         <button
-                            onClick={loadShoppingItems}
+                            onClick={() => loadShoppingItems()}
                             className="w-10 h-10 rounded-full bg-white border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-violet-600 hover:border-violet-200 transition-all shadow-sm"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         </button>
                     </div>
+                </div>
+
+                {/* AI Banner/Button */}
+                <div className="mb-6">
+                    <button
+                        onClick={() => { setShowAiSheet(true); if (!aiSummary) handleAiSummarize(); }}
+                        className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-all hover:scale-[1.01] flex items-center justify-between group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                                <span className="text-2xl">✨</span>
+                            </div>
+                            <div className="text-left">
+                                <div className="font-bold text-lg">Assistente IA</div>
+                                <div className="text-xs text-white/80">Resumir e organizar a lista de compras</div>
+                            </div>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                    </button>
                 </div>
 
                 {/* Shopping List - Grouped by User */}
@@ -383,7 +453,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             const allMissing = group.items.length > 0 && group.items.every(i => i.found_status === 'not_available');
 
                             return (
-                                <div key={group.userName} className={cn(
+                                <div key={group.userId} className={cn(
                                     "rounded-[24px] shadow-sm overflow-hidden",
                                     allProcessed ? "p-[3px]" : "border border-[var(--border)]",
                                     allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white"
@@ -401,8 +471,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                         {/* Group Header */}
                                         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex -space-x-1 overflow-hidden">
-                                                    <Avatar name={group.userName} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
+                                                <div className="flex -space-x-1 overflow-visible">
+                                                    <Avatar name={group.userName} src={group.userAvatar} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
                                                 </div>
                                                 <div>
                                                     <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
@@ -611,6 +681,73 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     </ModalFooter>
                 </form>
             </Modal>
+
+            {/* AI Sheet */}
+            {showAiSheet && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAiSheet(false)} />
+                    <div className="relative bg-white w-full max-w-2xl sm:rounded-2xl h-[85vh] sm:h-[80vh] flex flex-col shadow-2xl animate-fade-in-up">
+                        <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-2xl">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">✨</span>
+                                <div>
+                                    <h3 className="font-bold text-lg text-gray-900">Resumo Inteligente</h3>
+                                    <p className="text-xs text-gray-500">Organizado por Gemini AI</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowAiSheet(false)} className="p-2 hover:bg-black/5 rounded-full">
+                                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            {aiLoading ? (
+                                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                                    <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                                    <p className="text-indigo-600 font-medium animate-pulse">A analisar a tua lista...</p>
+                                </div>
+                            ) : aiSummary ? (
+                                <div className="space-y-6">
+                                    {aiSummary.categories?.map((cat: any, idx: number) => (
+                                        <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <h4 className="flex items-center gap-2 font-bold text-gray-800 mb-3 text-lg">
+                                                <span>{cat.emoji || '📦'}</span>
+                                                {cat.name}
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {cat.items?.map((item: any, i: number) => (
+                                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+                                                        <span className="font-medium text-gray-700">{item.name}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            {item.notes && <span className="text-[10px] text-gray-400 max-w-[100px] truncate">{item.notes}</span>}
+                                                            <Badge variant="info">
+                                                                x{item.total_quantity}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="text-center pt-4">
+                                        <button
+                                            onClick={handleAiSummarize}
+                                            className="text-sm text-indigo-600 hover:underline font-medium"
+                                        >
+                                            Regerar resumo
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-20 text-gray-500">
+                                    <p>Falha ao gerar resumo.</p>
+                                    <button onClick={handleAiSummarize} className="mt-4 text-indigo-600 font-bold">Tentar novamente</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* New Order Modal */}
             <Modal isOpen={showNewOrderModal} onClose={() => setShowNewOrderModal(false)}>

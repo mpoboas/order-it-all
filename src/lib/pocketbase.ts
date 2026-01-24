@@ -15,12 +15,14 @@ export const tripsApi = {
     return await pb.collection('trips').getFullList<Trip>({
       filter: 'status = "open"',
       sort: '-created',
+      expand: 'created_by',
     });
   },
 
   getAll: async (): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
       sort: '-created',
+      expand: 'created_by',
     });
   },
 
@@ -28,19 +30,22 @@ export const tripsApi = {
     return await pb.collection('trips').getFullList<Trip>({
       filter: 'status = "closed"',
       sort: '-updated',
+      expand: 'created_by',
     });
   },
 
   getById: async (id: string): Promise<Trip> => {
-    return await pb.collection('trips').getOne<Trip>(id);
+    return await pb.collection('trips').getOne<Trip>(id, {
+      expand: 'created_by',
+    });
   },
 
-  create: async (data: { name: string; description?: string; created_by?: string }): Promise<Trip> => {
+  create: async (data: { name: string; description?: string }): Promise<Trip> => {
     return await pb.collection('trips').create<Trip>({
       name: data.name,
       description: data.description || '',
       status: 'open',
-      created_by: data.created_by || 'admin',
+      created_by: pb.authStore.model?.id,
     });
   },
 
@@ -64,17 +69,21 @@ export const ordersApi = {
     return await pb.collection('orders').getFullList<Order>({
       filter: `trip_id = "${tripId}"`,
       sort: '-created',
+      expand: 'user',
     });
   },
 
   getById: async (id: string): Promise<Order> => {
-    return await pb.collection('orders').getOne<Order>(id);
+    return await pb.collection('orders').getOne<Order>(id, {
+      expand: 'user',
+    });
   },
 
   create: async (data: { trip_id: string; user_name: string }): Promise<Order> => {
     return await pb.collection('orders').create<Order>({
       trip_id: data.trip_id,
       user_name: data.user_name,
+      user: pb.authStore.model?.id,
       can_edit_until: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     });
   },
@@ -141,11 +150,35 @@ export const itemsApi = {
   },
 };
 
+// User API
+export const usersApi = {
+  authWithPassword: async (email: string, password: string) => {
+    return await pb.collection('users').authWithPassword(email, password);
+  },
+
+  create: async (data: any) => {
+    return await pb.collection('users').create(data);
+  },
+
+  authRefresh: async () => {
+    return await pb.collection('users').authRefresh();
+  },
+
+  update: async (id: string, data: any) => {
+    return await pb.collection('users').update(id, data);
+  },
+  
+  logout: () => {
+    pb.authStore.clear();
+  }
+};
+
 // Split API
 export const splitsApi = {
   getAll: async (): Promise<Split[]> => {
     return await pb.collection('splits').getFullList<Split>({
       sort: '-created',
+      expand: 'created_by',
     });
   },
 

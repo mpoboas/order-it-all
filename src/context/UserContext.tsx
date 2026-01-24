@@ -1,43 +1,69 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { pb, usersApi } from '@/lib/pocketbase';
+import { useRouter } from 'next/navigation';
 
 interface UserContextType {
-    userName: string;
+    user: any | null;
     isLoggedIn: boolean;
-    setUser: (name: string) => void;
+    login: (email: string, pass: string) => Promise<void>;
+    register: (email: string, pass: string, passConfirm: string) => Promise<any>;
     logout: () => void;
+    updateProfile: (data: any) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'orderItAll_userName';
-
 export function UserProvider({ children }: { children: ReactNode }) {
-    const [userName, setUserName] = useState<string>('');
+    const [user, setUser] = useState<any | null>(pb.authStore.model);
     const [isHydrated, setIsHydrated] = useState(false);
+    const router = useRouter();
 
-    // Load from localStorage on mount
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            setUserName(stored);
+        // Sync auth state
+        const unsubscribe = pb.authStore.onChange((token, model) => {
+            setUser(model);
+        });
+
+        // Try to refresh auth if we have a token
+        if (pb.authStore.isValid) {
+            usersApi.authRefresh()
+                .catch(() => {
+                    console.warn('Auth token invalid/expired');
+                    usersApi.logout();
+                });
         }
+
         setIsHydrated(true);
+
+        return () => {
+            unsubscribe();
+        };
     }, []);
 
-    const setUser = useCallback((name: string) => {
-        const trimmedName = name.trim();
-        if (trimmedName) {
-            localStorage.setItem(STORAGE_KEY, trimmedName);
-            setUserName(trimmedName);
-        }
+    const login = useCallback(async (email: string, pass: string) => {
+        await usersApi.authWithPassword(email, pass);
     }, []);
+
+    const register = useCallback(async (email: string, pass: string, passConfirm: string) => {
+        return await usersApi.create({
+            email,
+            password: pass,
+            passwordConfirm: passConfirm,
+        });
+    }, []);
+
+    const updateProfile = useCallback(async (data: any) => {
+        if (!user?.id) return;
+        const updated = await usersApi.update(user.id, data);
+        setUser(updated); // PB usually does this via authStore, but forcing update is safer
+    }, [user]);
 
     const logout = useCallback(() => {
-        localStorage.removeItem(STORAGE_KEY);
-        setUserName('');
-    }, []);
+        usersApi.logout();
+        router.push('/');
+    }, [router]);
 
     // Prevent hydration mismatch
     if (!isHydrated) {
@@ -47,10 +73,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return (
         <UserContext.Provider
             value={{
-                userName,
-                isLoggedIn: !!userName,
-                setUser,
+                user,
+                isLoggedIn: !!user,
+                login,
+                register,
                 logout,
+                updateProfile,
             }}
         >
             {children}

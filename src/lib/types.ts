@@ -1,11 +1,22 @@
 // TypeScript types for Order It All!
 
+export interface User {
+  id: string;
+  name: string;
+  avatar: string;
+  email: string;
+  geminiApiKey?: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
   description: string;
   status: 'open' | 'closed';
   created_by: string;
+  expand?: {
+    created_by?: User;
+  };
   created: string;
   updated: string;
 }
@@ -13,7 +24,11 @@ export interface Trip {
 export interface Order {
   id: string;
   trip_id: string;
+  user: string;
   user_name: string;
+  expand?: {
+    user?: User;
+  };
   can_edit_until: string;
   created: string;
   updated: string;
@@ -45,6 +60,9 @@ export interface Split {
   participants: string[];
   items: SplitItem[];
   created_by: string;
+  expand?: {
+    created_by?: User;
+  };
   created: string;
   updated: string;
 }

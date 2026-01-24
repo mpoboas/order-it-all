@@ -13,9 +13,10 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, showBack, transparent = false }: HeaderProps) {
-    const { userName, logout, isLoggedIn } = useUser();
+    const { user, logout, isLoggedIn } = useUser();
     const router = useRouter();
     const pathname = usePathname();
+    const userName = user?.name || user?.email || '??';
 
     const isAdmin = pathname.startsWith('/admin');
     const displayTitle = title || (isAdmin ? 'Admin' : 'Order It All!');
@@ -69,14 +70,18 @@ export function Header({ title, subtitle, showBack, transparent = false }: Heade
                             </NavLink>
                         </nav>
 
-                        {/* User avatar */}
                         {isLoggedIn && (
                             <button
                                 onClick={logout}
                                 className="relative group"
                                 title="Sair"
                             >
-                                <Avatar name={userName} size="md" className="ring-2 ring-white/30 hover:ring-white/50 transition-all" />
+                                <Avatar
+                                    name={userName}
+                                    src={user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined}
+                                    size="md"
+                                    className="ring-2 ring-white/30 hover:ring-white/50 transition-all"
+                                />
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

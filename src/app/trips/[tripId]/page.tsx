@@ -11,6 +11,7 @@ import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime,
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface ItemFormData {
     name: string;
@@ -39,9 +40,11 @@ export default function TripDetailPage() {
     const params = useParams();
     const tripId = params.tripId as string;
     const router = useRouter();
-    const { userName, isLoggedIn } = useUser();
+    const { user, isLoggedIn } = useUser();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
+
+    const userName = user?.name || user?.email || 'Anónimo';
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -387,11 +390,16 @@ export default function TripDetailPage() {
                                         {/* Order Header */}
                                         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold">
-                                                    {idx + 1}
-                                                </div>
+                                                <Avatar
+                                                    name={order.expand?.user?.name || order.user_name || '??'}
+                                                    src={order.expand?.user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${order.expand.user.id}/${order.expand.user.avatar}` : undefined}
+                                                    size="md"
+                                                    className="ring-2 ring-white"
+                                                />
                                                 <div>
-                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">Pedido {idx + 1}</h3>
+                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                        {order.expand?.user?.name || order.user_name || `Pedido ${idx + 1}`}
+                                                    </h3>
                                                     <p className="text-xs text-[var(--text-muted)] font-medium">
                                                         {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
                                                     </p>
