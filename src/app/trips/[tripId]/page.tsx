@@ -7,7 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
 import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
 import type { Trip, Item, OrderWithItems } from '@/lib/types';
-import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn } from '@/lib/utils';
+import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Badge } from '@/components/ui/Badge';
@@ -201,6 +201,7 @@ export default function TripDetailPage() {
                         brand: item.brand,
                         notes: item.notes,
                         price: item.quantity * item.unit_price,
+                        image_url: item.image_url,
                     });
                 }
                 showToast('Pedido atualizado!', 'success');
@@ -215,6 +216,7 @@ export default function TripDetailPage() {
                         brand: item.brand,
                         notes: item.notes,
                         price: item.quantity * item.unit_price,
+                        image_url: item.image_url,
                     });
                 }
                 showToast('Pedido criado!', 'success');
@@ -425,7 +427,7 @@ export default function TripDetailPage() {
                                         </div>
 
                                         {/* Items */}
-                                        <div className="divide-y divide-gray-50">
+                                        <div className="bg-gray-50 p-2 gap-2 flex flex-col">
                                             {order.items.map((item) => {
                                                 const status = getStatusConfig(item.found_status);
                                                 // Override status config to match Admin EXACTLY
@@ -439,15 +441,19 @@ export default function TripDetailPage() {
                                                     <div
                                                         key={item.id}
                                                         className={cn(
-                                                            "relative group transition-all duration-200",
+                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
                                                             item.found_status === 'found' ? "bg-emerald-50/30" :
                                                                 item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
                                                         )}
                                                     >
                                                         <div className="flex gap-4 items-start p-4">
                                                             {/* Icon Placeholder */}
-                                                            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 text-gray-400">
-                                                                <span className="material-icons text-2xl">shopping_cart</span>
+                                                            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-gray-100">
+                                                                {item.image_url ? (
+                                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                                ) : (
+                                                                    <span>{getProductEmoji(item.name)}</span>
+                                                                )}
                                                             </div>
 
                                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -458,9 +464,16 @@ export default function TripDetailPage() {
                                                                     )}>
                                                                         {item.name}
                                                                     </h4>
-                                                                    <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                        {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
-                                                                    </span>
+                                                                    <div className="text-right flex flex-col items-end">
+                                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                            {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
+                                                                        </span>
+                                                                        {item.price > 0 && item.quantity > 1 && (
+                                                                            <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                                                                                p./uni {formatCurrency(item.price / item.quantity)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
 
                                                                 <div className="flex items-center gap-3 text-xs font-medium text-slate-600">

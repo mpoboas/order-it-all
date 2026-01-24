@@ -109,6 +109,7 @@ export const itemsApi = {
     brand?: string;
     notes?: string;
     price?: number;
+    image_url?: string;
   }): Promise<Item> => {
     return await pb.collection('items').create<Item>({
       order_id: data.order_id,
@@ -118,6 +119,7 @@ export const itemsApi = {
       notes: data.notes || '',
       found_status: 'pending',
       price: data.price || 0,
+      image_url: data.image_url || '',
     });
   },
 

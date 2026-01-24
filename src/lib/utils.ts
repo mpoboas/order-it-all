@@ -116,3 +116,78 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
+
+/**
+ * Product Emoji Mapping
+ * Format: [[keywords], emoji]
+ */
+const ITEM_EMOJI_MAP: [string[], string][] = [
+    // Bebidas Alc
+    [['cerveja', 'somersby', 'sommersbys', 'sidra', 'super bock', 'sagres'], '🍺'],
+    [['vinho'], '🍷'],
+    [['gin', 'vodka', 'licor', 'bebida espirituosa'], '🍸'],
+
+    // Bebidas Não Alc
+    [['leite'], '🥛'],
+    [['iogurte', 'prota'], '🥣'],
+    [['cafe', 'café'], '☕'],
+    [['sumo', 'refrigerante', 'coca', 'cola', 'pepsi', 'ice tea'], '🥤'],
+    [['agua', 'água', 'garrafões'], '💧'],
+    [['energetica', 'energética', 'red bull', 'monster'], '⚡'],
+
+    // Comida
+    [['pao', 'pão', 'bijou', 'baguete', 'tostas', 'manhazitos'], '🍞'],
+    [['queijo', 'fatias'], '🧀'],
+    [['fiambre', 'presunto', 'chourico', 'bacon'], '🥩'],
+    [['carne', 'frango', 'bife', 'hamburguer', 'picada', 'almoco', 'almoço'], '🥩'],
+    [['peixe', 'atum', 'bacalhau'], '🐟'],
+
+    // Snacks / Cereais
+    [['batata', 'frita'], '🍟'],
+    [['bolacha', 'biscoito', 'oreo', 'wafers', 'crackers'], '🍪'],
+    [['cereais', 'chocapic', 'estrelitas', 'golden', 'corn flakes', 'estreitas'], '🥣'],
+    [['tremoços', 'amendoim', 'frutos secos'], '🥜'],
+    [['chocolate', 'kitkat', 'snickers'], '🍫'],
+    [['gelado', 'magnum', 'cornetto', 'cones'], '🍦'],
+    [['donuts', 'bola de berlim'], '🍩'],
+    [['croissant'], '🥐'],
+
+    // Fruta e Legumes
+    [['uva'], '🍇'],
+    [['maca', 'maçã', 'fruta'], '🍎'],
+    [['banana'], '🍌'],
+    [['laranja', 'limao', 'limão'], '🍊'],
+    [['tomate', 'popla'], '🍅'],
+    [['batata'], '🥔'],
+    [['cebola', 'alho'], '🧅'],
+    [['salada', 'alface'], '🥗'],
+
+    // Mercearia
+    [['arroz'], '🍚'],
+    [['massa', 'esparguete', 'macarrao'], '🍝'],
+    [['ovo'], '🥚'],
+    [['sal ', 'pimenta', 'azeite', 'oleo', 'vinagre'], '🧂'],
+    [['manteiga'], '🧈'],
+
+    // Higiene / Casa
+    [['papel', 'higienico', 'guardanapo'], '🧻'],
+    [['escova', 'pasta', 'dentes'], '🪥'],
+    [['champo', 'gel de banho', 'sabonete'], '🧼'],
+    [['gelo'], '🧊'],
+    [['protetor'], '🧴'],
+];
+
+/**
+ * Get an emoji icon based on product name
+ */
+export function getProductEmoji(name: string): string {
+    const lower = name.toLowerCase();
+    
+    for (const [keywords, emoji] of ITEM_EMOJI_MAP) {
+        if (keywords.some(k => lower.includes(k))) {
+            return emoji;
+        }
+    }
+    
+    return '🛒'; // Default
+}

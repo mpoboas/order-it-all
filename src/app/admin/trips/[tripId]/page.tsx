@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
 import type { Trip, Item } from '@/lib/types';
-import { formatCurrency, cn, getRelativeTime } from '@/lib/utils';
+import { formatCurrency, cn, getRelativeTime, getProductEmoji } from '@/lib/utils';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
@@ -330,18 +330,18 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                <div className="grid grid-cols-3 gap-3 mb-8">
                     <div className="card p-3 flex flex-col items-center justify-center text-center">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Total Produtos</p>
                         <p className="text-xl font-black text-[var(--text-primary)]">{stats.total}</p>
                     </div>
 
                     <div className="card p-3 flex flex-col items-center justify-center text-center">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">A Faltar</p>
+                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Por comprar</p>
                         <p className="text-xl font-black text-amber-500">{stats.pending}</p>
                     </div>
 
-                    <div className="card p-3 flex flex-col items-center justify-center text-center col-span-2 md:col-span-1">
+                    <div className="card p-3 flex flex-col items-center justify-center text-center">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Gasto Atual</p>
                         <p className="text-xl font-black text-emerald-600">{formatCurrency(boughtCost)}</p>
                     </div>
@@ -420,12 +420,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                         </div>
 
                                         {/* Items List */}
-                                        <div className="divide-y divide-gray-50">
+                                        <div className="bg-gray-50 p-2 gap-2 flex flex-col">
                                             {group.items.map((item) => (
                                                 <div
                                                     key={item.id}
                                                     className={cn(
-                                                        "relative group transition-all duration-200",
+                                                        "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
                                                         item.found_status === 'found' ? "bg-emerald-50/30" :
                                                             item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
                                                     )}
@@ -434,9 +434,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                         {/* Image Placeholder or Icon */}
                                                         <div
                                                             onClick={() => openEditItemModal(item)}
-                                                            className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-xl shrink-0 cursor-pointer text-gray-400"
+                                                            className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100"
                                                         >
-                                                            <span className="material-icons text-2xl">shopping_cart</span>
+                                                            {item.image_url ? (
+                                                                <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                            ) : (
+                                                                <span>{getProductEmoji(item.name)}</span>
+                                                            )}
                                                         </div>
 
                                                         <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
@@ -447,9 +451,16 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                                 )}>
                                                                     {item.name}
                                                                 </h4>
-                                                                <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                    {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
-                                                                </span>
+                                                                <div className="text-right flex flex-col items-end">
+                                                                    <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                        {item.price > 0 ? formatCurrency(item.price) : formatCurrency(0)}
+                                                                    </span>
+                                                                    {item.price > 0 && item.quantity > 1 && (
+                                                                        <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                                                                            p./uni {formatCurrency(item.price / item.quantity)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
 
                                                             <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
