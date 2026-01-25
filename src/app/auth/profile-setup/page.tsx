@@ -131,7 +131,12 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             showToast('Perfil configurado!', 'success');
-            router.push('/trips');
+            const pendingInvite = localStorage.getItem('pendingInviteCode');
+            if (pendingInvite) {
+                router.push(`/invite/${pendingInvite}`);
+            } else {
+                router.push('/groups');
+            }
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar perfil', 'error');

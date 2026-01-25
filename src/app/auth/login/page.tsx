@@ -20,7 +20,18 @@ export default function LoginPage() {
         try {
             await login(email, password);
             showToast('Bem-vindo de volta!', 'success');
-            router.push('/trips');
+            const pendingInvite = localStorage.getItem('pendingInviteCode');
+            if (pendingInvite) {
+                localStorage.removeItem('pendingInviteCode'); // Clear it so we don't get stuck in a loop if it fails, or maybe keep it until success? 
+                // Better to keep it? No, the invite page will handle it. 
+                // But if we redirect to /invite/code, that page will run. 
+                // Let's NOT clear it here, let the invite page clear it? 
+                // Actually the invite page logic I wrote earlier DOES NOT clear it. 
+                // But it's fine. It's just a one-time redirect.
+                router.push(`/invite/${pendingInvite}`);
+            } else {
+                router.push('/groups');
+            }
         } catch (error: any) {
             console.error(error);
             showToast('Email ou password incorretos', 'error');

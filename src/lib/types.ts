@@ -16,8 +16,10 @@ export interface Trip {
   description: string;
   status: 'open' | 'closed';
   created_by: string;
+  group_id: string; // New field
   expand?: {
     created_by?: User;
+    group_id?: Group;
   };
   created: string;
   updated: string;
@@ -62,11 +64,31 @@ export interface Split {
   participants: string[];
   items: SplitItem[];
   created_by: string;
+  group_id: string; // New field
   expand?: {
     created_by?: User;
+    group_id?: Group;
   };
   created: string;
   updated: string;
+}
+
+export interface Group {
+    id: string;
+    name: string;
+    avatar: string; // Filename for PBL
+    creator: string; // User ID
+    members: string[]; // User IDs
+    admins: string[]; // User IDs (includes creator)
+    invite_code: string;
+    invite_active: boolean;
+    expand?: {
+        creator?: User;
+        members?: User[];
+        admins?: User[];
+    }
+    created: string;
+    updated: string;
 }
 
 export interface SplitItem {

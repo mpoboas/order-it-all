@@ -1,8 +1,11 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
+import { groupsApi } from '@/lib/pocketbase';
+import type { Group } from '@/lib/types';
 
 interface NavItem {
     href: string;
@@ -14,42 +17,52 @@ interface NavItem {
 export function BottomNav() {
     const pathname = usePathname();
     const router = useRouter();
-    const { isLoggedIn } = useUser();
+    const params = useParams();
+    const groupId = params.groupId as string;
+    const { user, isLoggedIn } = useUser();
+    const [isAdmin, setIsAdmin] = useState(false);
 
-    // Don't show on welcome page or if not logged in
-    if (!isLoggedIn || pathname === '/') return null;
+    useEffect(() => {
+        if (groupId && user) {
+            groupsApi.getById(groupId).then(group => {
+                setIsAdmin(group.admins.includes(user.id));
+            }).catch(() => setIsAdmin(false));
+        }
+    }, [groupId, user]);
+
+    // Don't show if not logged in or no group
+    if (!isLoggedIn || !groupId) return null;
 
     const navItems: NavItem[] = [
         {
-            href: '/trips',
-            label: 'Viagens',
+            href: `/groups/${groupId}`, // Changed to Dashboard as 'Home'
+            label: 'Grupo',
             icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
             ),
             activeIcon: (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
             ),
         },
-        {
-            href: '/splitter',
-            label: 'Divisor',
-            icon: (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-            ),
-            activeIcon: (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-            ),
-        },
-        {
-            href: '/admin',
+        // {
+        //     href: `/groups/${groupId}/splits`,
+        //     label: 'Divisor',
+        //     icon: (
+        //         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        //             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        //         </svg>
+        //     ),
+        //     activeIcon: (
+        //         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        //             <path d="M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        //         </svg>
+        //     ),
+        // },
+    ];
+
+    if (isAdmin) {
+        navItems.push({
+            href: `/groups/${groupId}/admin`,
             label: 'Admin',
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,17 +75,12 @@ export function BottomNav() {
                     <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
             ),
-        },
-    ];
+        });
+    }
 
     const isActive = (href: string) => {
-        if (href === '/trips') {
-            return pathname === '/trips' || pathname.startsWith('/trips/');
-        }
-        if (href === '/splitter') {
-            return pathname === '/splitter' || pathname.startsWith('/splitter/');
-        }
-        return pathname === href;
+        // Simple exact or prefix match
+        return pathname === href || pathname.startsWith(href + '/');
     };
 
     return (
@@ -92,6 +100,7 @@ export function BottomNav() {
                         >
                             <div className={cn(
                                 'transition-transform duration-200',
+                                'transform', // Fixed: Ensure transform class is present if needed for scale
                                 active && 'scale-110'
                             )}>
                                 {active ? item.activeIcon : item.icon}

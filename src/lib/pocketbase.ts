@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split } from './types';
+import type { Trip, Order, Item, Split, Group } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase('https://pb-orderit.povoas.top/');
@@ -9,11 +9,71 @@ pb.autoCancellation(false);
 
 export { pb };
 
+// Groups API
+export const groupsApi = {
+    // List all groups the current user is a member of (PocketBase handles the filtering via API rule)
+    list: async (): Promise<Group[]> => {
+        return await pb.collection('groups').getFullList<Group>({
+            sort: '-created',
+            expand: 'members'
+        });
+    },
+
+    getById: async (id: string): Promise<Group> => {
+        return await pb.collection('groups').getOne<Group>(id, {
+            expand: 'members,admins,creator'
+        });
+    },
+
+    create: async (data: { name: string; avatar?: File }): Promise<Group> => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('creator', pb.authStore.model?.id || '');
+        formData.append('admins', pb.authStore.model?.id || ''); // Creator is automatically admin
+        formData.append('members', pb.authStore.model?.id || ''); // Creator is automatically member
+        
+        // Generate random 6 char invite code
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        formData.append('invite_code', code);
+        formData.append('invite_active', 'true');
+
+        if (data.avatar) {
+            formData.append('avatar', data.avatar);
+        }
+
+        return await pb.collection('groups').create<Group>(formData);
+    },
+
+    update: async (id: string, data: Partial<Group> | FormData): Promise<Group> => {
+        return await pb.collection('groups').update<Group>(id, data);
+    },
+
+    delete: async (id: string): Promise<boolean> => {
+        await pb.collection('groups').delete(id);
+        return true;
+    },
+
+    getByInviteCode: async (code: string): Promise<Group> => {
+        return await pb.collection('groups').getFirstListItem<Group>(`invite_code="${code}"`);
+    },
+    
+    join: async (groupId: string, userId: string): Promise<Group> => {
+        // We first need the group to get current members
+        const group = await pb.collection('groups').getOne<Group>(groupId);
+        if (!group.members.includes(userId)) {
+             return await pb.collection('groups').update<Group>(groupId, {
+                members: [...group.members, userId]
+             });
+        }
+        return group;
+    }
+};
+
 // Trip API
 export const tripsApi = {
-  getOpen: async (): Promise<Trip[]> => {
+  getOpen: async (groupId: string): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
-      filter: 'status = "open"',
+      filter: `status = "open" && group_id = "${groupId}"`,
       sort: '-created',
       expand: 'created_by',
     });
@@ -26,9 +86,9 @@ export const tripsApi = {
     });
   },
 
-  getClosed: async (): Promise<Trip[]> => {
+  getClosed: async (groupId: string): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
-      filter: 'status = "closed"',
+      filter: `status = "closed" && group_id = "${groupId}"`,
       sort: '-updated',
       expand: 'created_by',
     });
@@ -40,12 +100,13 @@ export const tripsApi = {
     });
   },
 
-  create: async (data: { name: string; description?: string }): Promise<Trip> => {
+  create: async (data: { name: string; description?: string; group_id: string }): Promise<Trip> => {
     return await pb.collection('trips').create<Trip>({
       name: data.name,
       description: data.description || '',
       status: 'open',
       created_by: pb.authStore.model?.id,
+      group_id: data.group_id
     });
   },
 
@@ -182,8 +243,9 @@ export const usersApi = {
 
 // Split API
 export const splitsApi = {
-  getAll: async (): Promise<Split[]> => {
+  getAll: async (groupId: string): Promise<Split[]> => {
     return await pb.collection('splits').getFullList<Split>({
+       filter: `group_id = "${groupId}"`,
       sort: '-created',
       expand: 'created_by',
     });
@@ -197,6 +259,7 @@ export const splitsApi = {
     name: string;
     description?: string;
     created_by: string;
+    group_id: string;
     participants?: string[];
     items?: Split['items'];
   }): Promise<Split> => {
@@ -204,6 +267,7 @@ export const splitsApi = {
       name: data.name,
       description: data.description || '',
       created_by: data.created_by,
+      group_id: data.group_id,
       participants: data.participants || [data.created_by],
       items: data.items || [],
     });
@@ -221,8 +285,23 @@ export const splitsApi = {
 
 // Real-time subscriptions
 export const subscriptions = {
-  subscribeToTrips: (callback: (e: unknown) => void) => {
-    return pb.collection('trips').subscribe('*', callback);
+  subscribeToTrips: (arg1: string | ((e: any) => void), arg2?: (e: any) => void) => {
+    if (typeof arg1 === 'function') {
+        // Legacy: subscribe to all
+         return pb.collection('trips').subscribe('*', arg1);
+    }
+    const groupId = arg1;
+    const callback = arg2;
+    if (!callback) return Promise.resolve(() => {}); // Should not happen
+
+    return pb.collection('trips').subscribe('*', (e: any) => {
+        // Filter manually if needed, or rely on collection-wide subscribe.
+        // For strict filtering, we check if the updated record has the correct group ID.
+        // PB subscriptions are wide, but we can check the record.
+        if (e.record && e.record.group_id === groupId) {
+            callback(e);
+        }
+    });
   },
 
   subscribeToOrders: (tripId: string, callback: (e: unknown) => void) => {
@@ -233,8 +312,30 @@ export const subscriptions = {
     return pb.collection('items').subscribe('*', callback);
   },
 
-  subscribeToSplits: (callback: (e: unknown) => void) => {
-    return pb.collection('splits').subscribe('*', callback);
+  subscribeToSplits: (arg1: string | ((e: any) => void), arg2?: (e: any) => void) => {
+     if (typeof arg1 === 'function') {
+         return pb.collection('splits').subscribe('*', arg1);
+     }
+     const groupId = arg1;
+     const callback = arg2;
+     if (!callback) return Promise.resolve(() => {});
+
+     return pb.collection('splits').subscribe('*', (e: any) => {
+        if (e.record && e.record.group_id === groupId) {
+            callback(e);
+        }
+    });
+  },
+
+  subscribeToGroups: (userId: string, callback: (e: unknown) => void) => {
+      // Subscribe to all changes in groups collection
+      // For personal list update, we check if user is still in members list or if a new group was created by them.
+    return pb.collection('groups').subscribe('*', (e: any) => {
+        const record = e.record as Group;
+        if (record.members.includes(userId)) {
+             callback(e);
+        }
+    });
   },
 
   unsubscribeAll: () => {
@@ -242,5 +343,6 @@ export const subscriptions = {
     pb.collection('orders').unsubscribe();
     pb.collection('items').unsubscribe();
     pb.collection('splits').unsubscribe();
+    pb.collection('groups').unsubscribe();
   },
 };
