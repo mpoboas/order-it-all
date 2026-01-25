@@ -192,3 +192,11 @@ export function getProductEmoji(name: string): string {
     
     return '🛒'; // Default
 }
+/**
+ * Get current date string in Pacific Time (America/Los_Angeles)
+ * Used for Gemini API quota alignment
+ */
+export function getPacificDateString(): string {
+  // Use en-CA for YYYY-MM-DD format
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}

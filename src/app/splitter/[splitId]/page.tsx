@@ -56,7 +56,7 @@ export default function SplitDetailPage() {
     const params = useParams();
     const splitId = params.splitId as string;
     const router = useRouter();
-    const { userName, isLoggedIn } = useUser();
+    const { isLoggedIn } = useUser();
     const { showToast } = useToast();
     const shareRef = useRef<HTMLDivElement>(null);
 

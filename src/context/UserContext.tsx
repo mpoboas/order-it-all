@@ -27,7 +27,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         });
 
         // Try to refresh auth if we have a token
-        if (pb.authStore.isValid) {
+        if (pb.authStore.model) {
             usersApi.authRefresh()
                 .catch(() => {
                     console.warn('Auth token invalid/expired');
@@ -56,8 +56,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     const updateProfile = useCallback(async (data: any) => {
         if (!user?.id) return;
-        const updated = await usersApi.update(user.id, data);
-        setUser(updated); // PB usually does this via authStore, but forcing update is safer
+
+        // Optimistic update
+        setUser((prev: any) => ({ ...prev, ...data }));
+
+        try {
+            const updated = await usersApi.update(user.id, data);
+            console.log('User profile updated:', updated);
+
+            // Verify if fields were actually saved (check for DB schema issues)
+            if (data.daily_requests_count !== undefined && updated.daily_requests_count === undefined) {
+                console.warn('WARNING: daily_requests_count was not saved. Check if field exists in PocketBase users collection.');
+            }
+
+            setUser(updated);
+        } catch (error) {
+            console.error('Failed to update profile:', error);
+            // Revert on error (fetching fresh state)
+            usersApi.authRefresh().then(u => setUser(u.record)).catch(() => { });
+        }
     }, [user]);
 
     const logout = useCallback(() => {

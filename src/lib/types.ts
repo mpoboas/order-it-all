@@ -6,6 +6,8 @@ export interface User {
   avatar: string;
   email: string;
   geminiApiKey?: string;
+  daily_requests_count?: number;
+  last_request_date?: string;
 }
 
 export interface Trip {

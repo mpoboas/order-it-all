@@ -79,13 +79,19 @@ export const ordersApi = {
     });
   },
 
-  create: async (data: { trip_id: string; user_name: string }): Promise<Order> => {
-    return await pb.collection('orders').create<Order>({
+  create: async (data: { trip_id: string; user_name: string; user_id?: string | null }): Promise<Order> => {
+    const payload: any = {
       trip_id: data.trip_id,
       user_name: data.user_name,
-      user: pb.authStore.model?.id,
       can_edit_until: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    });
+    };
+
+    // Default to current user if undefined. Pass null to skip.
+    if (data.user_id !== null) {
+      payload.user = data.user_id || pb.authStore.model?.id;
+    }
+
+    return await pb.collection('orders').create<Order>(payload);
   },
 
   update: async (id: string, data: Partial<Order>): Promise<Order> => {
@@ -119,6 +125,7 @@ export const itemsApi = {
     notes?: string;
     price?: number;
     image_url?: string;
+    found_status?: Item['found_status'];
   }): Promise<Item> => {
     return await pb.collection('items').create<Item>({
       order_id: data.order_id,
@@ -126,7 +133,7 @@ export const itemsApi = {
       quantity: data.quantity,
       brand: data.brand || '',
       notes: data.notes || '',
-      found_status: 'pending',
+      found_status: data.found_status || 'pending',
       price: data.price || 0,
       image_url: data.image_url || '',
     });
