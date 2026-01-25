@@ -226,7 +226,7 @@ export default function ProfileSetupPage() {
                                     required
                                     value={name}
                                     onChange={e => setName(e.target.value)}
-                                    placeholder="Ex: João da Silva"
+                                    placeholder="Ex: Habelius Chabierius"
                                     className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm transition-shadow"
                                 />
                             </div>
