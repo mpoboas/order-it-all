@@ -20,7 +20,7 @@ export default function LoginPage() {
         try {
             await login(email, password);
             showToast('Bem-vindo de volta!', 'success');
-            router.push('/trips');
+            router.push('/groups');
         } catch (error: any) {
             console.error(error);
             showToast('Email ou password incorretos', 'error');

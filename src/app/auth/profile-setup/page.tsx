@@ -131,7 +131,7 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             showToast('Perfil configurado!', 'success');
-            router.push('/trips');
+            router.push('/groups');
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar perfil', 'error');

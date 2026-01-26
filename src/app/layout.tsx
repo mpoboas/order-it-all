@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
+import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
-import { BottomNav } from "@/components/layout/BottomNav";
 
 export const metadata: Metadata = {
   title: "Order It All! - A aplicação #1 de compras de Celorico de Basto!",
@@ -37,11 +37,12 @@ export default function RootLayout({
       </head>
       <body>
         <UserProvider>
-          <ToastProvider>
-            {children}
-            <BottomNav />
-            <ToastContainer />
-          </ToastProvider>
+          <GroupProvider>
+            <ToastProvider>
+              {children}
+              <ToastContainer />
+            </ToastProvider>
+          </GroupProvider>
         </UserProvider>
       </body>
     </html>

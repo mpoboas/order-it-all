@@ -15,7 +15,7 @@ export default function WelcomePage() {
 
     // Redirect if already logged in
     if (isLoggedIn) {
-      router.push('/trips');
+      router.push('/groups');
     }
   }, [isLoggedIn, router]);
 

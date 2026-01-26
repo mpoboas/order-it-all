@@ -1,20 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback, use, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
-import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
-import { scanInvoice } from '@/app/actions/ocr';
-import { reconcileInvoice } from '@/app/actions/ai';
+import { tripsApi, ordersApi, itemsApi, groupsApi, subscriptions } from '@/lib/pocketbase';
+import { reconcileWithGeminiImage } from '@/app/actions/ai';
 import { useUser } from '@/context/UserContext';
 import type { Trip, Item } from '@/lib/types';
 import { getInitials, formatCurrency, getProductEmoji, cn, getPacificDateString, getRelativeTime } from '@/lib/utils';
-import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
+import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
 
 interface ShoppingItem extends Item {
     user_name: string;
@@ -100,11 +100,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
                 canvasRef.current.toBlob((blob) => {
                     if (blob) {
-                        const file = new File([blob], "invoice-capture.png", { type: "image/png" });
+                        const file = new File([blob], "invoice-capture.jpg", { type: "image/jpeg" });
                         setInvoiceFile(file);
                         setInvoicePreview(URL.createObjectURL(file));
                     }
-                }, 'image/png');
+                }, 'image/jpeg', 0.8);
 
                 // Stop camera
                 if (stream) {
@@ -140,18 +140,27 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
-    const [itemName, setItemName] = useState('');
-    const [itemQuantity, setItemQuantity] = useState<number | string>(1);
-    const [itemUnitPrice, setItemUnitPrice] = useState<number | string>(0);
-    const [itemStatus, setItemStatus] = useState<Item['found_status']>('pending');
-    const [itemBrand, setItemBrand] = useState('Official'); // Default to Official
-    const [itemNotes, setItemNotes] = useState('');
 
     // New Order Form
-    const [newOrderUserName, setNewOrderUserName] = useState('');
-    const [newOrderItems, setNewOrderItems] = useState([{ name: '', quantity: 1 }]);
+    const [members, setMembers] = useState<any[]>([]);
 
     const [submitting, setSubmitting] = useState(false);
+    const [comboboxOpen, setComboboxOpen] = useState(false);
+
+    const editInitialItems = useMemo(() => {
+        if (!selectedItem) return [];
+        return [{
+            name: selectedItem.name,
+            quantity: selectedItem.quantity,
+            unit_price: selectedItem.unit_price || (selectedItem.price / selectedItem.quantity) || 0,
+            brand: (selectedItem.brand as 'Official' | 'Off-brand' | '') || 'Official',
+            notes: selectedItem.notes || '',
+            image_url: selectedItem.image_url || '',
+            found_status: selectedItem.found_status
+        }];
+    }, [selectedItem]);
+
+    const usersList = useMemo(() => members, [members]);
     const { showToast } = useToast();
     const router = useRouter();
 
@@ -160,7 +169,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     useEffect(() => { activeTripId.current = tripId; }, [tripId]);
 
     const loadShoppingItems = useCallback(async () => {
-        console.time('loadShoppingItems');
         try {
             const ordersData = await ordersApi.getByTrip(tripId);
             if (activeTripId.current !== tripId) return;
@@ -219,8 +227,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 console.error(error);
                 showToast('Falha ao carregar itens', 'error');
             }
-        } finally {
-            console.timeEnd('loadShoppingItems');
         }
     }, [tripId, showToast]);
 
@@ -239,8 +245,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     }, [tripId, showToast, router]);
 
     useEffect(() => {
-        setTrip(null);
-        setUserGroups([]);
         setLoading(true);
         loadTrip();
         loadShoppingItems();
@@ -256,6 +260,21 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             subscriptions.unsubscribeAll();
         };
     }, [loadTrip, loadShoppingItems, tripId]);
+
+    // Load members separately when group_id is available
+    useEffect(() => {
+        if (trip?.group_id) {
+            groupsApi.getById(trip.group_id).then(g => {
+                const list = [];
+                if (g.expand?.creator) list.push(g.expand.creator);
+                if (g.expand?.admins) list.push(...g.expand.admins);
+                if (g.expand?.members) list.push(...g.expand.members);
+                // Dedup
+                const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
+                setMembers(unique);
+            }).catch(console.error);
+        }
+    }, [trip?.group_id]);
 
     const cycleStatus = async (item: ShoppingItem, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -292,31 +311,25 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const openEditItemModal = (item: ShoppingItem) => {
         setSelectedItem(item);
-        setItemName(item.name);
-        setItemQuantity(item.quantity);
-        setItemUnitPrice(item.unit_price || (item.price / item.quantity) || 0);
-        setItemStatus(item.found_status);
-        setItemBrand(item.brand || 'Official');
-        setItemNotes(item.notes || '');
         setShowEditItemModal(true);
     };
 
-    const handleUpdateItem = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleUpdateItem = async (data: { items: ItemFormData[] }) => {
         if (!selectedItem) return;
         setSubmitting(true);
-        const qty = Number(itemQuantity) || 1;
-        const uPrice = Number(itemUnitPrice) || 0;
+        const itemData = data.items[0];
+        const qty = Number(itemData.quantity) || 1;
+        const uPrice = Number(itemData.unit_price) || 0;
 
         try {
             await itemsApi.update(selectedItem.id, {
-                name: itemName,
+                name: itemData.name,
                 quantity: qty,
                 unit_price: uPrice,
                 price: uPrice * qty,
-                found_status: itemStatus,
-                brand: itemBrand,
-                notes: itemNotes
+                found_status: itemData.found_status,
+                brand: itemData.brand,
+                notes: itemData.notes
             });
             showToast('Produto atualizado!', 'success');
             setShowEditItemModal(false);
@@ -328,8 +341,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
-    const handleDeleteItem = async (e: React.MouseEvent) => {
-        e.preventDefault();
+    const handleDeleteItem = async () => {
         if (!selectedItem || !confirm('Tem a certeza de que quer eliminar este produto?')) return;
         setSubmitting(true);
         try {
@@ -344,34 +356,41 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
-    const handleAddOrderItem = () => {
-        setNewOrderItems([...newOrderItems, { name: '', quantity: 1 }]);
-    };
+    const handleNewOrder = async (data: { items: ItemFormData[], userId?: string, userName?: string }) => {
+        // If external user, require name. If member selected, name is optional (will use member name).
+        if (!data.userId && !data.userName?.trim()) {
+            showToast('Indique para quem é o pedido', 'error');
+            return;
+        }
 
-    const handleNewOrder = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newOrderUserName.trim()) return;
         setSubmitting(true);
         try {
+            const selectedMember = members.find(m => m.id === data.userId);
+            const finalUserName = data.userId ? (selectedMember?.name || 'Membro') : data.userName?.trim();
+
             const order = await ordersApi.create({
                 trip_id: tripId,
-                user_name: newOrderUserName.trim()
+                user_name: finalUserName,
+                user_id: data.userId || null
             });
 
-            for (const item of newOrderItems) {
+            for (const item of data.items) {
                 if (item.name.trim()) {
                     await itemsApi.create({
                         order_id: order.id,
                         name: item.name.trim(),
                         quantity: item.quantity,
-                        price: 0
+                        price: (item.unit_price || 0) * item.quantity,
+                        // @ts-ignore
+                        unit_price: item.unit_price,
+                        brand: item.brand,
+                        notes: item.notes,
+                        image_url: item.image_url
                     });
                 }
             }
 
             showToast('Pedido adicionado!', 'success');
-            setNewOrderUserName('');
-            setNewOrderItems([{ name: '', quantity: 1 }]);
             setShowNewOrderModal(false);
             loadShoppingItems();
         } catch {
@@ -390,17 +409,17 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
 
         setScanStep('processing');
+
+        // Prepare items for reconciliation
+        const allItems = userGroups.flatMap(g => g.items.map(i => ({
+            id: i.id, name: i.name, quantity: i.quantity, notes: i.notes
+        })));
+
         try {
-            // 1. OCR
-            const text = await scanInvoice(imageToFormData(invoiceFile));
-            console.log('OCR Text:', text);
+            console.log('Starting invoice processing with Gemini Vision...');
 
-            // 2. Reconciliation
-            const allItems = userGroups.flatMap(g => g.items.map(i => ({
-                id: i.id, name: i.name, quantity: i.quantity, notes: i.notes
-            })));
-
-            const result = await reconcileInvoice(text, allItems, user.geminiApiKey);
+            // Direct Gemini Vision reconciliation
+            const result = await reconcileWithGeminiImage(imageToFormData(invoiceFile), allItems, user.geminiApiKey);
 
             // Update RPD
             const today = getPacificDateString();
@@ -418,6 +437,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
             setScanResult(processedResult);
             setScanStep('review');
+            console.log('Invoice processing complete');
         } catch (error: any) {
             console.error(error);
             showToast(error.message, 'error');
@@ -545,7 +565,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const imageToFormData = (file: File) => {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', file, file.name);
         return formData;
     };
 
@@ -624,7 +644,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             <Header title="Admin Panel" subtitle={trip.name} showBack />
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">
-                {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 mb-8">
                     <div className="card p-3 flex flex-col items-center justify-center text-center">
                         <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Total Produtos</p>
@@ -641,7 +660,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         <p className="text-xl font-black text-emerald-600">{formatCurrency(boughtCost)}</p>
                     </div>
                 </div>
-
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h2>
@@ -669,8 +687,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         </button>
                     </div>
                 </div>
-
-
 
                 {/* Shopping List - Grouped by User */}
                 <div className="space-y-6">
@@ -831,92 +847,24 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         })
                     )}
                 </div>
-            </main >
+            </main>
 
-            {/* Edit Item Modal */}
-            < Modal isOpen={showEditItemModal} onClose={() => setShowEditItemModal(false)
-            }>
-                <ModalHeader>
-                    <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                            </div>
-                            <h2 className="text-xl font-bold">Editar Produto</h2>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 w-10 h-10 p-0 rounded-xl"
-                            onClick={handleDeleteItem}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </Button>
-                    </div>
-                </ModalHeader>
-                <form onSubmit={handleUpdateItem}>
-                    <ModalBody className="space-y-4 pt-4">
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="col-span-2">
-                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Nome</label>
-                                <input type="text" value={itemName} onChange={e => setItemName(e.target.value)} className="input" required />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Qtd.</label>
-                                <input type="number" min="1" value={itemQuantity} onChange={e => setItemQuantity(e.target.value)} className="input text-center font-bold" required />
-                            </div>
-                        </div>
+            {/* Edit Item Sheet */}
+            {/* ... rest of the component ... */}
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Marca</label>
-                                <SegmentedControl
-                                    value={itemBrand === 'Official' || itemBrand === 'official' ? 'Official' : 'Off-brand'}
-                                    onChange={(v) => setItemBrand(v)}
-                                    options={[
-                                        { value: 'Official', label: 'Original' },
-                                        { value: 'Off-brand', label: 'Branca' }
-                                    ]}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Preço Unit. (€)</label>
-                                <input type="number" min="0" step="0.01" value={itemUnitPrice} onChange={e => setItemUnitPrice(e.target.value)} className="input" placeholder="0.00" />
-                            </div>
-                        </div>
-
-                        <div className="mt-2 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border)]">
-                            <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Total Calculado</label>
-                            <div className="text-lg font-black text-[var(--text-primary)]">
-                                {formatCurrency((Number(itemUnitPrice) || 0) * (Number(itemQuantity) || 0))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Estado</label>
-                            <SegmentedControl
-                                value={itemStatus}
-                                onChange={setItemStatus}
-                                options={[
-                                    { value: 'pending', label: 'Por comprar', icon: 'hourglass_empty', color: '#f59e0b' },
-                                    { value: 'found', label: 'Comprado', icon: 'check', color: '#10b981' },
-                                    { value: 'not_available', label: 'Não tinha', icon: 'close', color: '#ef4444' }
-                                ]}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Notas</label>
-                            <textarea value={itemNotes} onChange={e => setItemNotes(e.target.value)} className="input text-sm" rows={2} placeholder="Marca específica, alternativa, etc..."></textarea>
-                        </div>
-                    </ModalBody>
-                    <ModalFooter className="flex gap-3 justify-end mt-4">
-                        <Button type="button" variant="ghost" onClick={() => setShowEditItemModal(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={submitting} className="btn-primary px-8">
-                            {submitting ? 'A guardar...' : 'Guardar'}
-                        </Button>
-                    </ModalFooter>
-                </form>
-            </Modal >
+            {/* Edit Item Sheet */}
+            <OrderFormSheet
+                isOpen={showEditItemModal}
+                onClose={() => setShowEditItemModal(false)}
+                onSubmit={handleUpdateItem}
+                onDelete={handleDeleteItem}
+                initialItems={editInitialItems}
+                title="Editar Produto"
+                submitLabel="Guardar Alterações"
+                submitting={submitting}
+                mode="single"
+                isAdmin={true}
+            />
 
             {/* Invoice Scanner Sheet */}
             {
@@ -1283,70 +1231,19 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 )
             }
 
-            {/* New Order Modal */}
-            <Modal isOpen={showNewOrderModal} onClose={() => setShowNewOrderModal(false)}>
-                <ModalHeader>
-                    <div className="flex items-center gap-3 text-violet-600">
-                        <div className="p-2 bg-violet-100 rounded-lg">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900">Novo Pedido</h2>
-                            <p className="text-xs text-[var(--text-muted)] font-normal">Adicionar produtos em nome de um utilizador</p>
-                        </div>
-                    </div>
-                </ModalHeader>
-                <form onSubmit={handleNewOrder}>
-                    <ModalBody className="space-y-4 pt-4">
-                        <div>
-                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Nome do Utilizador</label>
-                            <input type="text" value={newOrderUserName} onChange={e => setNewOrderUserName(e.target.value)} className="input" placeholder="ex: João Silva" required />
-                        </div>
-
-                        <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Produtos</label>
-                            {newOrderItems.map((item, idx) => (
-                                <div key={idx} className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={item.name}
-                                        onChange={e => {
-                                            const updated = [...newOrderItems];
-                                            updated[idx].name = e.target.value;
-                                            setNewOrderItems(updated);
-                                        }}
-                                        className="input flex-1"
-                                        placeholder="Nome do produto..."
-                                        required
-                                    />
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={item.quantity}
-                                        onChange={e => {
-                                            const updated = [...newOrderItems];
-                                            updated[idx].quantity = parseInt(e.target.value) || 1;
-                                            setNewOrderItems(updated);
-                                        }}
-                                        className="input w-20 text-center font-bold"
-                                        required
-                                    />
-                                </div>
-                            ))}
-                            <button type="button" onClick={handleAddOrderItem} className="text-violet-600 text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline mt-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                Adicionar outro produto
-                            </button>
-                        </div>
-                    </ModalBody>
-                    <ModalFooter className="flex gap-3 justify-end mt-4">
-                        <Button type="button" variant="ghost" onClick={() => setShowNewOrderModal(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={submitting} className="btn-primary px-6">
-                            {submitting ? 'A criar...' : 'Criar Pedido'}
-                        </Button>
-                    </ModalFooter>
-                </form>
-            </Modal>
+            {/* New Order Sheet */}
+            <OrderFormSheet
+                isOpen={showNewOrderModal}
+                onClose={() => setShowNewOrderModal(false)}
+                onSubmit={handleNewOrder}
+                title="Novo Pedido"
+                submitLabel="Criar Pedido"
+                submitting={submitting}
+                mode="multi"
+                isAdmin={true}
+                users={usersList}
+            />
         </div >
     );
 }
+

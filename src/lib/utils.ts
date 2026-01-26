@@ -200,3 +200,43 @@ export function getPacificDateString(): string {
   // Use en-CA for YYYY-MM-DD format
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 }
+
+/**
+ * Convert an emoji to an image Blob with a white background
+ */
+export function emojiToImageBlob(emoji: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 500;
+            canvas.height = 500;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error('Could not get canvas context'));
+                return;
+            }
+
+            // Draw white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 500, 500);
+
+            // Draw Emoji Centered
+            ctx.font = '300px serif'; // Large font for high resolution
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Adjust y slightly down because emojis often sit high
+            ctx.fillText(emoji, 250, 270); 
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Canvas to Blob failed'));
+                }
+            }, 'image/png');
+        } catch (error) {
+            reject(error);
+        }
+    });
+}

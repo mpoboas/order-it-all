@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useUser } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -11,17 +10,19 @@ interface NavItem {
     activeIcon: React.ReactNode;
 }
 
-export function BottomNav() {
+interface BottomNavProps {
+    groupId: string;
+}
+
+export function BottomNav({ groupId }: BottomNavProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const { isLoggedIn } = useUser();
 
-    // Don't show on welcome page or if not logged in
-    if (!isLoggedIn || pathname === '/') return null;
+    const basePath = `/groups/${groupId}`;
 
     const navItems: NavItem[] = [
         {
-            href: '/trips',
+            href: `${basePath}/trips`,
             label: 'Viagens',
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +36,7 @@ export function BottomNav() {
             ),
         },
         {
-            href: '/splitter',
+            href: `${basePath}/splits`,
             label: 'Divisor',
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +50,7 @@ export function BottomNav() {
             ),
         },
         {
-            href: '/admin',
+            href: `${basePath}/admin`,
             label: 'Admin',
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,13 +67,7 @@ export function BottomNav() {
     ];
 
     const isActive = (href: string) => {
-        if (href === '/trips') {
-            return pathname === '/trips' || pathname.startsWith('/trips/');
-        }
-        if (href === '/splitter') {
-            return pathname === '/splitter' || pathname.startsWith('/splitter/');
-        }
-        return pathname === href;
+        return pathname.startsWith(href);
     };
 
     return (

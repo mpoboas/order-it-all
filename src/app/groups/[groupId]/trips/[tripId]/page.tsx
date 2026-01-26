@@ -1,0 +1,461 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useUser } from '@/context/UserContext';
+import { useToast } from '@/context/ToastContext';
+import { useEditTimer } from '@/hooks/useEditTimer';
+import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
+import type { Trip, Item, OrderWithItems } from '@/lib/types';
+import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
+import { Header } from '@/components/layout/Header';
+import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { Avatar } from '@/components/ui/Avatar';
+import { Sheet } from '@/components/ui/Sheet';
+
+import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
+
+export default function GroupTripDetailPage() {
+    const params = useParams();
+    const groupId = params.groupId as string;
+    const tripId = params.tripId as string;
+    const router = useRouter();
+    const { user, isLoggedIn } = useUser();
+    const { showToast } = useToast();
+    const { startTimer } = useEditTimer();
+
+    const userName = user?.name || user?.email || 'Anónimo';
+
+    const [trip, setTrip] = useState<Trip | null>(null);
+    const [orders, setOrders] = useState<OrderWithItems[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showOrderSheet, setShowOrderSheet] = useState(false);
+    const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
+    const [currentTime, setCurrentTime] = useState(Date.now());
+
+    // Timer updates
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!isLoggedIn) router.push('/');
+    }, [isLoggedIn, router]);
+
+    const loadData = useCallback(async () => {
+        try {
+            const [tripData, ordersData] = await Promise.all([
+                tripsApi.getById(tripId),
+                ordersApi.getByTrip(tripId),
+            ]);
+
+            setTrip(tripData);
+            const userOrders = ordersData
+                .filter(order => order.user_name === userName)
+                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()); // Newest first
+
+            const ordersWithItems = await Promise.all(
+                userOrders.map(async (order) => {
+                    const items = await itemsApi.getByOrder(order.id);
+                    return { ...order, items };
+                })
+            );
+            setOrders(ordersWithItems);
+        } catch (error) {
+            console.error('Error loading trip:', error);
+            showToast('Erro ao carregar viagem', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [tripId, userName, showToast]);
+
+    useEffect(() => {
+        loadData();
+        subscriptions.subscribeToOrders(tripId, () => loadData());
+        subscriptions.subscribeToItems(() => loadData());
+        return () => subscriptions.unsubscribeAll();
+    }, [tripId, loadData]);
+
+    // Stats
+    const totalItems = orders.reduce((sum, order) => sum + order.items.length, 0);
+    const estimatedCost = orders.reduce(
+        (sum, order) => sum + order.items.reduce((itemSum, item) => {
+            const cost = (item.unit_price || 0) * (item.quantity || 1) || item.price || 0;
+            return itemSum + cost;
+        }, 0), 0
+    );
+
+    const openNewOrder = () => {
+        setEditingOrderId(null);
+        setInitialFormItems([]);
+        setShowOrderSheet(true);
+    };
+
+    const handleOrderSubmit = async (data: { items: ItemFormData[] }) => {
+        setSubmitting(true);
+        try {
+            if (editingOrderId) {
+                const existing = orders.find(o => o.id === editingOrderId);
+                if (existing) {
+                    for (const item of existing.items) await itemsApi.delete(item.id);
+                }
+                for (const item of data.items) {
+                    await itemsApi.create({
+                        order_id: editingOrderId,
+                        name: item.name,
+                        quantity: item.quantity,
+                        brand: item.brand,
+                        notes: item.notes,
+                        price: item.quantity * item.unit_price,
+                        image_url: item.image_url,
+                    });
+                }
+                showToast('Pedido atualizado!', 'success');
+            } else {
+                const order = await ordersApi.create({ trip_id: tripId, user_name: userName });
+                startTimer(order.id, order.can_edit_until);
+                for (const item of data.items) {
+                    await itemsApi.create({
+                        order_id: order.id,
+                        name: item.name,
+                        quantity: item.quantity,
+                        brand: item.brand,
+                        notes: item.notes,
+                        price: item.quantity * item.unit_price,
+                        image_url: item.image_url,
+                    });
+                }
+                showToast('Pedido criado!', 'success');
+            }
+            setShowOrderSheet(false);
+            loadData();
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Erro ao guardar pedido', 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleEdit = (order: OrderWithItems) => {
+        if (!isOrderEditable(order.can_edit_until)) {
+            showToast('Limite de 5 minutos excedido', 'error');
+            return;
+        }
+        setEditingOrderId(order.id);
+        setInitialFormItems(order.items.map(i => ({
+            name: i.name,
+            quantity: i.quantity,
+            unit_price: i.unit_price || i.price / i.quantity || 0,
+            brand: (i.brand as 'Official' | 'Off-brand' | '') || 'Official',
+            notes: i.notes || '',
+            image_url: i.image_url || '',
+        })));
+        setShowOrderSheet(true);
+    };
+
+    const handleDelete = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || !isOrderEditable(order.can_edit_until)) {
+            showToast('Limite de 5 minutos excedido', 'error');
+            return;
+        }
+        if (!confirm('Eliminar este pedido?')) return;
+
+        // Optimistic Update
+        const previousOrders = [...orders];
+        setOrders(current => current.filter(o => o.id !== orderId));
+
+        try {
+            // Delete items first manually as per current logic
+            for (const item of order.items) await itemsApi.delete(item.id);
+            await ordersApi.delete(orderId);
+
+            showToast('Pedido eliminado', 'success');
+        } catch {
+            showToast('Erro ao eliminar', 'error');
+            setOrders(previousOrders); // Revert on failure
+        }
+    };
+
+    const getStatusConfig = (status: Item['found_status']) => ({
+        pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: '⏳' },
+        found: { label: 'Comprado', bg: 'bg-emerald-500', icon: '✓' },
+        not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: '✗' },
+    }[status]);
+
+    if (!isLoggedIn) return null;
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)]">
+                <Header showBack groupId={groupId} />
+                <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
+            </div>
+        );
+    }
+
+    if (!trip) {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)]">
+                <Header showBack groupId={groupId} />
+                <div className="text-center py-20">
+                    <div className="text-6xl mb-4">😕</div>
+                    <h2 className="text-xl font-bold mb-4">Viagem não encontrada</h2>
+                    <button onClick={() => router.push(`/groups/${groupId}/trips`)} className="btn btn-primary px-6 py-3">
+                        Voltar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+            <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
+
+            <main className="container mx-auto px-4 py-6">
+                {/* Stats */}
+                {totalItems > 0 && (
+                    <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in-up">
+                        <div className="card p-4 text-center">
+                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-violet-100 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                            </div>
+                            <p className="text-xs text-[var(--text-muted)] mb-0.5">Produtos</p>
+                            <p className="text-xl font-bold text-[var(--text-primary)]">{totalItems}</p>
+                        </div>
+                        <div className="card p-4 text-center">
+                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-amber-100 flex items-center justify-center">
+                                <span className="text-amber-600">€</span>
+                            </div>
+                            <p className="text-xs text-[var(--text-muted)] mb-0.5">Estimado</p>
+                            <p className="text-xl font-bold text-[var(--text-primary)]">{formatCurrency(estimatedCost)}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Section Header */}
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">Os Teus Pedidos</h3>
+                    <button onClick={loadData} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
+                        <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Orders */}
+                {orders.length === 0 ? (
+                    <div className="text-center py-16 animate-fade-in-up">
+                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                            <span className="text-4xl">📝</span>
+                        </div>
+                        <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Ainda sem pedidos</h4>
+                        <p className="text-[var(--text-secondary)] mb-4">Toca no + para fazer o primeiro!</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {orders.map((order, idx) => {
+                            const canEdit = isOrderEditable(order.can_edit_until);
+                            const remaining = getRemainingEditTime(order.can_edit_until);
+                            const isWarning = remaining > 0 && remaining < 60;
+                            const orderTotal = order.items.reduce((acc, item) => acc + (item.price || 0), 0);
+
+                            const allProcessed = order.items.length > 0 && order.items.every(i => i.found_status !== 'pending');
+                            const allMissing = order.items.length > 0 && order.items.every(i => i.found_status === 'not_available');
+
+                            return (
+                                <div
+                                    key={order.id}
+                                    className={cn(
+                                        'rounded-[24px] shadow-sm overflow-hidden animate-fade-in-up',
+                                        allProcessed ? "p-[3px]" : "border border-[var(--border)]",
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white",
+                                        canEdit && !allProcessed && "ring-2 ring-amber-400"
+                                    )}
+                                    style={{ animationDelay: `${idx * 0.05}s` }}
+                                >
+                                    <div className={cn("bg-white overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                        {allProcessed && (
+                                            <div className={cn(
+                                                "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
+                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                            )}>
+                                                {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
+                                            </div>
+                                        )}
+                                        {/* Order Header */}
+                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-xl shrink-0 ring-2 ring-white">
+                                                    🛒
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                        Pedido {orders.length - idx}
+                                                    </h3>
+                                                    <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                        {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <div className="text-right">
+                                                    <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                    <p className="text-sm font-black text-[var(--text-primary)]">
+                                                        {formatCurrency(orderTotal)}
+                                                    </p>
+                                                </div>
+
+                                                {canEdit && (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={cn(
+                                                            'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
+                                                            isWarning ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'
+                                                        )}>
+                                                            ⏱️ {formatTime(remaining)}
+                                                        </span>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                            </button>
+                                                            <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Items */}
+                                        <div className="bg-gray-50 p-2 gap-2 flex flex-col">
+                                            {order.items.map((item) => {
+                                                const status = getStatusConfig(item.found_status);
+                                                // Override status config to match Admin EXACTLY
+                                                const statusConfig = {
+                                                    pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: 'hourglass_empty' },
+                                                    found: { label: 'Comprado', bg: 'bg-emerald-500', icon: 'check' },
+                                                    not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: 'close' },
+                                                }[item.found_status] || status;
+
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        className={cn(
+                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
+                                                            item.found_status === 'found' ? "bg-emerald-50/30" :
+                                                                item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
+                                                        )}
+                                                    >
+                                                        <div className="flex gap-4 items-start p-4">
+                                                            {/* Icon Placeholder */}
+                                                            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-gray-100">
+                                                                {item.image_url ? (
+                                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                                ) : (
+                                                                    <span>{getProductEmoji(item.name)}</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                <div className="flex justify-between items-start gap-2 mb-1">
+                                                                    <h4 className={cn(
+                                                                        "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                        item.found_status !== 'pending' && "opacity-50 line-through"
+                                                                    )}>
+                                                                        {item.name}
+                                                                    </h4>
+                                                                    <div className="text-right flex flex-col items-end">
+                                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                            {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
+                                                                        </span>
+                                                                        {item.price > 0 && item.quantity > 1 && (
+                                                                            <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                                                                                p./uni {formatCurrency(item.price / item.quantity)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                        <span>{item.quantity}</span>
+                                                                    </div>
+
+                                                                    {item.brand && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="material-icons text-sm text-slate-500">local_offer</span>
+                                                                            <span>
+                                                                                {item.brand.toLowerCase().includes('official') ? 'Original' :
+                                                                                    (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
+                                                                                        item.brand}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Wall-to-wall Notes */}
+                                                        {item.notes && (
+                                                            <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                                <span className="font-bold shrink-0">Notas:</span>
+                                                                <span className="italic">{item.notes}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Status Bar (Non-interactive) */}
+                                                        <div className={cn(
+                                                            "w-full py-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-white select-none",
+                                                            statusConfig.bg
+                                                        )}>
+                                                            <span className="material-icons text-xs">{statusConfig.icon}</span>
+                                                            {statusConfig.label}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </main>
+
+            {/* FAB */}
+            {
+                trip.status === 'open' && (
+                    <button onClick={openNewOrder} className="fab" aria-label="Novo pedido">
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                )
+            }
+
+            {/* Bottom Sheet */}
+
+            {/* Order Sheet */}
+            {/* Order Sheet */}
+            <OrderFormSheet
+                isOpen={showOrderSheet}
+                onClose={() => setShowOrderSheet(false)}
+                onSubmit={handleOrderSubmit}
+                initialItems={initialFormItems}
+                title={editingOrderId ? 'Editar Pedido' : 'Novo Pedido'}
+                submitLabel={editingOrderId ? 'Atualizar Pedido' : 'Fazer Pedido'}
+                submitting={submitting}
+            />
+        </div >
+    );
+}

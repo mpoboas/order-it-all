@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split } from './types';
+import type { Trip, Order, Item, Split, Group } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase('https://pb-orderit.povoas.top/');
@@ -11,24 +11,25 @@ export { pb };
 
 // Trip API
 export const tripsApi = {
-  getOpen: async (): Promise<Trip[]> => {
+  getOpenByGroup: async (groupId: string): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
-      filter: 'status = "open"',
+      filter: `group_id = "${groupId}" && status = "open"`,
       sort: '-created',
       expand: 'created_by',
     });
   },
 
-  getAll: async (): Promise<Trip[]> => {
+  getAllByGroup: async (groupId: string): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
+      filter: `group_id = "${groupId}"`,
       sort: '-created',
       expand: 'created_by',
     });
   },
 
-  getClosed: async (): Promise<Trip[]> => {
+  getClosedByGroup: async (groupId: string): Promise<Trip[]> => {
     return await pb.collection('trips').getFullList<Trip>({
-      filter: 'status = "closed"',
+      filter: `group_id = "${groupId}" && status = "closed"`,
       sort: '-updated',
       expand: 'created_by',
     });
@@ -40,10 +41,11 @@ export const tripsApi = {
     });
   },
 
-  create: async (data: { name: string; description?: string }): Promise<Trip> => {
+  create: async (data: { name: string; description?: string; group_id: string }): Promise<Trip> => {
     return await pb.collection('trips').create<Trip>({
       name: data.name,
       description: data.description || '',
+      group_id: data.group_id,
       status: 'open',
       created_by: pb.authStore.model?.id,
     });
@@ -182,8 +184,9 @@ export const usersApi = {
 
 // Split API
 export const splitsApi = {
-  getAll: async (): Promise<Split[]> => {
+  getByGroup: async (groupId: string): Promise<Split[]> => {
     return await pb.collection('splits').getFullList<Split>({
+      filter: `group_id = "${groupId}"`,
       sort: '-created',
       expand: 'created_by',
     });
@@ -196,6 +199,7 @@ export const splitsApi = {
   create: async (data: {
     name: string;
     description?: string;
+    group_id: string;
     created_by: string;
     participants?: string[];
     items?: Split['items'];
@@ -203,6 +207,7 @@ export const splitsApi = {
     return await pb.collection('splits').create<Split>({
       name: data.name,
       description: data.description || '',
+      group_id: data.group_id,
       created_by: data.created_by,
       participants: data.participants || [data.created_by],
       items: data.items || [],
@@ -219,8 +224,147 @@ export const splitsApi = {
   },
 };
 
+// Helper to generate invite codes
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Group API
+export const groupsApi = {
+  getByUser: async (userId: string): Promise<Group[]> => {
+    return await pb.collection('groups').getFullList<Group>({
+      filter: `members ~ "${userId}"`,
+      sort: '-created',
+      expand: 'creator,members',
+    });
+  },
+
+  getById: async (id: string): Promise<Group> => {
+    return await pb.collection('groups').getOne<Group>(id, {
+      expand: 'creator,admins,members',
+    });
+  },
+
+  getByInviteCode: async (code: string): Promise<Group | null> => {
+    try {
+      const result = await pb.collection('groups').getFirstListItem<Group>(
+        `invite_code = "${code}" && invite_active = true`,
+        { expand: 'creator' }
+      );
+      return result;
+    } catch {
+      return null;
+    }
+  },
+
+  create: async (data: { 
+    name: string; 
+    avatar?: string | Blob;
+  }): Promise<Group> => {
+    const userId = pb.authStore.model?.id;
+    if (!userId) throw new Error('User not authenticated');
+    
+    // Use FormData to handle file upload
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('creator', userId);
+    formData.append('admins', userId); // For relationship fields, append ID string directly
+    formData.append('members', userId);
+    formData.append('invite_code', generateInviteCode());
+    formData.append('invite_active', 'true');
+    
+    if (data.avatar instanceof Blob) {
+      formData.append('avatar', data.avatar);
+    } else if (typeof data.avatar === 'string') {
+      // If it's a string, we assume it's an emoji we want to convert to image or just placeholder text? 
+      // PocketBase file field might accept text but it won't be an image.
+      // However, the caller should have converted emoji to Blob. 
+      // If they passed a string, we ignore it for avatar field if it sends validation error, 
+      // OR we just assume the API caller handled it. 
+      // BUT, if the schema is FILE, a string (emoji) will fail. 
+      // So we should NOT append a string to 'avatar' if it's a file field.
+      // For now, if string, we do NOTHING (no avatar) or assume the caller handles it.
+    }
+
+    return await pb.collection('groups').create<Group>(formData);
+  },
+
+  update: async (id: string, data: Partial<Pick<Group, 'name' | 'avatar'>>): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(id, data);
+  },
+
+  delete: async (id: string): Promise<boolean> => {
+    await pb.collection('groups').delete(id);
+    return true;
+  },
+
+  addMember: async (groupId: string, userId: string): Promise<Group> => {
+    const group = await pb.collection('groups').getOne<Group>(groupId);
+    if (group.members.includes(userId)) {
+      return group; // Already a member
+    }
+    return await pb.collection('groups').update<Group>(groupId, {
+      members: [...group.members, userId],
+    });
+  },
+
+  removeMember: async (groupId: string, userId: string): Promise<Group> => {
+    const group = await pb.collection('groups').getOne<Group>(groupId);
+    // Cannot remove creator
+    if (group.creator === userId) {
+      throw new Error('Cannot remove the group creator');
+    }
+    return await pb.collection('groups').update<Group>(groupId, {
+      members: group.members.filter(id => id !== userId),
+      admins: group.admins.filter(id => id !== userId),
+    });
+  },
+
+  promoteToAdmin: async (groupId: string, userId: string): Promise<Group> => {
+    const group = await pb.collection('groups').getOne<Group>(groupId);
+    if (group.admins.includes(userId)) {
+      return group; // Already an admin
+    }
+    return await pb.collection('groups').update<Group>(groupId, {
+      admins: [...group.admins, userId],
+    });
+  },
+
+  demoteFromAdmin: async (groupId: string, userId: string): Promise<Group> => {
+    const group = await pb.collection('groups').getOne<Group>(groupId);
+    // Cannot demote creator
+    if (group.creator === userId) {
+      throw new Error('Cannot demote the group creator');
+    }
+    return await pb.collection('groups').update<Group>(groupId, {
+      admins: group.admins.filter(id => id !== userId),
+    });
+  },
+
+  toggleInvite: async (groupId: string, active: boolean): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(groupId, {
+      invite_active: active,
+    });
+  },
+
+  regenerateInviteCode: async (groupId: string): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(groupId, {
+      invite_code: generateInviteCode(),
+    });
+  },
+};
+
 // Real-time subscriptions
 export const subscriptions = {
+  subscribeToGroups: (callback: (e: unknown) => void) => {
+    return pb.collection('groups').subscribe('*', callback);
+  },
+
   subscribeToTrips: (callback: (e: unknown) => void) => {
     return pb.collection('trips').subscribe('*', callback);
   },
@@ -238,6 +382,7 @@ export const subscriptions = {
   },
 
   unsubscribeAll: () => {
+    pb.collection('groups').unsubscribe();
     pb.collection('trips').unsubscribe();
     pb.collection('orders').unsubscribe();
     pb.collection('items').unsubscribe();

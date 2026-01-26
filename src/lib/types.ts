@@ -10,14 +10,34 @@ export interface User {
   last_request_date?: string;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  avatar: string; // File path or emoji
+  creator: string; // User ID
+  admins: string[]; // User IDs (includes creator)
+  members: string[]; // User IDs (all members including admins)
+  invite_code: string;
+  invite_active: boolean;
+  expand?: {
+    creator?: User;
+    admins?: User[];
+    members?: User[];
+  };
+  created: string;
+  updated: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
   description: string;
+  group_id: string;
   status: 'open' | 'closed';
   created_by: string;
   expand?: {
     created_by?: User;
+    group_id?: Group;
   };
   created: string;
   updated: string;
@@ -59,11 +79,13 @@ export interface Split {
   id: string;
   name: string;
   description: string;
+  group_id: string;
   participants: string[];
   items: SplitItem[];
   created_by: string;
   expand?: {
     created_by?: User;
+    group_id?: Group;
   };
   created: string;
   updated: string;
