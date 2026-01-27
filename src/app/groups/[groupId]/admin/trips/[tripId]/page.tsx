@@ -147,6 +147,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const [submitting, setSubmitting] = useState(false);
     const [comboboxOpen, setComboboxOpen] = useState(false);
 
+    // Filter & Sort State
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'found' | 'not_available'>('all');
+    const [priceFilter, setPriceFilter] = useState<'all' | 'with_price' | 'no_price'>('all');
+
     const editInitialItems = useMemo(() => {
         if (!selectedItem) return [];
         return [{
@@ -503,6 +508,34 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
+    const getStatusFilterConfig = (status: typeof statusFilter) => {
+        switch (status) {
+            case 'all': return { label: 'Todos', color: 'bg-white border-gray-200 text-gray-600' };
+            case 'pending': return { label: 'Por comprar', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+            case 'found': return { label: 'Comprados', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+            case 'not_available': return { label: 'Não tinha', color: 'bg-red-100 text-red-700 border-red-200' };
+        }
+    };
+
+    const cycleStatusFilter = () => {
+        const order: typeof statusFilter[] = ['all', 'pending', 'found', 'not_available'];
+        const nextIndex = (order.indexOf(statusFilter) + 1) % order.length;
+        setStatusFilter(order[nextIndex]);
+    };
+
+    const getPriceFilterConfig = (status: typeof priceFilter) => {
+        switch (status) {
+            case 'all': return { label: 'Todos', color: 'bg-white border-gray-200 text-gray-600' };
+            case 'with_price': return { label: 'Com Preço', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
+            case 'no_price': return { label: 'Sem Preço', color: 'bg-gray-100 text-gray-700 border-gray-200' };
+        }
+    };
+
+    const cyclePriceFilter = () => {
+        const order: typeof priceFilter[] = ['all', 'with_price', 'no_price'];
+        const nextIndex = (order.indexOf(priceFilter) + 1) % order.length;
+        setPriceFilter(order[nextIndex]);
+    };
     // Helper: Get all available items for matching (not currently matched)
     const getUnmatchedItems = () => {
         if (!scanResult) return [];
@@ -660,7 +693,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         <p className="text-xl font-black text-emerald-600">{formatCurrency(boughtCost)}</p>
                     </div>
                 </div>
-                <div className="flex justify-between items-center mb-6">
+
+                <div className="flex justify-between items-center mb-4">
                     <div>
                         <h2 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h2>
                     </div>
@@ -688,6 +722,42 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     </div>
                 </div>
 
+                {/* Filters & Sort */}
+                <div className="mb-6 flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+                    {/* Sort Pill */}
+                    <button
+                        onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap bg-white border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95"
+                    >
+                        <span className="material-icons text-sm">schedule</span>
+                        {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
+                    </button>
+
+                    {/* Status Cycle Button */}
+                    <button
+                        onClick={cycleStatusFilter}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            getStatusFilterConfig(statusFilter).color
+                        )}
+                    >
+                        <span className="material-icons text-sm">filter_list</span>
+                        {getStatusFilterConfig(statusFilter).label}
+                    </button>
+
+                    {/* Price Cycle Button */}
+                    <button
+                        onClick={cyclePriceFilter}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            getPriceFilterConfig(priceFilter).color
+                        )}
+                    >
+                        <span className="material-icons text-sm">attach_money</span>
+                        {getPriceFilterConfig(priceFilter).label}
+                    </button>
+                </div>
+
                 {/* Shopping List - Grouped by User */}
                 <div className="space-y-6">
                     {userGroups.length === 0 ? (
@@ -699,152 +769,173 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             <p className="text-[var(--text-secondary)] text-sm mb-6">Nenhum produto pedido para esta viagem.</p>
                         </div>
                     ) : (
-                        userGroups.map((group) => {
-                            const allProcessed = group.items.length > 0 && group.items.every(i => i.found_status !== 'pending');
-                            const allMissing = group.items.length > 0 && group.items.every(i => i.found_status === 'not_available');
+                        userGroups
+                            .sort((a, b) => {
+                                const timeA = new Date(a.orderCreated).getTime();
+                                const timeB = new Date(b.orderCreated).getTime();
+                                return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+                            })
+                            .map((group) => {
+                                // Filter items for this group
+                                const filteredItems = group.items.filter(item => {
+                                    // Status Filter
+                                    if (statusFilter !== 'all' && item.found_status !== statusFilter) return false;
 
-                            return (
-                                <div key={group.userId} className={cn(
-                                    "rounded-[24px] shadow-sm overflow-hidden",
-                                    allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                    allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white"
-                                )}>
-                                    <div className={cn("bg-white overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
-                                        {allProcessed && (
-                                            <div className={cn(
-                                                "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
-                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
-                                            )}>
-                                                {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
-                                                {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
-                                            </div>
-                                        )}
-                                        {/* Group Header */}
-                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex -space-x-1 overflow-visible">
-                                                    <Avatar name={group.userName} src={group.userAvatar} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
+                                    // Price Filter
+                                    if (priceFilter === 'with_price' && (item.price || 0) <= 0) return false;
+                                    if (priceFilter === 'no_price' && (item.price || 0) > 0) return false;
+
+                                    return true;
+                                });
+
+                                // Skip group if no items match filter
+                                if (filteredItems.length === 0) return null;
+
+                                const allProcessed = filteredItems.length > 0 && filteredItems.every(i => i.found_status !== 'pending');
+                                const allMissing = filteredItems.length > 0 && filteredItems.every(i => i.found_status === 'not_available');
+
+                                return (
+                                    <div key={group.userId} className={cn(
+                                        "rounded-[24px] shadow-sm overflow-hidden",
+                                        allProcessed ? "p-[3px]" : "border border-[var(--border)]",
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white"
+                                    )}>
+                                        <div className={cn("bg-white overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                            {allProcessed && (
+                                                <div className={cn(
+                                                    "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
+                                                    allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                                )}>
+                                                    {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                    {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
-                                                    <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                        {group.items.length} {group.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(group.orderCreated)}
+                                            )}
+                                            {/* Group Header */}
+                                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex -space-x-1 overflow-visible">
+                                                        <Avatar name={group.userName} src={group.userAvatar} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
+                                                        <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                            {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'itens'} {statusFilter !== 'all' && 'visíveis'} • {getRelativeTime(group.orderCreated)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                    <p className="text-sm font-black text-[var(--text-primary)]">
+                                                        {formatCurrency(filteredItems.reduce((acc, item) => acc + (item.price || 0), 0))}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                                <p className="text-sm font-black text-[var(--text-primary)]">
-                                                    {formatCurrency(group.items.reduce((acc, item) => acc + (item.price || 0), 0))}
-                                                </p>
-                                            </div>
-                                        </div>
 
-                                        {/* Items List */}
-                                        <div className="bg-gray-50 p-2 gap-2 flex flex-col">
-                                            {group.items.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    className={cn(
-                                                        "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
-                                                        item.found_status === 'found' ? "bg-emerald-50/30" :
-                                                            item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
-                                                    )}
-                                                >
-                                                    <div className="flex gap-4 items-start p-4 pb-4">
-                                                        {/* Image Placeholder or Icon */}
-                                                        <div
-                                                            onClick={() => openEditItemModal(item)}
-                                                            className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100"
-                                                        >
-                                                            {item.image_url ? (
-                                                                <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
-                                                            ) : (
-                                                                <span>{getProductEmoji(item.name)}</span>
-                                                            )}
-                                                        </div>
+                                            {/* Items List */}
+                                            <div className="bg-gray-50 p-2 gap-2 flex flex-col">
+                                                {filteredItems.map((item) => (
+                                                    <div
+                                                        key={item.id}
+                                                        className={cn(
+                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
+                                                            item.found_status === 'found' ? "bg-emerald-50/30" :
+                                                                item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
+                                                        )}
+                                                    >
+                                                        <div className="flex gap-4 items-start p-4 pb-4">
+                                                            {/* Image Placeholder or Icon */}
+                                                            <div
+                                                                onClick={() => openEditItemModal(item)}
+                                                                className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100"
+                                                            >
+                                                                {item.image_url ? (
+                                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                                ) : (
+                                                                    <span>{getProductEmoji(item.name)}</span>
+                                                                )}
+                                                            </div>
 
-                                                        <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
-                                                            <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
-                                                                <h4 className={cn(
-                                                                    "font-bold text-[var(--text-primary)] text-base leading-tight",
-                                                                    item.found_status !== 'pending' && "opacity-50 line-through"
-                                                                )}>
-                                                                    {item.name}
-                                                                </h4>
-                                                                <div className="text-right flex flex-col items-end">
-                                                                    <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                        {item.price > 0 ? formatCurrency(item.price) : formatCurrency(0)}
-                                                                    </span>
-                                                                    {item.price > 0 && item.quantity > 1 && (
-                                                                        <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
-                                                                            p./uni {formatCurrency(item.price / item.quantity)}
+                                                            <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
+                                                                <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
+                                                                    <h4 className={cn(
+                                                                        "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                        item.found_status !== 'pending' && "opacity-50 line-through"
+                                                                    )}>
+                                                                        {item.name}
+                                                                    </h4>
+                                                                    <div className="text-right flex flex-col items-end">
+                                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                                                            {item.price > 0 ? formatCurrency(item.price) : formatCurrency(0)}
                                                                         </span>
+                                                                        {item.price > 0 && item.quantity > 1 && (
+                                                                            <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                                                                                p./uni {formatCurrency(item.price / item.quantity)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                        <span>{item.quantity}</span>
+                                                                    </div>
+
+                                                                    {item.brand && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="material-icons text-sm text-slate-500">local_offer</span>
+                                                                            <span>
+                                                                                {item.brand.toLowerCase().includes('official') ? 'Original' :
+                                                                                    (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
+                                                                                        item.brand}
+                                                                            </span>
+                                                                        </div>
                                                                     )}
                                                                 </div>
                                                             </div>
+                                                        </div>
 
-                                                            <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="material-icons text-sm text-slate-500">shopping_basket</span>
-                                                                    <span>{item.quantity}</span>
-                                                                </div>
-
-                                                                {item.brand && (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="material-icons text-sm text-slate-500">local_offer</span>
-                                                                        <span>
-                                                                            {item.brand.toLowerCase().includes('official') ? 'Original' :
-                                                                                (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
-                                                                                    item.brand}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
+                                                        {/* Notes - Full Width, glued to status bar */}
+                                                        {item.notes && (
+                                                            <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                                <span className="font-bold shrink-0">Notas:</span>
+                                                                <span className="italic">{item.notes}</span>
                                                             </div>
+                                                        )}
+
+                                                        {/* Status Bar / Cycle Button */}
+                                                        <div
+                                                            onClick={(e) => cycleStatus(item, e)}
+                                                            className={cn(
+                                                                "w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none",
+                                                                item.found_status === 'pending' ? "bg-amber-500 text-amber-700 hover:bg-amber-600" :
+                                                                    item.found_status === 'found' ? "bg-emerald-500" : "bg-red-500"
+                                                            )}
+                                                        >
+                                                            {item.found_status === 'pending' ? (
+                                                                <span className="flex items-center gap-1">
+                                                                    <span className="material-icons text-sm">hourglass_empty</span>
+                                                                    Por comprar
+                                                                </span>
+                                                            ) : item.found_status === 'found' ? (
+                                                                <>
+                                                                    <span className="material-icons text-sm">check</span>
+                                                                    Comprado
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="material-icons text-sm">close</span>
+                                                                    Não tinha
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
-
-                                                    {/* Notes - Full Width, glued to status bar */}
-                                                    {item.notes && (
-                                                        <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
-                                                            <span className="font-bold shrink-0">Notas:</span>
-                                                            <span className="italic">{item.notes}</span>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Status Bar / Cycle Button */}
-                                                    <div
-                                                        onClick={(e) => cycleStatus(item, e)}
-                                                        className={cn(
-                                                            "w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none",
-                                                            item.found_status === 'pending' ? "bg-amber-500 text-amber-700 hover:bg-amber-600" :
-                                                                item.found_status === 'found' ? "bg-emerald-500" : "bg-red-500"
-                                                        )}
-                                                    >
-                                                        {item.found_status === 'pending' ? (
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="material-icons text-sm">hourglass_empty</span>
-                                                                Por comprar
-                                                            </span>
-                                                        ) : item.found_status === 'found' ? (
-                                                            <>
-                                                                <span className="material-icons text-sm">check</span>
-                                                                Comprado
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span className="material-icons text-sm">close</span>
-                                                                Não tinha
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })
+                                );
+                            })
                     )}
                 </div>
             </main>
@@ -1242,6 +1333,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 mode="multi"
                 isAdmin={true}
                 users={usersList}
+            />
+
+            {/* Edit Item Sheet */}
+            <OrderFormSheet
+                isOpen={showEditItemModal}
+                onClose={() => setShowEditItemModal(false)}
+                onSubmit={handleUpdateItem}
+                initialItems={editInitialItems}
+                title="Editar Produto"
+                submitLabel="Guardar"
+                submitting={submitting}
+                onDelete={handleDeleteItem}
+                mode="single"
+                isAdmin={true}
             />
         </div >
     );

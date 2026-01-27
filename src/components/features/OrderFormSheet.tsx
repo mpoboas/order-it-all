@@ -246,10 +246,10 @@ export function OrderFormSheet({
                                 onFocus={() => setComboboxOpen(true)}
                                 onBlur={() => setTimeout(() => setComboboxOpen(false), 200)}
                                 placeholder="Selecione ou escreva um nome..."
-                                className="input w-full pl-12 h-12 rounded-xl border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+                                className="input w-full pl-12 h-12 rounded-lg border-gray-200 bg-gray-50 focus:bg-white transition-colors"
                             />
-                            {comboboxOpen && users.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto py-2 z-50">
+                            {comboboxOpen && users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-lg shadow-xl max-h-60 overflow-y-auto py-2 z-50">
                                     {users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).map((m: any) => (
                                         <button
                                             key={m.id}
@@ -284,24 +284,40 @@ export function OrderFormSheet({
                                     value={item.name}
                                     onChange={e => updateItem(i, 'name', e.target.value)}
                                     placeholder="ex. Bananas"
-                                    className="input w-full font-medium"
+                                    className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-lg font-medium focus:outline-none focus:border-violet-500 transition-colors"
                                     required
                                 />
                             </div>
-                            <div className="w-20">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Qtd</label>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={item.quantity}
-                                    onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                                    className="input w-full text-center font-bold text-violet-600"
-                                />
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 text-center">Qtd</label>
+                                <div className="flex items-center border border-gray-200 rounded-lg bg-white h-[56px] shadow-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateItem(i, 'quantity', Math.max(1, item.quantity - 1))}
+                                        className="w-8 h-full flex items-center justify-center text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-l-lg transition-colors active:bg-violet-100 touch-manipulation"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
+                                    </button>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={item.quantity}
+                                        onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                                        className="w-10 text-center font-bold text-sm text-violet-600 bg-transparent outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => updateItem(i, 'quantity', item.quantity + 1)}
+                                        className="w-8 h-full flex items-center justify-center text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-r-lg transition-colors active:bg-violet-100 touch-manipulation"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         {/* Row 2: Price + Total */}
-                        <div className="bg-white rounded-xl p-3 border border-gray-100 mb-4">
+                        <div className="bg-white rounded-lg p-3 border border-gray-100 mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Preço Uni. (€)</label>
@@ -330,7 +346,7 @@ export function OrderFormSheet({
                         {/* Row 3: Brand & Notes */}
                         <div className="space-y-3">
                             <div>
-                                <div className="flex p-1 bg-gray-100 rounded-lg">
+                                <div className="flex p-1 bg-violet-50/50 rounded-lg border border-violet-100/50">
                                     {['Official', 'Off-brand'].map((brandOption) => (
                                         <button
                                             key={brandOption}
@@ -339,8 +355,8 @@ export function OrderFormSheet({
                                             className={cn(
                                                 "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
                                                 item.brand === brandOption
-                                                    ? "bg-white text-violet-600 shadow-sm"
-                                                    : "text-gray-500 hover:text-gray-700"
+                                                    ? "bg-white text-violet-600 shadow-sm ring-1 ring-violet-100"
+                                                    : "text-gray-400 hover:text-violet-500"
                                             )}
                                         >
                                             {brandOption === 'Official' ? 'Original' : 'Branca'}
@@ -352,8 +368,8 @@ export function OrderFormSheet({
                                 value={item.notes}
                                 onChange={e => updateItem(i, 'notes', e.target.value)}
                                 placeholder="Notas (opcional)..."
-                                rows={1}
-                                className="input w-full resize-none text-sm py-2 min-h-[42px]"
+                                rows={2}
+                                className="w-full px-4 py-2 bg-white border-2 border-gray-200 rounded-lg resize-none text-sm focus:outline-none focus:border-violet-500 transition-colors"
                             />
                         </div>
 
@@ -381,7 +397,7 @@ export function OrderFormSheet({
                                     <StatusButton
                                         status="not_available"
                                         currentStatus={item.found_status}
-                                        label="Em falta"
+                                        label="Não tinha"
                                         icon="close"
                                         color="bg-red-100 text-red-700 border-red-200"
                                         onClick={() => updateItem(i, 'found_status', 'not_available')}
