@@ -34,7 +34,7 @@ export default function WelcomePage() {
         <div className={`text-center mb-12 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="mb-6 relative">
             <div className="w-24 h-24 mx-auto bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl animate-bounce-slow">
-              <span className="text-5xl">🛒</span>
+              <span className="text-5xl">🫐</span>
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
@@ -72,21 +72,6 @@ export default function WelcomePage() {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Footer Admin Link */}
-        <div
-          className={`mt-12 transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
-          <button
-            onClick={() => router.push('/admin')}
-            className="text-white/40 hover:text-white/80 text-xs font-semibold uppercase tracking-widest transition-colors flex items-center gap-2"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Area Admin
-          </button>
         </div>
       </div>
     </div>

@@ -510,10 +510,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const getStatusFilterConfig = (status: typeof statusFilter) => {
         switch (status) {
-            case 'all': return { label: 'Todos', color: 'bg-white border-gray-200 text-gray-600' };
-            case 'pending': return { label: 'Por comprar', color: 'bg-amber-100 text-amber-700 border-amber-200' };
-            case 'found': return { label: 'Comprados', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
-            case 'not_available': return { label: 'Não tinha', color: 'bg-red-100 text-red-700 border-red-200' };
+            case 'all': return { label: 'Todos', color: 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300' };
+            case 'pending': return { label: 'Por comprar', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50' };
+            case 'found': return { label: 'Comprados', color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' };
+            case 'not_available': return { label: 'Não tinha', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50' };
         }
     };
 
@@ -525,9 +525,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const getPriceFilterConfig = (status: typeof priceFilter) => {
         switch (status) {
-            case 'all': return { label: 'Todos', color: 'bg-white border-gray-200 text-gray-600' };
-            case 'with_price': return { label: 'Com Preço', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
-            case 'no_price': return { label: 'Sem Preço', color: 'bg-gray-100 text-gray-700 border-gray-200' };
+            case 'all': return { label: 'Todos', color: 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300' };
+            case 'with_price': return { label: 'Com Preço', color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50' };
+            case 'no_price': return { label: 'Sem Preço', color: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-600' };
         }
     };
 
@@ -625,11 +625,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         className={cn(
                             "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition-all",
                             isActive
-                                ? "bg-white text-[var(--text-primary)] shadow-sm ring-1 ring-black/5"
-                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50",
+                                ? "bg-white dark:bg-slate-700 text-[var(--text-primary)] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-600/50",
                             isActive && opt.color // Apply specific color if active and defined
                         )}
-                        style={isActive && opt.color ? { color: opt.color, backgroundColor: 'white' } : {}}
+                        style={isActive && opt.color ? { color: opt.color, backgroundColor: 'var(--bg-secondary)' } : {}}
                     >
                         {opt.icon && <span className="material-icons text-base">{opt.icon}</span>}
                         {opt.label}
@@ -715,7 +715,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         </Button>
                         <button
                             onClick={() => loadShoppingItems()}
-                            className="w-10 h-10 rounded-full bg-white border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-violet-600 hover:border-violet-200 transition-all shadow-sm"
+                            className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700 transition-all shadow-sm"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         </button>
@@ -727,7 +727,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     {/* Sort Pill */}
                     <button
                         onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap bg-white border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
                     >
                         <span className="material-icons text-sm">schedule</span>
                         {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
@@ -762,7 +762,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 <div className="space-y-6">
                     {userGroups.length === 0 ? (
                         <div className="text-center py-20 flex flex-col items-center">
-                            <div className="w-20 h-20 mb-4 rounded-full bg-violet-50 flex items-center justify-center text-3xl">
+                            <div className="w-20 h-20 mb-4 rounded-full bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-3xl">
                                 🛒
                             </div>
                             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">Lista Vazia</h3>
@@ -798,9 +798,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                     <div key={group.userId} className={cn(
                                         "rounded-[24px] shadow-sm overflow-hidden",
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600") : "bg-white"
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
                                     )}>
-                                        <div className={cn("bg-white overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                        <div className={cn("bg-white dark:bg-slate-800 overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
                                             {allProcessed && (
                                                 <div className={cn(
                                                     "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
@@ -811,7 +811,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                 </div>
                                             )}
                                             {/* Group Header */}
-                                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm relative z-10">
+                                            <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex -space-x-1 overflow-visible">
                                                         <Avatar name={group.userName} src={group.userAvatar} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
@@ -832,21 +832,21 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                             </div>
 
                                             {/* Items List */}
-                                            <div className="bg-gray-50 p-2 gap-2 flex flex-col">
+                                            <div className="bg-gray-50 dark:bg-slate-900/30 p-2 gap-2 flex flex-col">
                                                 {filteredItems.map((item) => (
                                                     <div
                                                         key={item.id}
                                                         className={cn(
-                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 shadow-sm",
-                                                            item.found_status === 'found' ? "bg-emerald-50/30" :
-                                                                item.found_status === 'not_available' ? "bg-red-50/30" : "bg-white"
+                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
+                                                            item.found_status === 'found' ? "bg-emerald-50/30 dark:bg-emerald-900/10" :
+                                                                item.found_status === 'not_available' ? "bg-red-50/30 dark:bg-red-900/10" : "bg-white dark:bg-slate-800"
                                                         )}
                                                     >
                                                         <div className="flex gap-4 items-start p-4 pb-4">
                                                             {/* Image Placeholder or Icon */}
                                                             <div
                                                                 onClick={() => openEditItemModal(item)}
-                                                                className="w-12 h-12 rounded-2xl bg-[var(--bg-primary)] flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100"
+                                                                className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100 dark:border-slate-700", item.image_url ? "bg-white" : "bg-[var(--bg-primary)]")}
                                                             >
                                                                 {item.image_url ? (
                                                                     <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
@@ -875,9 +875,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600 dark:text-slate-400">
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="material-icons text-sm text-slate-500">shopping_basket</span>
+                                                                        <span className="material-icons text-sm text-slate-500 dark:text-slate-500">shopping_basket</span>
                                                                         <span>{item.quantity}</span>
                                                                     </div>
 
@@ -897,7 +897,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
                                                         {/* Notes - Full Width, glued to status bar */}
                                                         {item.notes && (
-                                                            <div className="bg-yellow-50 text-yellow-900 text-sm py-2 px-4 border-l-4 border-yellow-400 flex items-start gap-2 w-full">
+                                                            <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 text-sm py-2 px-4 border-l-4 border-yellow-400 dark:border-yellow-600 flex items-start gap-2 w-full">
                                                                 <span className="font-bold shrink-0">Notas:</span>
                                                                 <span className="italic">{item.notes}</span>
                                                             </div>

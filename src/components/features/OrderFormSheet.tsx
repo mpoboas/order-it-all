@@ -191,7 +191,7 @@ export function OrderFormSheet({
                 "flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1 flex-1",
                 currentStatus === status
                     ? color + " border-current"
-                    : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                    : "bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 hover:border-gray-200 dark:hover:border-slate-600"
             )}
         >
             <span className="material-icons text-lg">{icon}</span>
@@ -246,10 +246,10 @@ export function OrderFormSheet({
                                 onFocus={() => setComboboxOpen(true)}
                                 onBlur={() => setTimeout(() => setComboboxOpen(false), 200)}
                                 placeholder="Selecione ou escreva um nome..."
-                                className="input w-full pl-12 h-12 rounded-lg border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+                                className="input w-full pl-12 h-12 rounded-lg border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors"
                             />
                             {comboboxOpen && users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-lg shadow-xl max-h-60 overflow-y-auto py-2 z-50">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto py-2 z-50">
                                     {users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).map((m: any) => (
                                         <button
                                             key={m.id}
@@ -258,11 +258,11 @@ export function OrderFormSheet({
                                                 setUserId(m.id);
                                                 setComboboxOpen(false);
                                             }}
-                                            className="w-full text-left px-4 py-3 hover:bg-violet-50 transition-colors flex items-center gap-3"
+                                            className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
                                         >
                                             <Avatar name={m.name} src={m.avatar ? `https://pb-orderit.povoas.top/api/files/users/${m.id}/${m.avatar}` : undefined} size="sm" />
                                             <div>
-                                                <div className="font-semibold text-gray-800">{m.name}</div>
+                                                <div className="font-semibold text-gray-800 dark:text-gray-100">{m.name}</div>
                                             </div>
                                         </button>
                                     ))}
@@ -274,27 +274,27 @@ export function OrderFormSheet({
 
                 {/* Items List */}
                 {items.map((item, i) => (
-                    <div key={i} className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus-within:bg-white focus-within:border-violet-200 focus-within:shadow-sm transition-all">
+                    <div key={i} className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition-all">
                         {/* Row 1: Name + Quantity */}
                         <div className="flex gap-3 mb-3">
                             <div className="flex-1">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Produto</label>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Produto</label>
                                 <input
                                     type="text"
                                     value={item.name}
                                     onChange={e => updateItem(i, 'name', e.target.value)}
                                     placeholder="ex. Bananas"
-                                    className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-lg font-medium focus:outline-none focus:border-violet-500 transition-colors"
+                                    className="w-full px-4 py-3.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg font-medium dark:text-gray-100 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 text-center">Qtd</label>
-                                <div className="flex items-center border border-gray-200 rounded-lg bg-white h-[56px] shadow-sm">
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 text-center">Qtd</label>
+                                <div className="flex items-center border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 h-[56px] shadow-sm">
                                     <button
                                         type="button"
                                         onClick={() => updateItem(i, 'quantity', Math.max(1, item.quantity - 1))}
-                                        className="w-8 h-full flex items-center justify-center text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-l-lg transition-colors active:bg-violet-100 touch-manipulation"
+                                        className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
                                     </button>
@@ -303,12 +303,12 @@ export function OrderFormSheet({
                                         min={1}
                                         value={item.quantity}
                                         onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                                        className="w-10 text-center font-bold text-sm text-violet-600 bg-transparent outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="w-10 text-center font-bold text-sm text-primary-600 dark:text-primary-400 bg-transparent outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => updateItem(i, 'quantity', item.quantity + 1)}
-                                        className="w-8 h-full flex items-center justify-center text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-r-lg transition-colors active:bg-violet-100 touch-manipulation"
+                                        className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                                     </button>
@@ -317,10 +317,10 @@ export function OrderFormSheet({
                         </div>
 
                         {/* Row 2: Price + Total */}
-                        <div className="bg-white rounded-lg p-3 border border-gray-100 mb-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-100 dark:border-slate-700 mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Preço Uni. (€)</label>
+                                    <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Preço Uni. (€)</label>
                                     <div className="relative">
                                         <input
                                             type="number"
@@ -329,14 +329,14 @@ export function OrderFormSheet({
                                             value={item.unit_price || ''}
                                             onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
                                             placeholder="0.00"
-                                            className="w-full bg-transparent font-mono text-sm font-medium focus:outline-none"
+                                            className="w-full bg-transparent font-mono text-sm font-medium focus:outline-none dark:text-gray-200"
                                         />
                                     </div>
                                 </div>
-                                <div className="w-px h-8 bg-gray-100" />
+                                <div className="w-px h-8 bg-gray-100 dark:bg-slate-700" />
                                 <div className="flex-1 text-right">
-                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Total</label>
-                                    <span className="font-mono text-sm font-bold text-gray-900">
+                                    <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Total</label>
+                                    <span className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">
                                         {formatCurrency(item.quantity * item.unit_price)}
                                     </span>
                                 </div>
@@ -346,7 +346,7 @@ export function OrderFormSheet({
                         {/* Row 3: Brand & Notes */}
                         <div className="space-y-3">
                             <div>
-                                <div className="flex p-1 bg-violet-50/50 rounded-lg border border-violet-100/50">
+                                <div className="flex p-1 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg border border-primary-100/50 dark:border-primary-800/30">
                                     {['Official', 'Off-brand'].map((brandOption) => (
                                         <button
                                             key={brandOption}
@@ -355,8 +355,8 @@ export function OrderFormSheet({
                                             className={cn(
                                                 "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
                                                 item.brand === brandOption
-                                                    ? "bg-white text-violet-600 shadow-sm ring-1 ring-violet-100"
-                                                    : "text-gray-400 hover:text-violet-500"
+                                                    ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-900"
+                                                    : "text-gray-400 dark:text-gray-500 hover:text-primary-500 dark:hover:text-primary-400"
                                             )}
                                         >
                                             {brandOption === 'Official' ? 'Original' : 'Branca'}
@@ -369,7 +369,7 @@ export function OrderFormSheet({
                                 onChange={e => updateItem(i, 'notes', e.target.value)}
                                 placeholder="Notas (opcional)..."
                                 rows={2}
-                                className="w-full px-4 py-2 bg-white border-2 border-gray-200 rounded-lg resize-none text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg resize-none text-sm focus:outline-none focus:border-primary-500 dark:focus:border-primary-500 transition-colors dark:text-gray-200 dark:placeholder:text-gray-500"
                             />
                         </div>
 
@@ -383,7 +383,7 @@ export function OrderFormSheet({
                                         currentStatus={item.found_status}
                                         label="Por comprar"
                                         icon="hourglass_empty"
-                                        color="bg-amber-100 text-amber-700 border-amber-200"
+                                        color="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
                                         onClick={() => updateItem(i, 'found_status', 'pending')}
                                     />
                                     <StatusButton
@@ -391,7 +391,7 @@ export function OrderFormSheet({
                                         currentStatus={item.found_status}
                                         label="Comprado"
                                         icon="check"
-                                        color="bg-emerald-100 text-emerald-700 border-emerald-200"
+                                        color="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
                                         onClick={() => updateItem(i, 'found_status', 'found')}
                                     />
                                     <StatusButton
@@ -399,7 +399,7 @@ export function OrderFormSheet({
                                         currentStatus={item.found_status}
                                         label="Não tinha"
                                         icon="close"
-                                        color="bg-red-100 text-red-700 border-red-200"
+                                        color="bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
                                         onClick={() => updateItem(i, 'found_status', 'not_available')}
                                     />
                                 </div>
@@ -425,9 +425,8 @@ export function OrderFormSheet({
                 {/* Add Item Button (Only in Multi Mode) */}
                 {mode === 'multi' && (
                     <button
-                        type="button"
                         onClick={addEmptyItem}
-                        className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-bold hover:bg-gray-50 hover:border-violet-300 hover:text-violet-600 transition-all flex items-center justify-center gap-2 group"
+                        className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition-all flex items-center justify-center gap-2 group"
                     >
                         <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
                             <span className="material-icons text-sm">add</span>
@@ -437,8 +436,8 @@ export function OrderFormSheet({
                 )}
 
                 {/* Search Section */}
-                <div className="pt-4 border-t border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                         <span>🔍</span> Pesquisar Produtos
                     </h3>
 
@@ -449,12 +448,12 @@ export function OrderFormSheet({
                             onChange={e => setSearchQuery(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchProducts())}
                             placeholder="Pesquisar (ex: Super Bock)..."
-                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-violet-500 transition-all"
+                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary-500 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => searchProducts()}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors shadow-sm flex items-center justify-center"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center"
                             >
                                 <span className="material-icons text-sm">arrow_forward</span>
                             </button>
@@ -472,9 +471,9 @@ export function OrderFormSheet({
                                         key={p.id}
                                         type="button"
                                         onClick={() => addFromSearch(p)}
-                                        className="w-full p-2.5 bg-white rounded-xl flex items-center gap-3 hover:bg-gray-50 border border-gray-100 transition-all text-left group"
+                                        className="w-full p-2.5 bg-white dark:bg-slate-800 rounded-xl flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700 transition-all text-left group"
                                     >
-                                        <div className="w-12 h-12 shrink-0 rounded-lg bg-white border border-gray-100 p-1 flex items-center justify-center">
+                                        <div className={cn("w-12 h-12 shrink-0 rounded-lg border border-gray-100 p-1 flex items-center justify-center overflow-hidden", p.imageURL ? "bg-white" : "bg-white dark:bg-slate-900 dark:border-slate-800")}>
                                             {p.imageURL ? (
                                                 <img src={p.imageURL} alt={p.name} className="w-full h-full object-contain mix-blend-multiply" />
                                             ) : (
@@ -482,17 +481,17 @@ export function OrderFormSheet({
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-gray-900 text-sm leading-tight mb-1 truncate">{p.name}</p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight mb-1 truncate">{p.name}</p>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{p.marca}</span>
+                                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.marca}</span>
                                                 {price.price > 0 && (
-                                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
                                                         {formatCurrency(price.price)}
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="w-8 h-8 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                                        <div className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-colors">
                                             <span className="material-icons text-sm">add</span>
                                         </div>
                                     </button>

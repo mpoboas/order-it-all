@@ -61,7 +61,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                 'sticky top-0 z-40 transition-all duration-300',
                 transparent
                     ? 'bg-transparent'
-                    : 'bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600'
+                    : 'bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800'
             )}
         >
             <div className="px-4 py-4 md:py-5">
@@ -134,9 +134,9 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
                         {isLoggedIn && (
                             <button
-                                onClick={logout}
+                                onClick={() => router.push('/profile')}
                                 className="relative group"
-                                title="Sair"
+                                title="Meu Perfil"
                             >
                                 <Avatar
                                     name={userName}

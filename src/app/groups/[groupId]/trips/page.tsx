@@ -62,7 +62,7 @@ export default function GroupTripsPage() {
                 {/* Greeting */}
                 <div className="mb-8 animate-fade-in-up">
                     <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-1">
-                        Olá, <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{userName}</span>! 👋
+                        Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{userName}</span>! 👋
                     </h2>
                     <p className="text-[var(--text-secondary)]">Seleciona uma viagem para fazer o teu pedido</p>
                 </div>
@@ -76,7 +76,7 @@ export default function GroupTripsPage() {
                 ) : trips.length === 0 ? (
                     /* Empty State */
                     <div className="text-center py-20 animate-fade-in-up">
-                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/40 dark:to-primary-900/20 flex items-center justify-center">
                             <span className="text-6xl">🛒</span>
                         </div>
                         <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
@@ -106,7 +106,7 @@ export default function GroupTripsPage() {
                                 {/* Card Header */}
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex-1 min-w-0 pr-3">
-                                        <h3 className="text-lg font-semibold text-[var(--text-primary)] truncate group-hover:text-violet-600 transition-colors">
+                                        <h3 className="text-lg font-semibold text-[var(--text-primary)] truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                             {trip.name}
                                         </h3>
                                         <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
@@ -127,7 +127,7 @@ export default function GroupTripsPage() {
                                         </svg>
                                         {getRelativeTime(trip.created)}
                                     </div>
-                                    <div className="flex items-center text-violet-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                                    <div className="flex items-center text-primary-600 dark:text-primary-400 font-medium text-sm group-hover:translate-x-1 transition-transform">
                                         Ver pedidos
                                         <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

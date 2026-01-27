@@ -225,7 +225,7 @@ export default function GroupAdminDashboardPage() {
                         onClick={() => setActiveTab('trips')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'trips' ? "bg-white text-violet-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Viagens
@@ -234,7 +234,7 @@ export default function GroupAdminDashboardPage() {
                         onClick={() => setActiveTab('members')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'members' ? "bg-white text-violet-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Membros
@@ -243,7 +243,7 @@ export default function GroupAdminDashboardPage() {
                         onClick={() => setActiveTab('settings')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'settings' ? "bg-white text-violet-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Definições
@@ -287,15 +287,15 @@ export default function GroupAdminDashboardPage() {
                                                 {getRelativeTime(trip.created)}
                                             </span>
                                             <div className="flex gap-2 relative z-10">
-                                                <button onClick={(e) => handleOpenEditModal(e, trip)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                                                <button onClick={(e) => handleOpenEditModal(e, trip)} className="p-1.5 text-gray-400 hover:text-violet-600 dark:hover:text-primary-400 hover:bg-violet-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                 </button>
                                                 {trip.status === 'open' && (
-                                                    <button onClick={(e) => handleCloseTrip(e, trip.id)} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Fechar Viagem">
+                                                    <button onClick={(e) => handleCloseTrip(e, trip.id)} className="p-1.5 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors" title="Fechar Viagem">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                                     </button>
                                                 )}
-                                                <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <button onClick={(e) => handleDeleteTrip(e, trip.id)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             </div>
@@ -324,8 +324,8 @@ export default function GroupAdminDashboardPage() {
                                             <div>
                                                 <p className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
                                                     {member.name}
-                                                    {isMemberCreator && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded ml-1">Dono</span>}
-                                                    {isMemberAdmin && !isMemberCreator && <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded ml-1">Admin</span>}
+                                                    {isMemberCreator && <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded ml-1">Dono</span>}
+                                                    {isMemberAdmin && !isMemberCreator && <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded ml-1">Admin</span>}
                                                 </p>
                                                 <p className="text-xs text-[var(--text-muted)]">{member.email}</p>
                                             </div>
@@ -339,7 +339,7 @@ export default function GroupAdminDashboardPage() {
                                                     isMemberAdmin ? (
                                                         <button
                                                             onClick={() => handleDemoteMember(member.id)}
-                                                            className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700"
+                                                            className="text-xs px-2 py-1 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded text-gray-700 dark:text-gray-300"
                                                             title="Remover Admin"
                                                         >
                                                             ⬇️ Admin
@@ -347,7 +347,7 @@ export default function GroupAdminDashboardPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handlePromoteMember(member.id)}
-                                                            className="text-xs px-2 py-1 bg-violet-50 hover:bg-violet-100 rounded text-violet-700"
+                                                            className="text-xs px-2 py-1 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded text-violet-700 dark:text-violet-300"
                                                             title="Promover a Admin"
                                                         >
                                                             ⬆️ Admin
@@ -359,7 +359,7 @@ export default function GroupAdminDashboardPage() {
                                                 {(!isMemberCreator && (isCreator || !isMemberAdmin)) && (
                                                     <button
                                                         onClick={() => handleRemoveMember(member.id)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                         title="Remover do grupo"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -396,7 +396,7 @@ export default function GroupAdminDashboardPage() {
                                 {currentGroup.invite_active && (
                                     <>
                                         <div className="flex gap-2 mb-4">
-                                            <code className="flex-1 bg-gray-100 p-3 rounded-lg text-sm block overflow-hidden text-ellipsis">
+                                            <code className="flex-1 bg-gray-100 dark:bg-slate-800 p-3 rounded-lg text-sm block overflow-hidden text-ellipsis dark:text-gray-200 border dark:border-slate-700">
                                                 {typeof window !== 'undefined' ? `${window.location.origin}/invite/${currentGroup.invite_code}` : `.../invite/${currentGroup.invite_code}`}
                                             </code>
                                             <button
@@ -404,7 +404,7 @@ export default function GroupAdminDashboardPage() {
                                                     navigator.clipboard.writeText(`${window.location.origin}/invite/${currentGroup.invite_code}`);
                                                     showToast('Link copiado!', 'success');
                                                 }}
-                                                className="px-4 py-2 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 font-medium"
+                                                className="px-4 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 font-medium"
                                             >
                                                 Copiar
                                             </button>
@@ -412,7 +412,7 @@ export default function GroupAdminDashboardPage() {
 
                                         <button
                                             onClick={handleRegenerateInvite}
-                                            className="text-sm text-amber-600 hover:underline"
+                                            className="text-sm text-amber-600 dark:text-amber-500 hover:underline"
                                         >
                                             Gerar novo código de convite
                                         </button>
@@ -421,16 +421,15 @@ export default function GroupAdminDashboardPage() {
                             </div>
                         </section>
 
-                        {/* Danger Zone */}
                         <section>
-                            <h2 className="text-xl font-bold text-red-600 mb-4">Perigo</h2>
-                            <div className="card p-4 border-red-100 bg-red-50">
+                            <h2 className="text-xl font-bold text-red-600 dark:text-red-500 mb-4">Perigo</h2>
+                            <div className="card p-4 border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h3 className="font-semibold text-red-900">Eliminar Grupo</h3>
-                                        <p className="text-sm text-red-700">Esta acção é irreversível e eliminará todas as viagens e dados.</p>
+                                        <h3 className="font-semibold text-red-900 dark:text-red-200">Eliminar Grupo</h3>
+                                        <p className="text-sm text-red-700 dark:text-red-300">Esta acção é irreversível e eliminará todas as viagens e dados.</p>
                                     </div>
-                                    <Button disabled className="bg-red-200 text-red-400 cursor-not-allowed">
+                                    <Button disabled className="bg-red-200 dark:bg-red-900/20 text-red-400 dark:text-red-700 cursor-not-allowed">
                                         Eliminar
                                     </Button>
                                 </div>
@@ -458,23 +457,23 @@ export default function GroupAdminDashboardPage() {
             >
                 <div className="space-y-6 pb-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Nome da Viagem</label>
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Nome da Viagem</label>
                         <input
                             type="text"
                             value={newTripName}
                             onChange={e => setNewTripName(e.target.value)}
                             placeholder="ex. Compras de Verão"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white text-lg"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
                             autoFocus
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Descrição (opcional)</label>
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Descrição (opcional)</label>
                         <textarea
                             value={newTripDescription}
                             onChange={e => setNewTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white resize-none"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
                             rows={3}
                         />
                     </div>
@@ -497,21 +496,21 @@ export default function GroupAdminDashboardPage() {
             >
                 <div className="space-y-6 pb-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Nome da Viagem</label>
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Nome da Viagem</label>
                         <input
                             type="text"
                             value={editTripName}
                             onChange={e => setEditTripName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white text-lg"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Descrição (opcional)</label>
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Descrição (opcional)</label>
                         <textarea
                             value={editTripDescription}
                             onChange={e => setEditTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white resize-none"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
                             rows={3}
                         />
                     </div>
@@ -524,8 +523,8 @@ export default function GroupAdminDashboardPage() {
                                 className={cn(
                                     "p-3 rounded-xl border-2 font-medium transition-all text-center",
                                     editTripStatus === 'open'
-                                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                                        : "border-gray-100 bg-white text-gray-500 hover:border-gray-200"
+                                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
+                                        : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
                                 )}
                             >
                                 🟢 A Decorrer
@@ -536,8 +535,8 @@ export default function GroupAdminDashboardPage() {
                                 className={cn(
                                     "p-3 rounded-xl border-2 font-medium transition-all text-center",
                                     editTripStatus === 'closed'
-                                        ? "border-red-500 bg-red-50 text-red-700"
-                                        : "border-gray-100 bg-white text-gray-500 hover:border-gray-200"
+                                        ? "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                                        : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
                                 )}
                             >
                                 🔴 Terminada

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 
@@ -13,6 +13,8 @@ export default function RegisterPage() {
 
     const { register, login } = useUser();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirect = searchParams.get('redirect');
     const { showToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +35,7 @@ export default function RegisterPage() {
             await register(email, password, confirmPass);
             await login(email, password);
             showToast('Conta criada com sucesso!', 'success');
-            router.push('/auth/profile-setup');
+            router.push(redirect ? `/auth/profile-setup?redirect=${redirect}` : '/auth/profile-setup');
         } catch (error: any) {
             console.error(error);
             showToast(error.message || 'Erro ao criar conta', 'error');
@@ -46,14 +48,14 @@ export default function RegisterPage() {
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div onClick={() => router.push('/')} className="mx-auto w-16 h-16 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
-                    🛒
+                    🫐
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
                     Criar conta
                 </h2>
                 <p className="mt-2 text-center text-sm text-gray-600">
                     Ou{' '}
-                    <button onClick={() => router.push('/auth/login')} className="font-medium text-violet-600 hover:text-violet-500">
+                    <button onClick={() => router.push(redirect ? `/auth/login?redirect=${redirect}` : '/auth/login')} className="font-medium text-violet-600 hover:text-violet-500">
                         entrar na tua conta existente
                     </button>
                 </p>

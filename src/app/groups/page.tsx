@@ -241,7 +241,7 @@ export default function GroupsPage() {
                 <div className="space-y-6 pb-4">
                     {/* Group Name */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
                             Nome do Grupo
                         </label>
                         <input
@@ -249,14 +249,14 @@ export default function GroupsPage() {
                             value={newGroupName}
                             onChange={(e) => setNewGroupName(e.target.value)}
                             placeholder="Ex: Família, Amigos, Trabalho..."
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white text-lg"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 dark:focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
                             autoFocus
                         />
                     </div>
 
                     {/* Emoji Picker */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-3">
+                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">
                             Ícone do Grupo
                         </label>
                         <div className="flex flex-wrap gap-3">
@@ -267,8 +267,8 @@ export default function GroupsPage() {
                                     className={cn(
                                         'w-14 h-14 rounded-2xl text-3xl transition-all flex items-center justify-center',
                                         selectedEmoji === emoji
-                                            ? 'bg-violet-100 ring-4 ring-violet-500/20 scale-110 shadow-sm'
-                                            : 'bg-gray-50 hover:bg-gray-100 border border-gray-100'
+                                            ? 'bg-violet-100 dark:bg-violet-900/40 ring-4 ring-violet-500/20 dark:ring-violet-500/40 scale-110 shadow-sm'
+                                            : 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700'
                                     )}
                                 >
                                     {emoji}

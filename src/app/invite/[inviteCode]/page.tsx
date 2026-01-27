@@ -44,6 +44,21 @@ export default function InvitePage() {
         }
     }, [inviteCode]);
 
+    const isMember = user && group && group.members.includes(user.id);
+
+    // Auto-join / Auto-redirect effect
+    useEffect(() => {
+        if (!loading && group && isLoggedIn) {
+            if (isMember) {
+                // Already a member, just go there
+                router.push(`/groups/${group.id}/trips`);
+            } else if (!joining) {
+                // Not a member, logged in, and not currently joining -> Auto Join
+                handleJoin();
+            }
+        }
+    }, [loading, group, isLoggedIn, isMember, joining]);
+
     const handleJoin = async () => {
         if (!isLoggedIn) {
             // Redirect to login preserving this location
@@ -61,8 +76,7 @@ export default function InvitePage() {
         } catch (err) {
             console.error(err);
             showToast('Erro ao entrar no grupo.', 'error');
-        } finally {
-            setJoining(false);
+            setJoining(false); // Only reset on error, otherwise we are navigating away
         }
     };
 
@@ -89,7 +103,7 @@ export default function InvitePage() {
         );
     }
 
-    const isMember = user && group.members.includes(user.id);
+
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] p-4 relative overflow-hidden">
@@ -98,8 +112,16 @@ export default function InvitePage() {
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-3xl" />
 
             <div className="card max-w-sm w-full p-8 relative z-10 text-center animate-fade-in-up">
-                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-violet-100 to-fuchsia-100 rounded-[2rem] flex items-center justify-center shadow-inner text-4xl">
-                    {group.avatar || '👥'}
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-violet-100 to-fuchsia-100 rounded-[2rem] flex items-center justify-center shadow-inner text-4xl overflow-hidden">
+                    {group.avatar && group.avatar.length > 2 ? (
+                        <img
+                            src={`https://pb-orderit.povoas.top/api/files/groups/${group.id}/${group.avatar}`}
+                            alt={group.name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span>{group.avatar || '👥'}</span>
+                    )}
                 </div>
 
                 <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">

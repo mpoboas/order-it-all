@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { pb } from '@/lib/pocketbase';
@@ -9,6 +9,8 @@ import { pb } from '@/lib/pocketbase';
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirect = searchParams.get('redirect');
     const { showToast } = useToast();
 
     const [name, setName] = useState('');
@@ -131,7 +133,11 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             showToast('Perfil configurado!', 'success');
-            router.push('/groups');
+            if (redirect) {
+                router.push(redirect);
+            } else {
+                router.push('/groups');
+            }
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar perfil', 'error');

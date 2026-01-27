@@ -52,13 +52,18 @@ function EditableInput({ value: initialValue, onSave, className, ...props }: Edi
     );
 }
 
+import { useGroup } from '@/context/GroupContext';
+import { useEditTimer } from '@/hooks/useEditTimer';
+
 export default function GroupSplitDetailPage() {
     const params = useParams();
     const groupId = params.groupId as string;
     const splitId = params.splitId as string;
     const router = useRouter();
-    const { isLoggedIn } = useUser();
+    const { user, isLoggedIn } = useUser();
+    const { isAdmin } = useGroup();
     const { showToast } = useToast();
+    const { startTimer } = useEditTimer();
     const shareRef = useRef<HTMLDivElement>(null);
 
     const [split, setSplit] = useState<Split | null>(null);
@@ -497,7 +502,7 @@ export default function GroupSplitDetailPage() {
                             </div>
                             <div className="flex gap-2">
                                 <input type="text" value={newParticipant} onChange={e => setNewParticipant(e.target.value)} onKeyDown={e => e.key === 'Enter' && addParticipant()} placeholder="Nome" className="input flex-1 py-2 text-sm" />
-                                <button onClick={addParticipant} className="btn btn-accent px-3 py-2 text-sm">+</button>
+                                <button onClick={addParticipant} className="btn btn-primary px-3 py-2 text-sm">+</button>
                             </div>
                         </div>
                     )}
@@ -556,23 +561,26 @@ export default function GroupSplitDetailPage() {
             </main>
 
             {/* Mobile Bottom Totals */}
-            <div className="lg:hidden fixed bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom))] left-0 right-0 bg-white border-t border-[var(--border)] shadow-lg z-40">
+            <div className={cn(
+                "lg:hidden fixed left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] shadow-lg z-40",
+                isAdmin ? "bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom))]" : "bottom-[var(--safe-bottom)]"
+            )}>
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">
                     <span className="font-semibold text-[var(--text-primary)]">Total</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-violet-600">{formatCurrency(grandTotal)}</span>
+                        <span className="text-lg font-bold text-violet-600 dark:text-violet-400">{formatCurrency(grandTotal)}</span>
                         <svg className={cn("w-5 h-5 text-[var(--text-muted)] transition-transform", totalsExpanded && "rotate-180")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                         </svg>
                     </div>
                 </button>
                 {totalsExpanded && (
-                    <div className="px-4 pb-3 border-t border-[var(--border)]">
+                    <div className="px-4 pb-3 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
                         <div className="py-2 text-sm space-y-1">
                             {sortedTotals.map(([name, amount]) => (
                                 <div key={name} className="flex justify-between">
                                     <span className="text-[var(--text-secondary)]">{name}</span>
-                                    <span className="font-medium text-violet-600">{formatCurrency(amount)}</span>
+                                    <span className="font-medium text-violet-600 dark:text-violet-400">{formatCurrency(amount)}</span>
                                 </div>
                             ))}
                         </div>
