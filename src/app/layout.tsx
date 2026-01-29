@@ -7,12 +7,28 @@ import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import PushNotificationManager from "@/components/features/PushNotificationManager";
 
+
 export const metadata: Metadata = {
   title: "Order It All! - A aplicação #1 de compras de Celorico de Basto!",
   description: "Com esta aplicação vais acabar com todas as discussões e lutas sobre quem vai pagar as minis!",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-32x32.png', type: 'image/png' },
+      { url: '/favicon-16x16.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/safari-pinned-tab.svg',
+        color: '#7c3aed'
+      }
+    ]
   },
+  manifest: '/manifest.json',
   openGraph: {
     title: "Order It All! - A aplicação #1 de compras de Celorico de Basto!",
     description: "Com esta aplicação vais acabar com todas as discussões e lutas sobre quem vai pagar as minis!",
@@ -45,6 +61,7 @@ export default function RootLayout({
                 {children}
                 <ToastContainer />
                 <PushNotificationManager />
+
               </ThemeProvider>
             </ToastProvider>
           </GroupProvider>
