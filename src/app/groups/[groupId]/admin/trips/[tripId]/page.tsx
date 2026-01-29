@@ -680,7 +680,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 body: JSON.stringify({
                     groupId: trip.group_id,
                     title: '🏁 Viagem Concluída',
-                    message: `As compras de "${trip.name}" foram terminadas.`,
+                    message: `As compras de "${trip.name}" foram terminadas. Abre para ver quanto ficou a tua parte!`,
                     url: `/groups/${trip.group_id}/trips/${trip.id}`
                 })
             }).catch(console.error);
@@ -704,8 +704,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 method: 'POST',
                 body: JSON.stringify({
                     groupId: trip.group_id,
-                    title: '🛍️ Estamos a ir às compras!',
-                    message: `A viagem "${trip.name}" começou. Última oportunidade para pedidos!`,
+                    title: '🛒 Vamos às compras!',
+                    message: `A viagem "${trip.name}" já não aceita mais novos pedidos.`,
                     url: `/groups/${trip.group_id}/trips/${trip.id}`
                 })
             }).catch(console.error);

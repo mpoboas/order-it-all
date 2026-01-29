@@ -24,32 +24,12 @@ export default function ProfileSetupPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        let hasExistingAvatar = false;
         if (user) {
             if (user.name) setName(user.name);
             if (user.avatar) {
                 const url = pb.files.getUrl(user, user.avatar);
                 setAvatarPreview(url);
-                hasExistingAvatar = true;
             }
-        }
-
-        // Start Camera Logic
-        const startCamera = async () => {
-            try {
-                const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                setStream(mediaStream);
-                if (videoRef.current) {
-                    videoRef.current.srcObject = mediaStream;
-                }
-            } catch (err) {
-                console.warn("Camera access denied or not available", err);
-            }
-        };
-
-        // Only start camera if we don't have a preview yet
-        if (!hasExistingAvatar && !avatarPreview) {
-            startCamera();
         }
 
         return () => {
@@ -58,6 +38,19 @@ export default function ProfileSetupPage() {
             }
         };
     }, [user]);
+
+    const startCamera = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setStream(mediaStream);
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+            }
+        } catch (err) {
+            console.warn("Camera access denied or not available", err);
+            showToast('Não foi possível aceder à câmara', 'error');
+        }
+    };
 
     // Update video ref if stream changes (e.g. after retake)
     useEffect(() => {
@@ -147,108 +140,119 @@ export default function ProfileSetupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    Configurar Perfil
-                </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
-                    Quase lá! Diz-nos como te tratar.
-                </p>
+        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
             </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-                    <form className="space-y-6" onSubmit={handleSubmit}>
-
-                        {/* Avatar Section */}
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="relative group w-32 h-32">
-                                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 ring-4 ring-white shadow-lg flex items-center justify-center relative bg-black">
-                                    {avatarPreview ? (
-                                        <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
-                                    ) : stream ? (
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            muted
-                                            playsInline
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-4xl bg-violet-100 text-violet-600">
-                                            {name ? name[0].toUpperCase() : '👤'}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Capture Controls Overlaid if necessary, or below */}
-                            </div>
-
-                            <canvas ref={canvasRef} className="hidden" />
-
-                            <div className="flex flex-col items-center gap-2">
-                                {!avatarPreview && stream && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCapture}
-                                        className="inline-flex items-center gap-2 px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                        Capturar Foto
-                                    </button>
-                                )}
-
-                                {avatarPreview && (
-                                    <button
-                                        type="button"
-                                        onClick={handleRetake}
-                                        className="text-sm text-violet-600 hover:text-violet-500 font-medium"
-                                    >
-                                        Repetir Foto
-                                    </button>
-                                )}
-
-                                <label className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 hover:underline mt-2">
-                                    Ou carrega da galeria
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                    />
-                                </label>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                Nome de Exibição
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    id="name"
-                                    type="text"
-                                    required
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                    placeholder="Ex: Habelius Chabierius"
-                                    className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm transition-shadow"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {loading ? 'A guardar...' : 'Concluir'}
-                            </button>
-                        </div>
-                    </form>
+            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-white mb-2">
+                        Configurar Perfil
+                    </h2>
+                    <p className="text-white/80 text-sm">
+                        Quase lá! Diz-nos como te tratar.
+                    </p>
                 </div>
+
+                <form className="space-y-6" onSubmit={handleSubmit}>
+
+                    {/* Avatar Section */}
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="relative group w-32 h-32">
+                            <div className="w-32 h-32 rounded-full overflow-hidden bg-white/10 ring-4 ring-white/30 shadow-lg flex items-center justify-center relative bg-black/50 backdrop-blur-sm">
+                                {avatarPreview ? (
+                                    <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                                ) : stream ? (
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-5xl">
+                                        {name ? <span className="text-white font-bold">{name[0].toUpperCase()}</span> : '👤'}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <canvas ref={canvasRef} className="hidden" />
+
+                        <div className="flex flex-col items-center gap-3 w-full">
+                            {!avatarPreview && !stream && (
+                                <button
+                                    type="button"
+                                    onClick={startCamera}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-full font-medium transition-all text-sm border border-white/30"
+                                >
+                                    <span className="material-icons text-lg">photo_camera</span>
+                                    <span>Ativar Câmara</span>
+                                </button>
+                            )}
+
+                            {!avatarPreview && stream && (
+                                <button
+                                    type="button"
+                                    onClick={handleCapture}
+                                    className="flex items-center gap-2 px-6 py-2 bg-white text-violet-600 rounded-full font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                                >
+                                    <span className="material-icons">camera</span>
+                                    <span>Capturar</span>
+                                </button>
+                            )}
+
+                            {avatarPreview && (
+                                <button
+                                    type="button"
+                                    onClick={handleRetake}
+                                    className="text-sm text-white/90 hover:text-white font-medium hover:underline"
+                                >
+                                    Tirar outra foto
+                                </button>
+                            )}
+
+                            <label className="cursor-pointer text-xs text-white/60 hover:text-white hover:underline mt-1 transition-colors">
+                                Ou carrega da galeria
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-1">
+                            Nome de Exibição
+                        </label>
+                        <input
+                            id="name"
+                            type="text"
+                            required
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="Ex: Habelius Chabierius"
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {loading ? 'A guardar...' : 'Concluir'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

@@ -34,7 +34,11 @@ export default function WelcomePage() {
         <div className={`text-center mb-12 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="mb-6 relative">
             <div className="w-24 h-24 mx-auto bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl animate-bounce-slow">
-              <span className="text-5xl">🫐</span>
+              <img
+                src="/favicon.ico"
+                alt="Order It All"
+                className="w-16 h-16 drop-shadow-lg"
+              />
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">

@@ -45,88 +45,99 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div onClick={() => router.push('/')} className="mx-auto w-16 h-16 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
-                    🫐
-                </div>
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    Criar conta
-                </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
-                    Ou{' '}
-                    <button onClick={() => router.push(redirect ? `/auth/login?redirect=${redirect}` : '/auth/login')} className="font-medium text-violet-600 hover:text-violet-500">
-                        entrar na tua conta existente
-                    </button>
-                </p>
+        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
             </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-                    <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                Email
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm transition-shadow"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                Password
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm transition-shadow"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label htmlFor="confirmPass" className="block text-sm font-medium text-gray-700">
-                                Confirmar Password
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    id="confirmPass"
-                                    name="confirmPass"
-                                    type="password"
-                                    required
-                                    value={confirmPass}
-                                    onChange={e => setConfirmPass(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm transition-shadow"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {loading ? 'A criar conta...' : 'Criar conta'}
-                            </button>
-                        </div>
-                    </form>
+            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
+                <div className="text-center mb-8">
+                    <div
+                        onClick={() => router.push('/')}
+                        className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                    >
+                        <img
+                            src="/favicon.ico"
+                            alt="Order It All"
+                            className="w-12 h-12 drop-shadow-md"
+                        />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">
+                        Criar conta
+                    </h2>
+                    <p className="text-white/80 text-sm">
+                        Ou{' '}
+                        <button
+                            onClick={() => router.push(redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : '/auth/login')}
+                            className="font-bold text-white hover:underline focus:outline-none"
+                        >
+                            entrar na tua conta existente
+                        </button>
+                    </p>
                 </div>
+
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-1">
+                            Email
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            required
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            placeholder="teu@email.com"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-1">
+                            Password
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            required
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="confirmPass" className="block text-sm font-medium text-white/90 mb-1">
+                            Confirmar Password
+                        </label>
+                        <input
+                            id="confirmPass"
+                            name="confirmPass"
+                            type="password"
+                            required
+                            value={confirmPass}
+                            onChange={e => setConfirmPass(e.target.value)}
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {loading ? 'A criar conta...' : 'Criar conta'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
