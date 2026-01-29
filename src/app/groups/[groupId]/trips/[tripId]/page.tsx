@@ -12,6 +12,7 @@ import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Sheet } from '@/components/ui/Sheet';
+import { useGroup } from '@/context/GroupContext';
 
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
 
@@ -21,6 +22,7 @@ export default function GroupTripDetailPage() {
     const tripId = params.tripId as string;
     const router = useRouter();
     const { user, isLoggedIn } = useUser();
+    const { isAdmin } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
 
@@ -215,6 +217,25 @@ export default function GroupTripDetailPage() {
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
             <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
+
+            {trip.status !== 'open' && (
+                <div className={cn(
+                    "sticky top-[72px] md:top-[80px] z-30 w-full px-4 py-3 shadow-md flex items-center justify-center gap-2 font-bold text-sm animate-in slide-in-from-top-2",
+                    trip.status === 'in_progress' ? "bg-amber-500 text-white" : "bg-red-500 text-white"
+                )}>
+                    {trip.status === 'in_progress' ? (
+                        <>
+                            <span className="text-lg">🏃🛒</span>
+                            <span>Estamos a comprar os teus pedidos!</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-lg">🔒</span>
+                            <span>Esta viagem já terminou!</span>
+                        </>
+                    )}
+                </div>
+            )}
 
             <main className="container mx-auto px-4 py-6">
                 {/* Stats */}
@@ -435,7 +456,16 @@ export default function GroupTripDetailPage() {
             {/* FAB */}
             {
                 trip.status === 'open' && (
-                    <button onClick={openNewOrder} className="fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)]" aria-label="Novo pedido">
+                    <button
+                        onClick={openNewOrder}
+                        className={cn(
+                            "fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 z-40 transition-all duration-300",
+                            isAdmin
+                                ? "!bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom)+1.5rem)]"
+                                : "!bottom-[calc(var(--safe-bottom)+1.5rem)]"
+                        )}
+                        aria-label="Novo pedido"
+                    >
                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                         </svg>

@@ -33,7 +33,7 @@ export interface Trip {
   name: string;
   description: string;
   group_id: string;
-  status: 'open' | 'closed';
+  status: 'open' | 'in_progress' | 'closed';
   created_by: string;
   expand?: {
     created_by?: User;

@@ -616,20 +616,20 @@ export default function GroupSplitDetailPage() {
             {/* Fullscreen Table Modal */}
             {isFullscreen && (
                 <div className="fixed inset-0 z-[100] bg-[var(--bg-primary)] flex flex-col animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-white shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">📊</span>
+                    <div className="flex items-center justify-between p-2 border-b border-[var(--border)] bg-white dark:bg-slate-900 shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">📊</span>
                             <div>
-                                <h2 className="font-bold text-[var(--text-primary)] text-lg">{split.name}</h2>
-                                <p className="text-xs text-[var(--text-muted)]">Modo Ecrã Inteiro</p>
+                                <h2 className="font-bold text-[var(--text-primary)] text-base">{split.name}</h2>
+                                <p className="text-[10px] text-[var(--text-muted)] leading-tight">Modo Ecrã Inteiro</p>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsFullscreen(false)}
-                            className="p-2 hover:bg-gray-100 rounded-full transition-colors group"
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors group"
                             title="Fechar"
                         >
-                            <svg className="w-8 h-8 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            <svg className="w-6 h-6 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
                     <div className="flex-1 overflow-hidden bg-white">
@@ -638,25 +638,25 @@ export default function GroupSplitDetailPage() {
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="bg-gradient-to-r from-violet-600 to-purple-600 text-white sticky top-0 z-30">
                                         <tr>
-                                            <th className="px-6 py-4 text-left font-bold text-base min-w-[200px]">
+                                            <th className="px-3 py-2 text-left font-bold text-sm min-w-[200px]">
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={() => setIsFullscreen(false)} className="p-1 hover:bg-white/20 rounded transition-colors" title="Sair do Ecrã Inteiro">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                                                     </button>
                                                     <span>Item</span>
                                                 </div>
                                             </th>
-                                            <th className="px-6 py-4 text-right font-semibold min-w-[120px]">Preço</th>
-                                            <th className="px-6 py-4 text-center font-semibold min-w-[80px]">Todos</th>
+                                            <th className="px-3 py-2 text-right font-semibold min-w-[100px]">Preço</th>
+                                            <th className="px-2 py-2 text-center font-semibold min-w-[60px]">Todos</th>
                                             {split.participants.map((p, idx) => (
-                                                <th key={idx} className="px-4 py-4 text-center font-semibold min-w-[120px]">
+                                                <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[100px]">
                                                     <div className="flex flex-col items-center">
                                                         <Avatar name={p} size="sm" className="mb-1" />
-                                                        <span className="text-xs font-medium">{p}</span>
+                                                        <span className="text-xs font-medium truncate max-w-[90px]">{p}</span>
                                                     </div>
                                                 </th>
                                             ))}
-                                            <th className="px-4 py-4 text-center min-w-[80px]">
+                                            <th className="px-2 py-2 text-center min-w-[60px]">
                                                 <button onClick={() => {
                                                     const name = prompt('Nome do participante:');
                                                     if (name) {
@@ -664,29 +664,29 @@ export default function GroupSplitDetailPage() {
                                                             saveSplit({ participants: [...split.participants, name.trim()] });
                                                         }
                                                     }
-                                                }} className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors">
+                                                }} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors">
                                                     <span className="text-lg">+</span>
                                                 </button>
                                             </th>
-                                            <th className="px-6 py-4 text-right font-semibold min-w-[150px]">Por Pessoa</th>
+                                            <th className="px-3 py-2 text-right font-semibold min-w-[120px]">Por Pessoa</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--border)] bg-white">
+                                    <tbody className="divide-y divide-[var(--border)] bg-white dark:bg-slate-900">
                                         {split.items.map((item, idx) => {
                                             const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
                                             const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
                                             return (
-                                                <tr key={idx} className="hover:bg-violet-50 transition-colors">
-                                                    <td className="px-6 py-4">
+                                                <tr key={idx} className="hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
+                                                    <td className="px-3 py-2">
                                                         <EditableInput
                                                             type="text"
                                                             value={item.name}
                                                             onSave={val => updateItemName(idx, val)}
                                                             placeholder="Nome do item"
-                                                            className="w-full px-3 py-2 border border-transparent hover:border-violet-200 focus:border-violet-500 rounded-lg bg-transparent focus:bg-white font-medium"
+                                                            className="w-full px-2 py-1 border border-transparent hover:border-violet-200 focus:border-violet-500 rounded bg-transparent focus:bg-white dark:focus:bg-slate-800 font-medium"
                                                         />
                                                     </td>
-                                                    <td className="px-6 py-4 text-right">
+                                                    <td className="px-3 py-2 text-right">
                                                         <div className="flex items-center justify-end gap-1">
                                                             <EditableInput
                                                                 type="number"
@@ -695,42 +695,42 @@ export default function GroupSplitDetailPage() {
                                                                 value={item.price || ''}
                                                                 onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
                                                                 placeholder="0.00"
-                                                                className="w-24 px-3 py-2 border border-transparent hover:border-violet-200 focus:border-violet-500 rounded-lg bg-transparent text-right focus:bg-white"
+                                                                className="w-20 px-2 py-1 border border-transparent hover:border-violet-200 focus:border-violet-500 rounded bg-transparent text-right focus:bg-white dark:focus:bg-slate-800"
                                                             />
                                                             <span className="text-gray-400">€</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-center">
+                                                    <td className="px-2 py-2 text-center">
                                                         <input
                                                             type="checkbox"
                                                             checked={allSelected}
                                                             onChange={e => toggleAllParticipants(idx, e.target.checked)}
-                                                            className="w-6 h-6 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                                            className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
                                                         />
                                                     </td>
                                                     {split.participants.map(p => (
-                                                        <td key={p} className="px-4 py-4 text-center">
+                                                        <td key={p} className="px-2 py-2 text-center">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={item.participants.includes(p)}
                                                                 onChange={() => toggleParticipant(idx, p)}
-                                                                className="w-6 h-6 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
                                                             />
                                                         </td>
                                                     ))}
-                                                    <td className="px-4 py-4 text-center">
-                                                        <button onClick={() => removeItem(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors">
-                                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                    <td className="px-2 py-2 text-center">
+                                                        <button onClick={() => removeItem(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
                                                         </button>
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-violet-600 text-lg">
+                                                    <td className="px-3 py-2 text-right font-bold text-violet-600 text-base">
                                                         {formatCurrency(perPerson)}
                                                     </td>
                                                 </tr>
                                             );
                                         })}
                                         <tr className="bg-[var(--bg-tertiary)]">
-                                            <td colSpan={5 + split.participants.length} className="px-6 py-4">
+                                            <td colSpan={5 + split.participants.length} className="px-3 py-2">
                                                 <button onClick={addItem} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
                                                     <span className="text-lg">+</span> Adicionar Item
                                                 </button>
@@ -739,16 +739,16 @@ export default function GroupSplitDetailPage() {
                                     </tbody>
                                     <tfoot className="bg-gradient-to-r from-violet-700 to-purple-700 text-white sticky bottom-0 z-30">
                                         <tr>
-                                            <td className="px-6 py-5 font-bold uppercase text-sm tracking-wider">Total Geral</td>
-                                            <td className="px-6 py-5 text-right font-black text-xl">{formatCurrency(grandTotal)}</td>
-                                            <td className="px-6 py-5"></td>
+                                            <td className="px-3 py-2 font-bold uppercase text-xs tracking-wider">Total Geral</td>
+                                            <td className="px-3 py-2 text-right font-black text-lg">{formatCurrency(grandTotal)}</td>
+                                            <td className="px-2 py-2"></td>
                                             {split.participants.map(p => (
-                                                <td key={p} className="px-4 py-5 text-center font-black text-lg">
+                                                <td key={p} className="px-2 py-2 text-center font-black text-base">
                                                     {formatCurrency(totals[p] || 0)}
                                                 </td>
                                             ))}
-                                            <td className="px-4 py-5"></td>
-                                            <td className="px-6 py-5 text-right font-black text-xl">{formatCurrency(grandTotal)}</td>
+                                            <td className="px-2 py-2"></td>
+                                            <td className="px-3 py-2 text-right font-black text-lg">{formatCurrency(grandTotal)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>

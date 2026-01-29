@@ -139,7 +139,7 @@ export default function GroupSplitsPage() {
                         </div>
                         <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Sem divisões</h3>
                         <p className="text-[var(--text-secondary)] mb-6">Cria uma para dividir despesas do grupo!</p>
-                        <button onClick={() => setShowCreate(true)} className="btn btn-accent px-6 py-3">
+                        <button onClick={() => setShowCreate(true)} className="btn btn-primary px-6 py-3">
                             Criar Divisão
                         </button>
                     </div>
@@ -151,57 +151,59 @@ export default function GroupSplitsPage() {
                             return (
                                 <div
                                     key={split.id}
-                                    className="card p-5 animate-fade-in-up cursor-pointer group hover:ring-2 hover:ring-violet-300 dark:hover:ring-violet-700 transition-all"
+                                    className="card p-5 animate-fade-in-up cursor-pointer group hover:ring-2 hover:ring-violet-300 dark:hover:ring-violet-700 transition-all flex flex-col justify-between h-full"
                                     style={{ animationDelay: `${idx * 0.05}s` }}
                                     onClick={() => router.push(`/groups/${groupId}/splits/${split.id}`)}
                                 >
-                                    {/* Header */}
-                                    <div className="flex justify-between items-start gap-3 mb-3">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-lg font-semibold text-[var(--text-primary)] truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                                                {split.name}
-                                            </h3>
-                                            <p className="text-sm text-[var(--text-secondary)] truncate">
-                                                {split.description || 'Sem descrição'}
-                                            </p>
+                                    {/* Main Content */}
+                                    <div>
+                                        {/* Header */}
+                                        <div className="flex justify-between items-start gap-3 mb-3">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg font-semibold text-[var(--text-primary)] truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                                                    {split.name}
+                                                </h3>
+                                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mt-1">
+                                                    {split.description || 'Sem descrição'}
+                                                </p>
+                                                {isAdmin && split.expand?.created_by && (
+                                                    <p className="text-xs text-violet-600 dark:text-violet-400 font-medium mt-2 flex items-center gap-1">
+                                                        👑 {split.expand.created_by.name}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                        <span className="flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-full text-sm font-medium">
-                                            {split.participants.length} 👤
-                                        </span>
-                                    </div>
 
-                                    {/* Stats */}
-                                    <div className="flex justify-between items-end">
-                                        <div className="text-xs text-[var(--text-muted)]">
-                                            <p>{split.items?.length || 0} {(split.items?.length || 0) === 1 ? 'item' : 'itens'}</p>
-                                            <p className="flex items-center gap-1 mt-1">
+                                        {/* Info Row */}
+                                        <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] mt-2">
+                                            <span>{split.items?.length || 0} {(split.items?.length || 0) === 1 ? 'item' : 'itens'}</span>
+                                            <span className="flex items-center gap-1">
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                                 {getRelativeTime(split.created)}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xl font-bold text-violet-600 dark:text-violet-400">{formatCurrency(total)}</p>
+                                            </span>
                                         </div>
                                     </div>
 
                                     {/* Footer */}
-                                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-[var(--border)]">
+                                    <div className="flex items-end justify-between pt-4 mt-2">
                                         <button
                                             onClick={(e) => handleDelete(split.id, e)}
-                                            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition-colors"
+                                            className="p-2 -ml-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition-colors"
+                                            title="Eliminar"
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
                                         </button>
-                                        <span className="text-violet-600 dark:text-violet-400 font-medium text-sm group-hover:translate-x-1 transition-transform flex items-center">
-                                            Abrir
-                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </span>
+
+                                        <div className="text-right">
+                                            <div className="text-xl font-bold text-violet-600 dark:text-violet-400 leading-none mb-1">
+                                                {formatCurrency(total)}
+                                            </div>
+                                            <div className="text-xs text-[var(--text-muted)]">Total</div>
+                                        </div>
                                     </div>
                                 </div>
                             );

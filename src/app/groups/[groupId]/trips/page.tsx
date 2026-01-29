@@ -11,6 +11,7 @@ import { getRelativeTime, cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Badge } from '@/components/ui/Badge';
+import { TripCard } from '@/components/features/TripCard';
 
 export default function GroupTripsPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
@@ -26,8 +27,8 @@ export default function GroupTripsPage() {
     const loadTrips = useCallback(async () => {
         if (!groupId) return;
         try {
-            // Regular users only see open trips, admins see all through admin page
-            const data = await tripsApi.getOpenByGroup(groupId);
+            // Fetch all trips for users.
+            const data = await tripsApi.getAllByGroup(groupId);
             setTrips(data);
         } catch (error) {
             console.error('Error loading trips:', error);
@@ -93,48 +94,12 @@ export default function GroupTripsPage() {
                     /* Trips Grid */
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {trips.map((trip, index) => (
-                            <button
-                                key={trip.id}
-                                onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
-                                className={cn(
-                                    'card card-hover p-5 text-left w-full group',
-                                    'animate-fade-in-up',
-                                    'active:scale-[0.98] transition-transform'
-                                )}
-                                style={{ animationDelay: `${index * 0.05}s` }}
-                            >
-                                {/* Card Header */}
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1 min-w-0 pr-3">
-                                        <h3 className="text-lg font-semibold text-[var(--text-primary)] truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                                            {trip.name}
-                                        </h3>
-                                        <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
-                                            {trip.description || 'Sem descrição'}
-                                        </p>
-                                    </div>
-                                    <Badge variant="open" className="flex-shrink-0">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5" />
-                                        Aberta
-                                    </Badge>
-                                </div>
-
-                                {/* Card Footer */}
-                                <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
-                                    <div className="flex items-center text-sm text-[var(--text-muted)]">
-                                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        {getRelativeTime(trip.created)}
-                                    </div>
-                                    <div className="flex items-center text-primary-600 dark:text-primary-400 font-medium text-sm group-hover:translate-x-1 transition-transform">
-                                        Ver pedidos
-                                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </button>
+                            <div key={trip.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                                <TripCard
+                                    trip={trip}
+                                    onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}

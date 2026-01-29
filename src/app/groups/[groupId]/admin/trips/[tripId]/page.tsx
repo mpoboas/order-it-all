@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
+import { StickyActionCard } from '@/components/ui/StickyActionCard';
 
 interface ShoppingItem extends Item {
     user_name: string;
@@ -664,16 +665,68 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
-    if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-            <LoadingSpinner size="lg" />
-        </div>
-    );
+    const handleCloseTrip = async () => {
+        if (!confirm('Tens a certeza que queres terminar a viagem?')) return;
+        try {
+            await tripsApi.update(tripId, { status: 'closed' });
+            showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
+            loadTrip();
+        } catch {
+            showToast('Erro ao atualizar viagem', 'error');
+        }
+    };
+
+    const handleLockTrip = async () => {
+        if (!confirm('Tens a certeza que queres fechar a trip para novos pedidos?')) return;
+        try {
+            await tripsApi.update(tripId, { status: 'in_progress' });
+            showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
+            loadTrip();
+        } catch {
+            showToast('Erro ao atualizar viagem', 'error');
+        }
+    };
+
+    // Card Logic
+    const allItemsCompleted = allItems.length > 0 &&
+        allItems.every(i => i.found_status !== 'pending') &&
+        allItems.filter(i => i.found_status === 'found').every(i => i.price !== 0);
+
+    // Determine card state
+    let stickyCardProps = null;
+
+    if (!trip) return null;
+
+    if (trip.status === 'open' && stats.total > 0) {
+        stickyCardProps = {
+            visible: true,
+            title: "Fecha a viagem a novos pedidos!",
+            actionLabel: "Começar Compras",
+            onAction: handleLockTrip,
+            color: "blue" // Default style
+        };
+    } else if (trip.status === 'in_progress' && allItemsCompleted) {
+        stickyCardProps = {
+            visible: true,
+            title: "Todos os pedidos concluídos e com preço!",
+            actionLabel: "Terminar Viagem",
+            onAction: handleCloseTrip,
+            color: "green" // Creating a green variant style logic if needed, or just default
+        };
+    }
 
     if (!trip) return null;
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+            {stickyCardProps && (
+                <StickyActionCard
+                    visible={true}
+                    title={stickyCardProps.title}
+                    actionLabel={stickyCardProps.actionLabel}
+                    onAction={stickyCardProps.onAction}
+                />
+            )}
             <Header title="Admin Panel" subtitle={trip.name} showBack />
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">

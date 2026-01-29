@@ -1,0 +1,40 @@
+import React from 'react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/Button';
+
+interface StickyActionCardProps {
+    visible: boolean;
+    title: string;
+    actionLabel: string;
+    onAction: () => void;
+    icon?: string;
+    className?: string;
+}
+
+export function StickyActionCard({ visible, title, actionLabel, onAction, icon = '🛍️', className }: StickyActionCardProps) {
+    if (!visible) return null;
+
+    return (
+        <div className={cn(
+            "fixed left-0 right-0 z-40 p-4 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in duration-500",
+            // Positioned above bottom nav. Adjust bottom-nav-height variable as needed or use a safe fallback
+            "bottom-[calc(80px+var(--safe-bottom,0px))]",
+            "container mx-auto max-w-2xl pointer-events-none",
+            className
+        )}>
+            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-violet-200 dark:border-violet-900/50 rounded-2xl shadow-xl shadow-violet-900/10 p-4 flex items-center justify-between gap-4 pointer-events-auto ring-1 ring-black/5">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-xl shrink-0 animate-bounce-subtle">
+                        {icon}
+                    </div>
+                    <div>
+                        <p className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-tight">{title}</p>
+                    </div>
+                </div>
+                <Button onClick={onAction} size="sm" className="whitespace-nowrap btn-primary shrink-0">
+                    {actionLabel}
+                </Button>
+            </div>
+        </div>
+    );
+}
