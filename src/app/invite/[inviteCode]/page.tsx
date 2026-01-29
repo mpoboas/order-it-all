@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
+import PageContent from '@/components/layout/PageContent';
 import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
 
@@ -118,7 +119,7 @@ export default function InvitePage() {
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
             </div>
 
-            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 text-center animate-fade-in-up">
+            <PageContent className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 text-center">
                 <div className="w-24 h-24 mx-auto mb-6 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-inner text-4xl overflow-hidden border border-white/30">
                     {group.avatar && group.avatar.length > 2 ? (
                         <img
@@ -164,7 +165,8 @@ export default function InvitePage() {
                         </button>
                     </div>
                 )}
-            </div>
+
+            </PageContent>
         </div>
     );
 }

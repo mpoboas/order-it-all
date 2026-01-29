@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group } from './types';
+import type { Trip, Order, Item, Split, Group, Message } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase('https://pb-orderit.povoas.top/');
@@ -156,6 +156,49 @@ export const itemsApi = {
 
   updatePrice: async (id: string, price: number): Promise<Item> => {
     return await pb.collection('items').update<Item>(id, { price });
+  },
+};
+
+// Messages API
+export const messagesApi = {
+  getByTrip: async (tripId: string): Promise<Message[]> => {
+    return await pb.collection('messages').getFullList<Message>({
+      filter: `trip_id = "${tripId}"`,
+      sort: 'created',
+      expand: 'user_id,reply_to,reply_to.user_id',
+    });
+  },
+
+  create: async (tripId: string, text: string, replyTo?: string): Promise<Message> => {
+    const userId = pb.authStore.model?.id;
+    const body: any = {
+      trip_id: tripId,
+      user_id: userId,
+      text,
+    };
+    if (replyTo) body.reply_to = replyTo;
+
+    return await pb.collection('messages').create<Message>(body);
+  },
+
+  react: async (messageId: string, reaction: string): Promise<Message> => {
+    const userId = pb.authStore.model?.id;
+    if (!userId) throw new Error("Not logged in");
+    
+    // We need to fetch current reactions first to append/toggle
+    // BUT pure toggle without race condition in PB is hard without specialized endpoint or atomic updates
+    // For now we fetch, modify, update.
+    const msg = await pb.collection('messages').getOne<Message>(messageId);
+    const reactions = msg.reactions || {};
+    
+    // Toggle logic: if same reaction exists, remove it. Else set it.
+    if (reactions[userId] === reaction) {
+        delete reactions[userId];
+    } else {
+        reactions[userId] = reaction;
+    }
+
+    return await pb.collection('messages').update<Message>(messageId, { reactions });
   },
 };
 
@@ -377,6 +420,15 @@ export const subscriptions = {
     return pb.collection('items').subscribe('*', callback);
   },
 
+  subscribeToMessages: (tripId: string, callback: (e: unknown) => void) => {
+    return pb.collection('messages').subscribe('*', (e: any) => {
+      // Only trigger if correct trip
+      if (e.record.trip_id === tripId) {
+        callback(e);
+      }
+    });
+  },
+
   subscribeToSplits: (callback: (e: unknown) => void) => {
     return pb.collection('splits').subscribe('*', callback);
   },
@@ -386,6 +438,7 @@ export const subscriptions = {
     pb.collection('trips').unsubscribe();
     pb.collection('orders').unsubscribe();
     pb.collection('items').unsubscribe();
+    pb.collection('messages').unsubscribe();
     pb.collection('splits').unsubscribe();
   },
 };

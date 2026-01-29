@@ -97,6 +97,21 @@ export interface SplitItem {
   participants: string[];
 }
 
+export interface Message {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  text: string;
+  reply_to?: string;
+  reactions?: Record<string, string>; // { "userId": "❤️" }
+  expand?: {
+    user_id?: User;
+    reply_to?: Message;
+  };
+  created: string;
+  updated: string;
+}
+
 // Form types
 export interface OrderFormData {
   user_name: string;

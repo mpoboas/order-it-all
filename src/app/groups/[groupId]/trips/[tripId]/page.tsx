@@ -15,6 +15,8 @@ import { Sheet } from '@/components/ui/Sheet';
 import { useGroup } from '@/context/GroupContext';
 
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
+import { TripChat } from '@/components/features/TripChat';
+import { useTripMessages } from '@/hooks/useTripMessages';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -36,6 +38,16 @@ export default function GroupTripDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
     const [currentTime, setCurrentTime] = useState(Date.now());
+
+    // Chat logic
+    const {
+        messages,
+        unreadCount,
+        isOpen: isChatOpen,
+        setIsOpen: setIsChatOpen,
+        sendMessage,
+        reactToMessage
+    } = useTripMessages(tripId, user?.id);
 
     // Timer updates
     useEffect(() => {
@@ -260,7 +272,10 @@ export default function GroupTripDetailPage() {
                     </div>
                 )}
 
-                {/* Section Header */}
+
+
+                {/* Tabs */}
+                {/* Orders List Title */}
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[var(--text-primary)]">Os Teus Pedidos</h3>
                     <button onClick={loadData} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
@@ -270,7 +285,7 @@ export default function GroupTripDetailPage() {
                     </button>
                 </div>
 
-                {/* Orders */}
+                {/* Orders List */}
                 {orders.length === 0 ? (
                     <div className="text-center py-16 animate-fade-in-up">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/40 dark:to-purple-900/40 flex items-center justify-center">
@@ -451,9 +466,29 @@ export default function GroupTripDetailPage() {
                         })}
                     </div>
                 )}
-            </main>
+            </main >
+
+            {/* Chat FAB */}
+            <button
+                onClick={() => setIsChatOpen(true)}
+                className={cn(
+                    "fab !bg-none !bg-white dark:!bg-slate-800 !text-violet-600 hover:!bg-gray-50 dark:hover:!bg-slate-700 !shadow-lg border border-violet-100 dark:border-slate-600 fixed left-6 z-40 transition-all duration-300 group",
+                    isAdmin
+                        ? "!bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom)+1.5rem)]"
+                        : "!bottom-[calc(var(--safe-bottom)+1.5rem)]"
+                )}
+                aria-label="Abrir Chat"
+            >
+                <span className="material-icons text-2xl group-active:scale-95 transition-transform">chat_bubble_outline</span>
+                {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full animate-bounce">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                )}
+            </button>
 
             {/* FAB */}
+            {/* Order FAB */}
             {
                 trip.status === 'open' && (
                     <button
@@ -486,6 +521,21 @@ export default function GroupTripDetailPage() {
                 submitLabel={editingOrderId ? 'Atualizar Pedido' : 'Fazer Pedido'}
                 submitting={submitting}
             />
+
+            {/* Chat Sheet */}
+            <Sheet
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                title="Chat da Viagem"
+            >
+                <TripChat
+                    tripId={tripId}
+                    messages={messages}
+                    onSendMessage={sendMessage}
+                    onReact={reactToMessage}
+                    currentUserId={user?.id}
+                />
+            </Sheet>
         </div >
     );
 }

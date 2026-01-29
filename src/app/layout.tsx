@@ -6,6 +6,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import PushNotificationManager from "@/components/features/PushNotificationManager";
+import PageTransition from "@/components/layout/PageTransition";
 
 
 export const metadata: Metadata = {
@@ -35,6 +36,8 @@ export const metadata: Metadata = {
     images: ["/gui.jpg"],
   },
 };
+
+
 
 export default function RootLayout({
   children,

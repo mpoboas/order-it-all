@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
+import PageContent from '@/components/layout/PageContent';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ export default function LoginPage() {
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
             </div>
 
-            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
+            <PageContent className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10">
                 <div className="text-center mb-8">
                     <div
                         onClick={() => router.push('/')}
@@ -113,7 +114,7 @@ export default function LoginPage() {
                         </button>
                     </div>
                 </form>
-            </div>
+            </PageContent>
         </div>
     );
 }
