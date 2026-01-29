@@ -5,6 +5,7 @@ import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
+import PushNotificationManager from "@/components/features/PushNotificationManager";
 
 export const metadata: Metadata = {
   title: "Order It All! - A aplicação #1 de compras de Celorico de Basto!",
@@ -43,6 +44,7 @@ export default function RootLayout({
               <ThemeProvider>
                 {children}
                 <ToastContainer />
+                <PushNotificationManager />
               </ThemeProvider>
             </ToastProvider>
           </GroupProvider>

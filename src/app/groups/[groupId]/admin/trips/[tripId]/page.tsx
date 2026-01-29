@@ -667,10 +667,24 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const handleCloseTrip = async () => {
         if (!confirm('Tens a certeza que queres terminar a viagem?')) return;
+        if (!trip) return;
+
         try {
             await tripsApi.update(tripId, { status: 'closed' });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
             loadTrip();
+
+            // Notify Users
+            await fetch('/api/notify', {
+                method: 'POST',
+                body: JSON.stringify({
+                    groupId: trip.group_id,
+                    title: '🏁 Viagem Concluída',
+                    message: `As compras de "${trip.name}" foram terminadas.`,
+                    url: `/groups/${trip.group_id}/trips/${trip.id}`
+                })
+            }).catch(console.error);
+
         } catch {
             showToast('Erro ao atualizar viagem', 'error');
         }
@@ -678,10 +692,24 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const handleLockTrip = async () => {
         if (!confirm('Tens a certeza que queres fechar a trip para novos pedidos?')) return;
+        if (!trip) return;
+
         try {
             await tripsApi.update(tripId, { status: 'in_progress' });
             showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
             loadTrip();
+
+            // Notify Users
+            await fetch('/api/notify', {
+                method: 'POST',
+                body: JSON.stringify({
+                    groupId: trip.group_id,
+                    title: '🛍️ Estamos a ir às compras!',
+                    message: `A viagem "${trip.name}" começou. Última oportunidade para pedidos!`,
+                    url: `/groups/${trip.group_id}/trips/${trip.id}`
+                })
+            }).catch(console.error);
+
         } catch {
             showToast('Erro ao atualizar viagem', 'error');
         }

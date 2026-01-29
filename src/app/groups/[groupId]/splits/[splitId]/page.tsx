@@ -517,40 +517,87 @@ export default function GroupSplitDetailPage() {
                 <div className="space-y-3">
                     {split.items.map((item, idx) => {
                         const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
+                        const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
                         return (
-                            <div key={idx} className="card p-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <EditableInput type="text" value={item.name} onSave={val => updateItemName(idx, val)} placeholder="Nome do item" className="flex-1 px-3 py-2 border-2 border-[var(--border)] rounded-lg font-medium bg-[var(--bg-secondary)]" />
-                                    <button onClick={() => removeItem(idx)} className="p-2 text-red-500">
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                            <div key={idx} className="card p-3 space-y-3 shadow-sm border border-[var(--border)]">
+                                {/* Top Row: Name, Price, Delete - Perfectly Aligned */}
+                                <div className="flex items-center gap-2">
+                                    {/* Name Input */}
+                                    <div className="flex-1">
+                                        <EditableInput
+                                            type="text"
+                                            value={item.name}
+                                            onSave={val => updateItemName(idx, val)}
+                                            placeholder="Nome do item"
+                                            className="w-full text-base font-semibold bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-[var(--text-muted)]/50"
+                                        />
+                                    </div>
+
+                                    {/* Price Input */}
+                                    <div className="w-28 relative flex items-center">
+                                        <EditableInput
+                                            type="number"
+                                            min={0}
+                                            step={0.01}
+                                            value={item.price || ''}
+                                            onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
+                                            placeholder="0"
+                                            className="w-full text-right text-base font-bold text-violet-600 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                        />
+                                        <span className="absolute right-3 text-[var(--text-muted)] text-sm font-medium">€</span>
+                                    </div>
+
+                                    {/* Delete Button (Compact) */}
+                                    <button
+                                        onClick={() => removeItem(idx)}
+                                        className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                                        title="Remover item"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                     </button>
                                 </div>
-                                <div className="mb-2">
-                                    <label className="text-xs text-[var(--text-muted)] mb-1 block">Preço</label>
-                                    <div className="flex items-center gap-1">
-                                        <EditableInput type="number" min={0} step={0.01} value={item.price || ''} onSave={val => updateItemPrice(idx, parseFloat(val) || 0)} className="flex-1 px-3 py-2 border-2 border-[var(--border)] rounded-lg text-right bg-[var(--bg-secondary)]" />
-                                        <span className="text-[var(--text-muted)]">€</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Participantes</label>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {split.participants.map(p => (
-                                            <button key={p} onClick={() => toggleParticipant(idx, p)} className={cn('flex items-center gap-1 px-2 py-1 rounded text-sm font-medium transition-all', item.participants.includes(p) ? 'bg-violet-500 text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]')}>
-                                                <span className={cn('w-4 h-4 rounded border-2 flex items-center justify-center text-xs', item.participants.includes(p) ? 'border-white bg-white text-violet-500' : 'border-[var(--text-muted)]')}>
-                                                    {item.participants.includes(p) && '✓'}
-                                                </span>
-                                                {p}
+
+                                {/* Participants Section */}
+                                <div className="bg-[var(--bg-tertiary)]/30 px-3 py-3 border border-[var(--border)] border-dashed rounded-xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Dividir com</span>
+                                            <button
+                                                onClick={() => toggleAllParticipants(idx, !allSelected)}
+                                                className="text-[10px] font-bold text-violet-600 hover:underline bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md"
+                                            >
+                                                {allSelected ? 'Ninguém' : 'Todos'}
                                             </button>
-                                        ))}
+                                        </div>
+                                        {item.participants.length > 0 && (
+                                            <div className="text-right flex items-center gap-1.5">
+                                                <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{formatCurrency(perPerson)}</span>
+                                                <span className="text-[10px] font-medium text-[var(--text-muted)]">/pessoa</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {split.participants.map(p => {
+                                            const isSelected = item.participants.includes(p);
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => toggleParticipant(idx, p)}
+                                                    className={cn(
+                                                        'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border shadow-sm',
+                                                        isSelected
+                                                            ? 'bg-violet-500 border-violet-500 text-white shadow-violet-500/20'
+                                                            : 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                                                    )}
+                                                >
+                                                    {isSelected && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                                {item.participants.length > 0 && (
-                                    <div className="text-right mt-2 text-sm">
-                                        <span className="text-[var(--text-muted)]">Por pessoa: </span>
-                                        <span className="font-semibold text-violet-600">{formatCurrency(perPerson)}</span>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}

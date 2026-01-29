@@ -88,6 +88,18 @@ export default function GroupAdminDashboardPage() {
             setNewTripDescription('');
             setShowCreateModal(false);
             loadTrips();
+
+            // Notify Users
+            await fetch('/api/notify', {
+                method: 'POST',
+                body: JSON.stringify({
+                    groupId,
+                    title: '🛍️ Está na hora de encomendar!',
+                    message: `${newTripName.trim()} está disponível. Faz os teus pedidos!`,
+                    url: `/groups/${groupId}/trips`
+                })
+            }).catch(console.error);
+
         } catch (error) {
             console.error('Error creating trip:', error);
             showToast('Falha ao criar viagem', 'error');
