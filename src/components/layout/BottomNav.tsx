@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useWebHaptics } from 'web-haptics/react';
 
 interface NavItem {
     href: string;
@@ -17,6 +18,7 @@ interface BottomNavProps {
 export function BottomNav({ groupId }: BottomNavProps) {
     const pathname = usePathname();
     const router = useRouter();
+    const { trigger } = useWebHaptics();
 
     const basePath = `/groups/${groupId}`;
 
@@ -78,7 +80,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                     return (
                         <button
                             key={item.href}
-                            onClick={() => router.push(item.href)}
+                            onClick={() => { trigger(); router.push(item.href); }}
                             className={cn(
                                 'flex flex-col items-center justify-center flex-1 h-full transition-all duration-200',
                                 'active:scale-95',

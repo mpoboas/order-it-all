@@ -5,6 +5,7 @@ import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { useWebHaptics } from 'web-haptics/react';
 
 interface HeaderProps {
     title?: string;
@@ -20,6 +21,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
     const { currentGroup, isAdmin } = useGroup();
     const router = useRouter();
     const pathname = usePathname();
+    const { trigger } = useWebHaptics();
     const userName = user?.name || user?.email || '??';
 
     // Determine current section within a group
@@ -70,7 +72,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                     <div className="flex items-center min-w-0">
                         {showBack ? (
                             <button
-                                onClick={handleBack}
+                                onClick={() => { trigger(); handleBack(); }}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 hover:bg-white/30 transition-colors active:scale-95"
                             >
                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +101,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         {/* Toggle button for non-admin users in a group */}
                         {showToggle && (
                             <button
-                                onClick={() => router.push(toggleHref!)}
+                                onClick={() => { trigger(); router.push(toggleHref!); }}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
                                 title={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
                             >
@@ -134,7 +136,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
                         {isLoggedIn && (
                             <button
-                                onClick={() => router.push('/profile')}
+                                onClick={() => { trigger(); router.push('/profile'); }}
                                 className="relative group"
                                 title="Meu Perfil"
                             >
@@ -160,10 +162,11 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
 function NavLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
     const router = useRouter();
+    const { trigger } = useWebHaptics();
 
     return (
         <button
-            onClick={() => router.push(href)}
+            onClick={() => { trigger(); router.push(href); }}
             className={cn(
                 'px-4 py-2 rounded-lg text-sm font-medium transition-all',
                 current

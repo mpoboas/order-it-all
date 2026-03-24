@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useWebHaptics } from 'web-haptics/react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
@@ -13,8 +14,15 @@ export function Button({
     className,
     children,
     disabled,
+    onClick,
     ...props
 }: ButtonProps) {
+    const { trigger } = useWebHaptics();
+
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!disabled) trigger();
+        onClick?.(e);
+    };
     const baseStyles = `
     inline-flex items-center justify-center font-semibold
     transition-all duration-200 ease-in-out
@@ -68,6 +76,7 @@ export function Button({
         <button
             className={cn(baseStyles, variants[variant], sizes[size], className)}
             disabled={disabled}
+            onClick={handleClick}
             {...props}
         >
             {children}

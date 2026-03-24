@@ -2,6 +2,7 @@ import React from 'react';
 import { Trip } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
 import { getRelativeTime, cn } from '@/lib/utils';
+import { useWebHaptics } from 'web-haptics/react';
 
 interface TripCardProps {
     trip: Trip;
@@ -22,10 +23,11 @@ export function TripCard({
     onClose,
     onSplit
 }: TripCardProps) {
+    const { trigger } = useWebHaptics();
 
     return (
         <button
-            onClick={onClick}
+            onClick={() => { trigger(); onClick?.(); }}
             className={cn(
                 'card card-hover p-5 text-left w-full group relative',
                 'animate-fade-in-up',
@@ -78,7 +80,7 @@ export function TripCard({
                 {isAdmin ? (
                     <div onClick={e => e.stopPropagation()} className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 justify-end">
                         <button
-                            onClick={(e) => onEdit?.(e, trip)}
+                            onClick={(e) => { trigger(); onEdit?.(e, trip); }}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -87,7 +89,7 @@ export function TripCard({
 
                         {trip.status === 'in_progress' && (
                             <button
-                                onClick={(e) => onClose?.(e, trip.id)}
+                                onClick={(e) => { trigger(); onClose?.(e, trip.id); }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg transition-colors border border-amber-200 dark:border-amber-800/50"
                             >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -97,7 +99,7 @@ export function TripCard({
 
                         {trip.status === 'closed' && onSplit && (
                             <button
-                                onClick={(e) => onSplit?.(e, trip)}
+                                onClick={(e) => { trigger(); onSplit?.(e, trip); }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg transition-colors border border-violet-200 dark:border-violet-800/50"
                                 title="Gerar Divisão de Contas"
                             >
@@ -107,7 +109,7 @@ export function TripCard({
                         )}
 
                         <button
-                            onClick={(e) => onDelete?.(e, trip.id)}
+                            onClick={(e) => { trigger('error'); onDelete?.(e, trip.id); }}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

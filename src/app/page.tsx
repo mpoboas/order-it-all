@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
+import { useWebHaptics } from 'web-haptics/react';
 
 export default function WelcomePage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const { isLoggedIn } = useUser();
   const router = useRouter();
+  const { trigger } = useWebHaptics();
 
   useEffect(() => {
     // Animate in after mount
@@ -60,7 +62,7 @@ export default function WelcomePage() {
             </p>
 
             <button
-              onClick={() => router.push('/auth/register')}
+              onClick={() => { trigger(); router.push('/auth/register'); }}
               className="w-full py-4 bg-white text-purple-600 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 mb-6"
             >
               Vamos lá! 🚀
@@ -69,7 +71,7 @@ export default function WelcomePage() {
             <div className="text-white/70 text-sm font-medium">
               Já tens conta?
               <button
-                onClick={() => router.push('/auth/login')}
+                onClick={() => { trigger(); router.push('/auth/login'); }}
                 className="ml-2 text-white font-bold hover:underline focus:outline-none"
               >
                 Entrar aqui

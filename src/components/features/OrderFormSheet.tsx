@@ -4,6 +4,7 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Item } from '@/lib/types';
+import { useWebHaptics } from 'web-haptics/react';
 
 export interface ItemFormData {
     name: string;
@@ -66,6 +67,7 @@ export function OrderFormSheet({
     const [userId, setUserId] = useState('');
     const [userName, setUserName] = useState('');
     const [comboboxOpen, setComboboxOpen] = useState(false);
+    const { trigger } = useWebHaptics();
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -121,13 +123,15 @@ export function OrderFormSheet({
     };
 
     const addEmptyItem = () => {
+        trigger();
         setItems([...items, { name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const validItems = items.filter(i => i.name.trim());
-        if (validItems.length === 0) return; // Should show toast, but keeping it simple for now, parent handles validation usually
+        if (validItems.length === 0) return;
+        trigger('success');
         onSubmit({ items: validItems, userId, userName });
     };
 
@@ -163,6 +167,7 @@ export function OrderFormSheet({
     };
 
     const addFromSearch = (product: SearchProduct) => {
+        trigger('success');
         const p = getBestPrice(product);
         const newItem: ItemFormData = {
             name: product.name,
@@ -186,7 +191,7 @@ export function OrderFormSheet({
     const StatusButton = ({ status, label, icon, currentStatus, onClick, color }: any) => (
         <button
             type="button"
-            onClick={onClick}
+            onClick={() => { trigger(); onClick(); }}
             className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1 flex-1",
                 currentStatus === status
@@ -209,7 +214,7 @@ export function OrderFormSheet({
                     {mode === 'single' && isAdmin && onDelete && (
                         <button
                             type="button"
-                            onClick={onDelete}
+                            onClick={() => { trigger('error'); onDelete(); }}
                             className="flex-1 py-4 text-sm font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
                         >
                             Eliminar
@@ -293,7 +298,7 @@ export function OrderFormSheet({
                                 <div className="flex items-center border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 h-[56px] shadow-sm">
                                     <button
                                         type="button"
-                                        onClick={() => updateItem(i, 'quantity', Math.max(1, item.quantity - 1))}
+                                        onClick={() => { trigger(); updateItem(i, 'quantity', Math.max(1, item.quantity - 1)); }}
                                         className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
@@ -307,7 +312,7 @@ export function OrderFormSheet({
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => updateItem(i, 'quantity', item.quantity + 1)}
+                                        onClick={() => { trigger(); updateItem(i, 'quantity', item.quantity + 1); }}
                                         className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -351,7 +356,7 @@ export function OrderFormSheet({
                                         <button
                                             key={brandOption}
                                             type="button"
-                                            onClick={() => updateItem(i, 'brand', brandOption as any)}
+                                            onClick={() => { trigger(); updateItem(i, 'brand', brandOption as any); }}
                                             className={cn(
                                                 "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
                                                 item.brand === brandOption
@@ -411,7 +416,7 @@ export function OrderFormSheet({
                             <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
                                 <button
                                     type="button"
-                                    onClick={() => removeItem(i)}
+                                    onClick={() => { trigger('nudge'); removeItem(i); }}
                                     className="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-red-50 transition-colors"
                                 >
                                     <span className="material-icons text-sm">delete</span>
@@ -425,7 +430,7 @@ export function OrderFormSheet({
                 {/* Add Item Button (Only in Multi Mode) */}
                 {mode === 'multi' && (
                     <button
-                        onClick={addEmptyItem}
+                        onClick={() => addEmptyItem()}
                         className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition-all flex items-center justify-center gap-2 group"
                     >
                         <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
