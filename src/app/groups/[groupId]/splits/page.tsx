@@ -216,6 +216,7 @@ export default function GroupSplitsPage() {
             <Sheet
                 isOpen={showCreate}
                 onClose={() => setShowCreate(false)}
+                size="medium"
                 title="Nova Divisão"
                 footer={
                     <button

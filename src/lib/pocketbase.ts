@@ -71,20 +71,26 @@ export const ordersApi = {
     return await pb.collection('orders').getFullList<Order>({
       filter: `trip_id = "${tripId}"`,
       sort: '-created',
-      expand: 'user',
+      expand: 'user,participants',
     });
   },
 
   getById: async (id: string): Promise<Order> => {
     return await pb.collection('orders').getOne<Order>(id, {
-      expand: 'user',
+      expand: 'user,participants',
     });
   },
 
-  create: async (data: { trip_id: string; user_name: string; user_id?: string | null }): Promise<Order> => {
-    const payload: any = {
+  create: async (data: {
+    trip_id: string;
+    user_name: string;
+    participantIds: string[];
+    user_id?: string | null;
+  }): Promise<Order> => {
+    const payload: Record<string, unknown> = {
       trip_id: data.trip_id,
       user_name: data.user_name,
+      participants: data.participantIds,
       can_edit_until: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     };
 

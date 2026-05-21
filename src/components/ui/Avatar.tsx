@@ -1,16 +1,27 @@
-import React from 'react';
-import { cn, getInitials, stringToColor } from '@/lib/utils';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { cn, getInitials } from '@/lib/utils';
 
 interface AvatarProps {
     name: string;
     src?: string;
     size?: 'xs' | 'sm' | 'md' | 'lg';
+    /** Overlap stack (order row): light ring separates circles */
+    stacked?: boolean;
     className?: string;
 }
 
-export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
-    const initials = getInitials(name);
-    const bgColor = stringToColor(name);
+export function Avatar({ name, src, size = 'md', stacked = false, className }: AvatarProps) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const displayName = name?.trim() || '?';
+    const initials = getInitials(displayName);
+    const imageSrc = src?.trim() || undefined;
+    const showImage = Boolean(imageSrc) && !imgFailed;
+
+    useEffect(() => {
+        setImgFailed(false);
+    }, [imageSrc]);
 
     const sizes = {
         xs: 'w-5 h-5 text-[10px]',
@@ -19,14 +30,23 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
         lg: 'w-16 h-16 text-2xl',
     };
 
-    if (src) {
+    const ringClass = stacked
+        ? 'ring-2 ring-white dark:ring-slate-800'
+        : 'ring-1 ring-black/15 dark:ring-white/20';
+
+    const sizeClass = sizes[size];
+
+    if (showImage) {
         return (
             <img
-                src={src}
-                alt={name}
+                src={imageSrc}
+                alt={displayName}
+                onError={() => setImgFailed(true)}
                 className={cn(
-                    'rounded-full object-cover bg-gray-200',
-                    sizes[size],
+                    'rounded-full object-cover shrink-0 bg-gray-200',
+                    ringClass,
+                    'shadow-sm',
+                    sizeClass,
                     className
                 )}
             />
@@ -36,11 +56,17 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
     return (
         <div
             className={cn(
-                'rounded-full flex items-center justify-center text-white font-bold',
-                sizes[size],
+                'rounded-full flex items-center justify-center font-bold shrink-0',
+                'text-white shadow-sm',
+                ringClass,
+                sizeClass,
                 className
             )}
-            style={{ background: `linear-gradient(135deg, ${bgColor}, ${bgColor}dd)` }}
+            style={{
+                background: `linear-gradient(135deg, var(--primary-600), var(--primary-800))`,
+            }}
+            title={displayName}
+            aria-hidden
         >
             {initials}
         </div>

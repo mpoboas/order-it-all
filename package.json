@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:order-participants": "python3 scripts/migrate_order_participants.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -1,10 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Sheet } from '@/components/ui/Sheet';
+import { useState, useEffect, useRef } from 'react';
+import { Sheet, SheetSize } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
+import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
 import { formatCurrency, cn } from '@/lib/utils';
-import { Item } from '@/lib/types';
+import { Item, User } from '@/lib/types';
+import {
+    OrderAudienceType,
+    deriveOrderUserName,
+    getOrderAudienceSubtitle,
+    getUserAvatarUrl,
+} from '@/lib/orderParticipants';
 import { useWebHaptics } from 'web-haptics/react';
+
+type OrderFormStep = 'audience' | 'participants' | 'items';
+
+export interface OrderSubmitData {
+    items: ItemFormData[];
+    userId?: string;
+    userName?: string;
+    participantIds?: string[];
+    audienceType?: OrderAudienceType;
+}
 
 export interface ItemFormData {
     name: string;
@@ -33,20 +50,35 @@ interface SearchProduct {
 interface OrderFormSheetProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { items: ItemFormData[], userId?: string, userName?: string }) => Promise<void>;
-    onDelete?: () => Promise<void>; // For single item delete
+    onSubmit: (data: OrderSubmitData) => Promise<void>;
+    onDelete?: () => Promise<void>;
     initialItems?: ItemFormData[];
     title: string;
     submitLabel: string;
     submitting: boolean;
     mode?: 'multi' | 'single';
     isAdmin?: boolean;
-    users?: any[]; // For admin user selection
-    initialUser?: { name: string, id: string };
+    users?: User[];
+    initialUser?: { name: string; id: string };
+    /** Create flow with audience wizard (member + admin); edit skips to items */
+    flow?: 'create' | 'edit';
+    groupMembers?: User[];
+    currentUserId?: string;
+    initialParticipantIds?: string[];
 }
 
 const DEFAULT_ITEMS: ItemFormData[] = [];
-const DEFAULT_USERS: any[] = [];
+const DEFAULT_USERS: User[] = [];
+const EMPTY_PARTICIPANT_IDS: string[] = [];
+const EMPTY_GROUP_MEMBERS: User[] = [];
+
+/** SuperSave product search (disabled: CORS / API unreliable from browser) */
+const ENABLE_PRODUCT_SEARCH = false;
+
+const BRAND_CHOICES: { value: 'Official' | 'Off-brand'; label: string }[] = [
+    { value: 'Official', label: 'Marca original' },
+    { value: 'Off-brand', label: 'Marca branca' },
+];
 
 export function OrderFormSheet({
     isOpen,
@@ -60,9 +92,23 @@ export function OrderFormSheet({
     mode = 'multi',
     isAdmin = false,
     users = DEFAULT_USERS,
-    initialUser
+    initialUser,
+    flow = 'create',
+    groupMembers = EMPTY_GROUP_MEMBERS,
+    currentUserId = '',
+    initialParticipantIds = EMPTY_PARTICIPANT_IDS,
 }: OrderFormSheetProps) {
-    // Form State
+    const useCreateWizard =
+        mode === 'multi' &&
+        flow === 'create' &&
+        groupMembers.length > 0 &&
+        (!isAdmin ? !!currentUserId : true);
+
+    const [step, setStep] = useState<OrderFormStep>(
+        () => (flow === 'edit' ? 'items' : useCreateWizard ? 'audience' : 'items')
+    );
+    const [audienceType, setAudienceType] = useState<OrderAudienceType | null>(null);
+    const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
     const [items, setItems] = useState<ItemFormData[]>([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
     const [userId, setUserId] = useState('');
     const [userName, setUserName] = useState('');
@@ -74,39 +120,62 @@ export function OrderFormSheet({
     const [searchResults, setSearchResults] = useState<SearchProduct[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            if (initialItems.length > 0) {
-                setItems(initialItems.map(i => ({
-                    ...i,
-                    // Ensure defaults
-                    quantity: i.quantity || 1,
-                    unit_price: i.unit_price || 0,
-                    brand: i.brand || 'Official',
-                    notes: i.notes || '',
-                    image_url: i.image_url || '',
-                    found_status: i.found_status || 'pending'
-                })));
-            } else {
-                setItems([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
-            }
+    const wasOpenRef = useRef(false);
+    const hasAutoSearchedRef = useRef(false);
+    const [priceExpandedByIndex, setPriceExpandedByIndex] = useState<boolean[]>([]);
 
-            if (initialUser) {
-                setUserName(initialUser.name);
-                setUserId(initialUser.id);
-            } else {
-                setUserName('');
-                setUserId('');
-            }
-
-            setSearchQuery('');
-            setSearchResults([]);
-
-            if (mode === 'multi' && initialItems.length === 0) {
-                searchProducts("Super Bock");
-            }
+    const applyOpenState = () => {
+        if (flow === 'edit') {
+            setStep('items');
+            setSelectedParticipantIds([...initialParticipantIds]);
+        } else if (useCreateWizard) {
+            setStep('audience');
+            setAudienceType(null);
+            setSelectedParticipantIds(isAdmin ? [] : (currentUserId ? [currentUserId] : []));
+        } else {
+            setStep('items');
+            setSelectedParticipantIds([]);
         }
-    }, [isOpen, initialItems, initialUser, mode]);
+        if (initialItems.length > 0) {
+            const mapped = initialItems.map(i => ({
+                ...i,
+                quantity: i.quantity || 1,
+                unit_price: i.unit_price || 0,
+                brand: i.brand || 'Official',
+                notes: i.notes || '',
+                image_url: i.image_url || '',
+                found_status: i.found_status || 'pending',
+            }));
+            setItems(mapped);
+            setPriceExpandedByIndex(mapped.map(i => (i.unit_price || 0) > 0));
+        } else {
+            setItems([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
+            setPriceExpandedByIndex([false]);
+        }
+
+        if (initialUser) {
+            setUserName(initialUser.name);
+            setUserId(initialUser.id);
+        } else {
+            setUserName('');
+            setUserId('');
+        }
+
+        setSearchQuery('');
+        setSearchResults([]);
+        hasAutoSearchedRef.current = false;
+    };
+
+    // Reset form only when the sheet opens (not on every parent re-render)
+    useEffect(() => {
+        if (!isOpen) {
+            wasOpenRef.current = false;
+            return;
+        }
+        if (wasOpenRef.current) return;
+        wasOpenRef.current = true;
+        applyOpenState();
+    }, [isOpen, flow, useCreateWizard, isAdmin, currentUserId, initialItems, initialUser, initialParticipantIds]);
 
     // --- Actions ---
 
@@ -119,12 +188,17 @@ export function OrderFormSheet({
     const removeItem = (index: number) => {
         if (items.length > 1) {
             setItems(items.filter((_, i) => i !== index));
+            setPriceExpandedByIndex(prev => prev.filter((_, i) => i !== index));
         }
     };
+
+    const showPriceForItem = (index: number, item: ItemFormData) =>
+        isAdmin || priceExpandedByIndex[index] || (item.unit_price || 0) > 0;
 
     const addEmptyItem = () => {
         trigger();
         setItems([...items, { name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
+        setPriceExpandedByIndex(prev => [...prev, false]);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -132,12 +206,73 @@ export function OrderFormSheet({
         const validItems = items.filter(i => i.name.trim());
         if (validItems.length === 0) return;
         trigger('success');
-        onSubmit({ items: validItems, userId, userName });
+        onSubmit({
+            items: validItems,
+            userId,
+            userName,
+            participantIds: useCreateWizard || flow === 'edit' ? selectedParticipantIds : undefined,
+            audienceType: useCreateWizard ? (audienceType || undefined) : undefined,
+        });
     };
+
+    const selectAudience = (type: OrderAudienceType) => {
+        trigger();
+        setAudienceType(type);
+        if (type === 'me') {
+            if (isAdmin) {
+                setSelectedParticipantIds([]);
+                setStep('participants');
+            } else {
+                setSelectedParticipantIds([currentUserId]);
+                setStep('items');
+            }
+        } else if (type === 'all') {
+            setSelectedParticipantIds(groupMembers.map(m => m.id));
+            setStep('items');
+        } else {
+            setSelectedParticipantIds(currentUserId ? [currentUserId] : []);
+            setStep('participants');
+        }
+    };
+
+    const itemsSubtitle = useCreateWizard || (flow === 'edit' && initialParticipantIds.length)
+        ? getOrderAudienceSubtitle(
+            selectedParticipantIds.length ? selectedParticipantIds : initialParticipantIds,
+            groupMembers,
+            currentUserId,
+            audienceType || undefined
+        )
+        : undefined;
+
+    const isSingleMemberPick = isAdmin && audienceType === 'me';
+
+    const sheetTitle =
+        step === 'audience' ? 'Este pedido é para…' :
+            step === 'participants' ? (isSingleMemberPick ? 'Qual membro?' : 'Quem participa?') :
+                title;
+
+    const sheetSubtitle = step === 'items' ? itemsSubtitle : undefined;
+
+    const handleBack = () => {
+        if (step === 'items' && (audienceType === 'several' || (isAdmin && audienceType === 'me'))) {
+            setStep('participants');
+        } else if (step === 'participants' || (step === 'items' && audienceType !== 'several' && !(isAdmin && audienceType === 'me'))) {
+            setStep('audience');
+            setAudienceType(null);
+        }
+    };
+
+    const showBackButton = useCreateWizard && (step === 'participants' || step === 'items');
+
+    const sheetSize: SheetSize =
+        step === 'participants' ? 'large' :
+            step === 'items' ? 'large' :
+                'medium';
 
     // --- Search Logic ---
 
     const searchProducts = async (term?: string) => {
+        if (!ENABLE_PRODUCT_SEARCH) return;
         const queryToUse = typeof term === 'string' ? term : searchQuery;
         if (!queryToUse.trim()) return;
         setSearchLoading(true);
@@ -151,6 +286,15 @@ export function OrderFormSheet({
             setSearchLoading(false);
         }
     };
+
+    // Prefetch product search once when the items step is shown with an empty new order
+    useEffect(() => {
+        if (!ENABLE_PRODUCT_SEARCH) return;
+        if (!isOpen || step !== 'items' || mode !== 'multi' || hasAutoSearchedRef.current) return;
+        if (initialItems.length > 0) return;
+        hasAutoSearchedRef.current = true;
+        searchProducts('Super Bock');
+    }, [isOpen, step, mode, initialItems.length]);
 
     const getBestPrice = (product: SearchProduct) => {
         const prices: { price: number; store: string }[] = [];
@@ -204,12 +348,52 @@ export function OrderFormSheet({
         </button>
     );
 
+
+    const AudienceCard = ({
+        icon,
+        label,
+        onClick,
+        className,
+    }: {
+        icon: string;
+        label: string;
+        onClick: () => void;
+        className?: string;
+    }) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700',
+                'bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 dark:hover:border-primary-600',
+                'hover:bg-primary-50/50 dark:hover:bg-primary-900/20 active:scale-[0.98] transition-all',
+                className
+            )}
+        >
+            <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
+            <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
+        </button>
+    );
+
     return (
         <Sheet
             isOpen={isOpen}
             onClose={onClose}
-            title={title}
+            title={sheetTitle}
+            subtitle={sheetSubtitle}
+            size={sheetSize}
+            onBack={showBackButton ? handleBack : undefined}
             footer={
+                step === 'audience' ? undefined : step === 'participants' ? (
+                    <button
+                        type="button"
+                        disabled={selectedParticipantIds.length === 0}
+                        onClick={() => { trigger(); setStep('items'); }}
+                        className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+                    >
+                        {isSingleMemberPick ? 'Confirmar' : 'Continuar'}
+                    </button>
+                ) : (
                 <div className={cn("flex gap-3", mode === 'single' ? "" : "w-full")}>
                     {mode === 'single' && isAdmin && onDelete && (
                         <button
@@ -232,101 +416,198 @@ export function OrderFormSheet({
                         {submitting ? 'A guardar...' : submitLabel}
                     </button>
                 </div>
+                )
             }
         >
-            <div className="space-y-6 pb-4">
-                {/* Admin: User Selection (Only in Multi/Create Mode) */}
-                {isAdmin && mode === 'multi' && (
-                    <div className="relative z-20">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 px-1">Para quem é este pedido?</label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={userName}
-                                onChange={(e) => {
-                                    setUserName(e.target.value);
-                                    setUserId('');
-                                    setComboboxOpen(true);
-                                }}
-                                onFocus={() => setComboboxOpen(true)}
-                                onBlur={() => setTimeout(() => setComboboxOpen(false), 200)}
-                                placeholder="Selecione ou escreva um nome..."
-                                className="input w-full pl-12 h-12 rounded-lg border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors"
-                            />
-                            {comboboxOpen && users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto py-2 z-50">
-                                    {users.filter(m => m.name.toLowerCase().includes(userName.toLowerCase())).map((m: any) => (
-                                        <button
-                                            key={m.id}
-                                            onClick={() => {
-                                                setUserName(m.name);
-                                                setUserId(m.id);
-                                                setComboboxOpen(false);
-                                            }}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
-                                        >
-                                            <Avatar name={m.name} src={m.avatar ? `https://pb-orderit.povoas.top/api/files/users/${m.id}/${m.avatar}` : undefined} size="sm" />
-                                            <div>
-                                                <div className="font-semibold text-gray-800 dark:text-gray-100">{m.name}</div>
-                                            </div>
-                                        </button>
+            <div className={cn(
+                'flex flex-col gap-6 pb-2',
+                step === 'participants' && 'flex-1 min-h-0'
+            )}>
+                {step === 'audience' && useCreateWizard && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <AudienceCard
+                            icon="person"
+                            label={isAdmin ? 'Um membro' : 'Eu'}
+                            onClick={() => selectAudience('me')}
+                        />
+                        <AudienceCard icon="group" label="Vários" onClick={() => selectAudience('several')} />
+                        <AudienceCard icon="groups" label="Todos" onClick={() => selectAudience('all')} className="col-span-2" />
+                    </div>
+                )}
+                {step === 'participants' && useCreateWizard && (
+                    <OrderParticipantsPicker
+                        groupMembers={groupMembers}
+                        selectedParticipantIds={selectedParticipantIds}
+                        selectionMode={isSingleMemberPick ? 'single' : 'multi'}
+                        onSelectedChange={setSelectedParticipantIds}
+                    />
+                )}
+                {step === 'items' && (
+                <>
+                {/* Admin: legacy user combobox (only when wizard is off) */}
+                {isAdmin && mode === 'multi' && !useCreateWizard && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">
+                            Para quem é este pedido?
+                        </label>
+                        <input
+                            type="text"
+                            value={userName}
+                            onChange={(e) => {
+                                setUserName(e.target.value);
+                                setUserId('');
+                                setComboboxOpen(true);
+                            }}
+                            onFocus={() => setComboboxOpen(true)}
+                            placeholder="Selecione ou escreva um nome..."
+                            className="input w-full pl-12 h-12 rounded-lg border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors"
+                        />
+                        {comboboxOpen && userName.trim() && (() => {
+                            const matches = users.filter(m =>
+                                m.name.toLowerCase().includes(userName.toLowerCase())
+                            );
+                            return matches.length > 0 ? (
+                                <ul className="mt-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-y-auto max-h-[min(40dvh,280px)] py-1">
+                                    {matches.map((m) => (
+                                        <li key={m.id}>
+                                            <button
+                                                type="button"
+                                                onMouseDown={e => e.preventDefault()}
+                                                onClick={() => {
+                                                    setUserName(m.name);
+                                                    setUserId(m.id);
+                                                    setComboboxOpen(false);
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
+                                            >
+                                                <Avatar name={m.name} src={getUserAvatarUrl(m.id, m.avatar)} size="sm" />
+                                                <span className="font-semibold text-gray-800 dark:text-gray-100">{m.name}</span>
+                                            </button>
+                                        </li>
                                     ))}
-                                </div>
-                            )}
-                        </div>
+                                </ul>
+                            ) : null;
+                        })()}
                     </div>
                 )}
 
                 {/* Items List */}
                 {items.map((item, i) => (
                     <div key={i} className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition-all">
-                        {/* Row 1: Name + Quantity */}
-                        <div className="flex gap-3 mb-3">
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Produto</label>
+                        {mode === 'multi' && items.length > 1 && (
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+                                    Produto {i + 1}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => { trigger('nudge'); removeItem(i); }}
+                                    className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-red-500 hover:text-red-600 py-0.5 px-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    aria-label={`Remover produto ${i + 1}`}
+                                >
+                                    <span className="material-icons text-[14px]">close</span>
+                                    Remover
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Nome + quantidade */}
+                        <div className="flex gap-3 mb-4">
+                            <div className="flex-1 min-w-0">
+                                <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                                    O quê?
+                                </label>
                                 <input
                                     type="text"
                                     value={item.name}
                                     onChange={e => updateItem(i, 'name', e.target.value)}
-                                    placeholder="ex. Bananas"
-                                    className="w-full px-4 py-3.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg font-medium dark:text-gray-100 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                    placeholder="ex. Leite, Bananas…"
+                                    className="w-full px-4 py-3.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl font-medium text-base dark:text-gray-100 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                     required
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 text-center">Qtd</label>
-                                <div className="flex items-center border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 h-[56px] shadow-sm">
+                            <div className="shrink-0 w-[88px]">
+                                <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5 text-center">
+                                    Qtd
+                                </label>
+                                <div className="flex items-center border-2 border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 h-[52px]">
                                     <button
                                         type="button"
                                         onClick={() => { trigger(); updateItem(i, 'quantity', Math.max(1, item.quantity - 1)); }}
-                                        className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
+                                        className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-xl touch-manipulation"
+                                        aria-label="Menos"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
+                                        <span className="material-icons text-lg">remove</span>
                                     </button>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={item.quantity}
-                                        onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                                        className="w-10 text-center font-bold text-sm text-primary-600 dark:text-primary-400 bg-transparent outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
+                                    <span className="flex-1 text-center font-bold text-primary-600 dark:text-primary-400">
+                                        {item.quantity}
+                                    </span>
                                     <button
                                         type="button"
                                         onClick={() => { trigger(); updateItem(i, 'quantity', item.quantity + 1); }}
-                                        className="w-8 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-lg transition-colors active:bg-primary-100 dark:active:bg-primary-900/50 touch-manipulation"
+                                        className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-xl touch-manipulation"
+                                        aria-label="Mais"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                        <span className="material-icons text-lg">add</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Row 2: Price + Total */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-100 dark:border-slate-700 mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Preço Uni. (€)</label>
-                                    <div className="relative">
+                        {/* Marca — escolha principal */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                Que marca?
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {BRAND_CHOICES.map(choice => {
+                                    const selected = item.brand === choice.value;
+                                    return (
+                                        <button
+                                            key={choice.value}
+                                            type="button"
+                                            onClick={() => { trigger(); updateItem(i, 'brand', choice.value); }}
+                                            className={cn(
+                                                'flex items-center justify-center text-center p-3 rounded-xl border-2 transition-all touch-manipulation min-h-[48px]',
+                                                selected
+                                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 shadow-sm'
+                                                    : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-300'
+                                            )}
+                                        >
+                                            <span className={cn(
+                                                'text-sm font-bold leading-tight',
+                                                selected ? 'text-primary-700 dark:text-primary-300' : 'text-gray-800 dark:text-gray-200'
+                                            )}>
+                                                {choice.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Notas — secundário */}
+                        <div className="mb-3">
+                            <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                                Outro detalhe? <span className="font-normal text-gray-500 dark:text-gray-400">(opcional)</span>
+                            </label>
+                            <textarea
+                                value={item.notes}
+                                onChange={e => updateItem(i, 'notes', e.target.value)}
+                                placeholder="Ex: sem lactose, embalagem grande…"
+                                rows={3}
+                                className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl resize-none text-sm dark:text-gray-200 focus:outline-none focus:border-primary-500 placeholder:text-gray-400 whitespace-pre-wrap break-words"
+                            />
+                        </div>
+
+                        {/* Preço — opcional / admin */}
+                        {showPriceForItem(i, item) ? (
+                            <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-gray-100 dark:border-slate-700 mb-1">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                                            Preço uni. (€)
+                                        </label>
                                         <input
                                             type="number"
                                             min={0}
@@ -334,49 +615,34 @@ export function OrderFormSheet({
                                             value={item.unit_price || ''}
                                             onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
                                             placeholder="0.00"
-                                            className="w-full bg-transparent font-mono text-sm font-medium focus:outline-none dark:text-gray-200"
+                                            className="w-full font-mono text-sm font-medium focus:outline-none dark:text-gray-200 bg-transparent"
                                         />
                                     </div>
-                                </div>
-                                <div className="w-px h-8 bg-gray-100 dark:bg-slate-700" />
-                                <div className="flex-1 text-right">
-                                    <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Total</label>
-                                    <span className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">
-                                        {formatCurrency(item.quantity * item.unit_price)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Row 3: Brand & Notes */}
-                        <div className="space-y-3">
-                            <div>
-                                <div className="flex p-1 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg border border-primary-100/50 dark:border-primary-800/30">
-                                    {['Official', 'Off-brand'].map((brandOption) => (
-                                        <button
-                                            key={brandOption}
-                                            type="button"
-                                            onClick={() => { trigger(); updateItem(i, 'brand', brandOption as any); }}
-                                            className={cn(
-                                                "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
-                                                item.brand === brandOption
-                                                    ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-900"
-                                                    : "text-gray-400 dark:text-gray-500 hover:text-primary-500 dark:hover:text-primary-400"
-                                            )}
-                                        >
-                                            {brandOption === 'Official' ? 'Original' : 'Branca'}
-                                        </button>
-                                    ))}
+                                    <div className="w-px h-10 bg-gray-100 dark:bg-slate-700" />
+                                    <div className="text-right">
+                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Total</p>
+                                        <p className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">
+                                            {formatCurrency(item.quantity * item.unit_price)}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                            <textarea
-                                value={item.notes}
-                                onChange={e => updateItem(i, 'notes', e.target.value)}
-                                placeholder="Notas (opcional)..."
-                                rows={2}
-                                className="w-full px-4 py-2 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg resize-none text-sm focus:outline-none focus:border-primary-500 dark:focus:border-primary-500 transition-colors dark:text-gray-200 dark:placeholder:text-gray-500"
-                            />
-                        </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    trigger();
+                                    setPriceExpandedByIndex(prev => {
+                                        const next = [...prev];
+                                        next[i] = true;
+                                        return next;
+                                    });
+                                }}
+                                className="w-full py-2 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                            >
+                                + Adicionar preço (opcional)
+                            </button>
+                        )}
 
                         {/* Row 4: Status (Only for Admin Single Mode) */}
                         {isAdmin && mode === 'single' && (
@@ -411,19 +677,6 @@ export function OrderFormSheet({
                             </div>
                         )}
 
-                        {/* Remove button (Only if multi mode and > 1 item) */}
-                        {mode === 'multi' && items.length > 1 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => { trigger('nudge'); removeItem(i); }}
-                                    className="text-xs font-bold text-red-500 hover:text-red-600 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-red-50 transition-colors"
-                                >
-                                    <span className="material-icons text-sm">delete</span>
-                                    Remover
-                                </button>
-                            </div>
-                        )}
                     </div>
                 ))}
 
@@ -441,6 +694,7 @@ export function OrderFormSheet({
                 )}
 
                 {/* Search Section */}
+                {ENABLE_PRODUCT_SEARCH && (
                 <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                         <span>🔍</span> Pesquisar Produtos
@@ -505,6 +759,9 @@ export function OrderFormSheet({
                         </div>
                     )}
                 </div>
+                )}
+                </>
+                )}
             </div>
         </Sheet>
     );

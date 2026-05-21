@@ -48,8 +48,10 @@ export interface Order {
   trip_id: string;
   user: string;
   user_name: string;
+  participants: string[];
   expand?: {
     user?: User;
+    participants?: User[];
   };
   can_edit_until: string;
   created: string;

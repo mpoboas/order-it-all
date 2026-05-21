@@ -6,15 +6,22 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
 import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
-import type { Trip, Item, OrderWithItems } from '@/lib/types';
+import type { Trip, Item, OrderWithItems, User } from '@/lib/types';
+import {
+    orderVisibleToUser,
+    deriveOrderUserName,
+    inferAudienceType,
+} from '@/lib/orderParticipants';
+import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
+import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
 import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { Avatar } from '@/components/ui/Avatar';
 import { Sheet } from '@/components/ui/Sheet';
 import { useGroup } from '@/context/GroupContext';
 
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
+import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -22,7 +29,7 @@ export default function GroupTripDetailPage() {
     const tripId = params.tripId as string;
     const router = useRouter();
     const { user, isLoggedIn } = useUser();
-    const { isAdmin } = useGroup();
+    const { isAdmin, currentGroup } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
 
@@ -32,9 +39,14 @@ export default function GroupTripDetailPage() {
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [loading, setLoading] = useState(true);
     const [showOrderSheet, setShowOrderSheet] = useState(false);
+    const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
     const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
+    const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
+
+    const groupMembers: User[] = currentGroup?.expand?.members ?? [];
+    const currentUserId = user?.id || '';
     const [currentTime, setCurrentTime] = useState(Date.now());
 
     // Timer updates
@@ -56,8 +68,8 @@ export default function GroupTripDetailPage() {
 
             setTrip(tripData);
             const userOrders = ordersData
-                .filter(order => order.user_name === userName)
-                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()); // Newest first
+                .filter(order => orderVisibleToUser(order, currentUserId, userName))
+                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
 
             const ordersWithItems = await Promise.all(
                 userOrders.map(async (order) => {
@@ -72,7 +84,7 @@ export default function GroupTripDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [tripId, userName, showToast]);
+    }, [tripId, userName, currentUserId, showToast]);
 
     useEffect(() => {
         loadData();
@@ -93,10 +105,15 @@ export default function GroupTripDetailPage() {
     const openNewOrder = () => {
         setEditingOrderId(null);
         setInitialFormItems([]);
+        setInitialParticipantIds([]);
         setShowOrderSheet(true);
     };
 
-    const handleOrderSubmit = async (data: { items: ItemFormData[] }) => {
+    const handleOrderSubmit = async (data: {
+        items: ItemFormData[];
+        participantIds?: string[];
+        audienceType?: 'me' | 'several' | 'all';
+    }) => {
         setSubmitting(true);
         try {
             if (editingOrderId) {
@@ -117,7 +134,15 @@ export default function GroupTripDetailPage() {
                 }
                 showToast('Pedido atualizado!', 'success');
             } else {
-                const order = await ordersApi.create({ trip_id: tripId, user_name: userName });
+                const participantIds = data.participantIds?.length
+                    ? data.participantIds
+                    : [currentUserId];
+                const audienceType = data.audienceType || 'me';
+                const order = await ordersApi.create({
+                    trip_id: tripId,
+                    user_name: deriveOrderUserName(participantIds, groupMembers, audienceType),
+                    participantIds,
+                });
                 startTimer(order.id, order.can_edit_until);
                 for (const item of data.items) {
                     await itemsApi.create({
@@ -148,6 +173,7 @@ export default function GroupTripDetailPage() {
             return;
         }
         setEditingOrderId(order.id);
+        setInitialParticipantIds(order.participants?.length ? order.participants : []);
         setInitialFormItems(order.items.map(i => ({
             name: i.name,
             quantity: i.quantity,
@@ -157,6 +183,36 @@ export default function GroupTripDetailPage() {
             image_url: i.image_url || '',
         })));
         setShowOrderSheet(true);
+    };
+
+    const participantsSheetOrder = participantsSheetOrderId
+        ? orders.find(o => o.id === participantsSheetOrderId)
+        : null;
+    const participantsSheetEditable = Boolean(
+        participantsSheetOrder &&
+        isOrderEditable(participantsSheetOrder.can_edit_until) &&
+        (participantsSheetOrder.user === currentUserId ||
+            participantsSheetOrder.expand?.user?.id === currentUserId)
+    );
+
+    const handleSaveParticipants = async (participantIds: string[]) => {
+        if (!participantsSheetOrder) return;
+        setSubmitting(true);
+        try {
+            const audienceType = inferAudienceType(participantIds, groupMembers, currentUserId);
+            await ordersApi.update(participantsSheetOrder.id, {
+                participants: participantIds,
+                user_name: deriveOrderUserName(participantIds, groupMembers, audienceType),
+            });
+            showToast('Participantes atualizados', 'success');
+            setParticipantsSheetOrderId(null);
+            loadData();
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Erro ao guardar participantes', 'error');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleDelete = async (orderId: string) => {
@@ -324,6 +380,13 @@ export default function GroupTripDetailPage() {
                                                     <p className="text-xs text-[var(--text-muted)] font-medium">
                                                         {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
                                                     </p>
+                                                    <OrderParticipantsRow
+                                                        participantIds={order.participants ?? []}
+                                                        members={groupMembers}
+                                                        currentUserId={currentUserId}
+                                                        expandedParticipants={order.expand?.participants}
+                                                        onClick={() => setParticipantsSheetOrderId(order.id)}
+                                                    />
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end gap-1">
@@ -405,23 +468,7 @@ export default function GroupTripDetailPage() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600 dark:text-slate-400">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="material-icons text-sm text-slate-500 dark:text-slate-500">shopping_basket</span>
-                                                                        <span>{item.quantity}</span>
-                                                                    </div>
-
-                                                                    {item.brand && (
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="material-icons text-sm text-slate-500 dark:text-slate-500">local_offer</span>
-                                                                            <span>
-                                                                                {item.brand.toLowerCase().includes('official') ? 'Original' :
-                                                                                    (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
-                                                                                        item.brand}
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
+                                                                <ShoppingItemMeta quantity={item.quantity} brand={item.brand} />
                                                             </div>
                                                         </div>
 
@@ -484,6 +531,21 @@ export default function GroupTripDetailPage() {
                 initialItems={initialFormItems}
                 title={editingOrderId ? 'Editar Pedido' : 'Novo Pedido'}
                 submitLabel={editingOrderId ? 'Atualizar Pedido' : 'Fazer Pedido'}
+                submitting={submitting}
+                flow={editingOrderId ? 'edit' : 'create'}
+                groupMembers={groupMembers}
+                currentUserId={currentUserId}
+                initialParticipantIds={initialParticipantIds}
+            />
+
+            <OrderParticipantsSheet
+                isOpen={!!participantsSheetOrder}
+                onClose={() => setParticipantsSheetOrderId(null)}
+                title={participantsSheetEditable ? 'Quem participa?' : 'Participantes'}
+                groupMembers={groupMembers}
+                participantIds={participantsSheetOrder?.participants ?? []}
+                readOnly={!participantsSheetEditable}
+                onSave={participantsSheetEditable ? handleSaveParticipants : undefined}
                 submitting={submitting}
             />
         </div >

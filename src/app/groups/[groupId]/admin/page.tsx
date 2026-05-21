@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getRelativeTime } from '@/lib/utils';
+import { getSplitParticipantNames } from '@/lib/orderParticipants';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 
@@ -262,17 +263,15 @@ export default function GroupAdminDashboardPage() {
                     displayName = memberMap.get(orderUserId)!;
                 }
 
-                const isGeral = displayName === 'Geral';
                 const items = await itemsApi.getByOrder(order.id);
+                const splitNames = getSplitParticipantNames(order, memberMap, allParticipantsList);
 
                 for (const item of items) {
                     if (item.found_status === 'found') {
                         splitItems.push({
                             name: item.name,
                             price: item.price,
-                            // If Geral, split with EVERYONE found in the trip context. 
-                            // Else, assign to the specific person.
-                            participants: isGeral ? allParticipantsList : [displayName],
+                            participants: splitNames,
                         });
                     }
                 }
@@ -569,6 +568,7 @@ export default function GroupAdminDashboardPage() {
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
+                size="medium"
                 title="Nova Viagem"
                 footer={
                     <button
@@ -609,6 +609,7 @@ export default function GroupAdminDashboardPage() {
             <Sheet
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
+                size="large"
                 title="Editar Viagem"
                 footer={
                     <button

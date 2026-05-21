@@ -220,6 +220,7 @@ export default function GroupsPage() {
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
+                size="medium"
                 title="Criar Novo Grupo"
                 footer={
                     <button

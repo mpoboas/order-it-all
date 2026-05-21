@@ -6,8 +6,17 @@ import { useToast } from '@/context/ToastContext';
 import { tripsApi, ordersApi, itemsApi, groupsApi, subscriptions } from '@/lib/pocketbase';
 import { reconcileWithGeminiImage } from '@/app/actions/ai';
 import { useUser } from '@/context/UserContext';
-import type { Trip, Item } from '@/lib/types';
+import type { Trip, Item, Order, User } from '@/lib/types';
 import { getInitials, formatCurrency, getProductEmoji, cn, getPacificDateString, getRelativeTime } from '@/lib/utils';
+import {
+    getOtherParticipants,
+    deriveOrderUserName,
+    inferAudienceType,
+    getUserAvatarUrl,
+    type OrderAudienceType,
+} from '@/lib/orderParticipants';
+import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
+import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
 import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +24,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
+import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
 
 interface ShoppingItem extends Item {
@@ -23,19 +33,61 @@ interface ShoppingItem extends Item {
     order_created: string;
 }
 
-interface UserGroup {
-    userId: string;
-    userName: string;
-    userAvatar?: string;
-    orderCreated: string; // approximate (from the first item or order record)
+interface AdminOrderCard {
+    orderId: string;
+    orderCreated: string;
+    creatorName: string;
+    creatorUserId: string;
+    creatorAvatar?: string;
+    participantIds: string[];
+    participantUsers: User[];
     items: ShoppingItem[];
+}
+
+function buildAdminOrderCard(order: Order, items: Item[]): AdminOrderCard {
+    const creator = order.expand?.user;
+    const creatorUserId = creator?.id || '';
+    let participantIds: string[] = [];
+    let participantUsers: User[] = [];
+
+    if (order.participants?.length) {
+        participantIds = [...order.participants];
+        participantUsers = order.expand?.participants || [];
+    } else {
+        const others = getOtherParticipants(order, creator?.id);
+        participantIds = [
+            ...(creatorUserId ? [creatorUserId] : []),
+            ...others.map(p => p.id),
+        ];
+        participantUsers = [...(creator ? [creator] : []), ...others];
+    }
+
+    const creatorName = creator?.name || order.user_name || 'Desconhecido';
+
+    return {
+        orderId: order.id,
+        orderCreated: order.created,
+        creatorName,
+        creatorUserId,
+        creatorAvatar: creatorUserId ? getUserAvatarUrl(creatorUserId, creator?.avatar) : undefined,
+        participantIds,
+        participantUsers,
+        items: items
+            .map(item => ({
+                ...item,
+                user_name: creatorName,
+                order_id: order.id,
+                order_created: order.created,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+    };
 }
 
 export default function AdminTripDetailPage({ params }: { params: Promise<{ tripId: string }> }) {
     const { tripId } = use(params);
     const [trip, setTrip] = useState<Trip | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+    const [orderCards, setOrderCards] = useState<AdminOrderCard[]>([]);
     const { user, updateProfile } = useUser();
 
     // Invoice Scanner State
@@ -138,12 +190,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     // Modals
     const [showEditItemModal, setShowEditItemModal] = useState(false);
     const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+    const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
 
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
 
     // New Order Form
-    const [members, setMembers] = useState<any[]>([]);
+    const [members, setMembers] = useState<User[]>([]);
 
     const [submitting, setSubmitting] = useState(false);
     const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -166,7 +219,17 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }];
     }, [selectedItem]);
 
-    const usersList = useMemo(() => members, [members]);
+    const participantsSheetOrder = participantsSheetOrderId
+        ? orderCards.find(o => o.orderId === participantsSheetOrderId)
+        : null;
+
+    const sortedOrderCards = useMemo(() => {
+        return [...orderCards].sort((a, b) => {
+            const timeA = new Date(a.orderCreated).getTime();
+            const timeB = new Date(b.orderCreated).getTime();
+            return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+        });
+    }, [orderCards, sortOrder]);
     const { showToast } = useToast();
     const router = useRouter();
 
@@ -189,44 +252,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
             if (activeTripId.current !== tripId) return;
 
-            const newGroups: Record<string, UserGroup> = {};
-
-            results.forEach(({ order, items }) => {
-                const user = order.expand?.user;
-                const groupKey = user?.id || order.user_name;
-                const displayName = user?.name || order.user_name || 'Desconhecido';
-                const avatarUrl = user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined;
-
-                if (!newGroups[groupKey]) {
-                    newGroups[groupKey] = {
-                        userId: groupKey,
-                        userName: displayName,
-                        userAvatar: avatarUrl,
-                        orderCreated: order.created,
-                        items: []
-                    };
-                }
-
-                items.forEach(item => {
-                    newGroups[groupKey].items.push({
-                        ...item,
-                        user_name: displayName,
-                        order_id: order.id,
-                        order_created: order.created
-                    });
-                });
-            });
-
             if (activeTripId.current === tripId) {
-                const groupsArray = Object.values(newGroups).sort((a, b) =>
-                    new Date(b.orderCreated).getTime() - new Date(a.orderCreated).getTime()
-                );
-
-                groupsArray.forEach(group => {
-                    group.items.sort((a, b) => a.name.localeCompare(b.name));
-                });
-
-                setUserGroups(groupsArray);
+                const cards = results.map(({ order, items }) => buildAdminOrderCard(order, items));
+                setOrderCards(cards);
             }
         } catch (error) {
             if (activeTripId.current === tripId) {
@@ -289,14 +317,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const nextStatus = statuses[(currentIdx + 1) % 3];
 
         // Optimistic UI update
-        setUserGroups(prevGroups => {
-            return prevGroups.map(group => ({
-                ...group,
-                items: group.items.map(i =>
+        setOrderCards(prev =>
+            prev.map(order => ({
+                ...order,
+                items: order.items.map(i =>
                     i.id === item.id ? { ...i, found_status: nextStatus } : i
-                )
-            }));
-        });
+                ),
+            }))
+        );
 
         try {
             await itemsApi.updateStatus(item.id, nextStatus);
@@ -304,14 +332,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         } catch {
             showToast('Falha ao atualizar estado do produto', 'error');
             // Revert on failure
-            setUserGroups(prevGroups => {
-                return prevGroups.map(group => ({
-                    ...group,
-                    items: group.items.map(i =>
+            setOrderCards(prev =>
+                prev.map(order => ({
+                    ...order,
+                    items: order.items.map(i =>
                         i.id === item.id ? { ...i, found_status: item.found_status } : i
-                    )
-                }));
-            });
+                    ),
+                }))
+            );
         }
     };
 
@@ -362,22 +390,63 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
-    const handleNewOrder = async (data: { items: ItemFormData[], userId?: string, userName?: string }) => {
-        // If external user, require name. If member selected, name is optional (will use member name).
-        if (!data.userId && !data.userName?.trim()) {
-            showToast('Indique para quem é o pedido', 'error');
-            return;
-        }
+    const handleSaveOrderParticipants = async (participantIds: string[]) => {
+        if (!participantsSheetOrder) return;
+
+        const perspectiveId =
+            participantsSheetOrder.creatorUserId ||
+            participantIds[0] ||
+            '';
+        const audienceType = inferAudienceType(participantIds, members, perspectiveId);
+        const userName = deriveOrderUserName(participantIds, members, audienceType);
 
         setSubmitting(true);
         try {
-            const selectedMember = members.find(m => m.id === data.userId);
-            const finalUserName = data.userId ? (selectedMember?.name || 'Membro') : data.userName?.trim();
+            await ordersApi.update(participantsSheetOrder.orderId, {
+                participants: participantIds,
+                user_name: userName,
+            });
+            showToast('Participantes atualizados', 'success');
+            setParticipantsSheetOrderId(null);
+            loadShoppingItems();
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Erro ao guardar participantes', 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
+    const handleNewOrder = async (data: {
+        items: ItemFormData[];
+        userId?: string;
+        userName?: string;
+        participantIds?: string[];
+        audienceType?: OrderAudienceType;
+    }) => {
+        const participantIds = data.participantIds?.length
+            ? data.participantIds
+            : data.userId
+                ? [data.userId]
+                : data.userName?.trim() === 'Geral'
+                    ? members.map(m => m.id)
+                    : [];
+
+        if (participantIds.length === 0) {
+            showToast('Indica quem participa no pedido', 'error');
+            return;
+        }
+
+        const audienceType: OrderAudienceType = data.audienceType
+            ?? inferAudienceType(participantIds, members, participantIds[0] || '');
+
+        setSubmitting(true);
+        try {
             const order = await ordersApi.create({
                 trip_id: tripId,
-                user_name: finalUserName,
-                user_id: data.userId || null
+                user_name: deriveOrderUserName(participantIds, members, audienceType),
+                participantIds,
+                user_id: audienceType === 'all' ? null : (participantIds[0] ?? null),
             });
 
             for (const item of data.items) {
@@ -417,7 +486,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         setScanStep('processing');
 
         // Prepare items for reconciliation
-        const allItems = userGroups.flatMap(g => g.items.map(i => ({
+        const allItems = orderCards.flatMap(o => o.items.map(i => ({
             id: i.id, name: i.name, quantity: i.quantity, notes: i.notes
         })));
 
@@ -473,8 +542,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 extrasPromise = (async () => {
                     const order = await ordersApi.create({
                         trip_id: tripId,
-                        user_name: 'Geral',
-                        user_id: null
+                        user_name: 'Todos',
+                        participantIds: members.map(m => m.id),
+                        user_id: null,
                     });
 
                     for (const extra of selectedExtras) {
@@ -541,7 +611,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const getUnmatchedItems = () => {
         if (!scanResult) return [];
         const matchedIds = new Set(scanResult.matches.map(m => m.itemId));
-        return userGroups.flatMap(g => g.items).filter(i => !matchedIds.has(i.id));
+        return orderCards.flatMap(o => o.items).filter(i => !matchedIds.has(i.id));
     };
 
     // Match Correction Handlers
@@ -641,7 +711,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     );
 
     // Calculate totals
-    const allItems = userGroups.flatMap(g => g.items); // Re-calculated for render, or could use the one from handleProcessInvoice if moved up
+    const allItems = orderCards.flatMap(o => o.items);
 
     const stats = {
         total: allItems.length,
@@ -839,9 +909,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     </button>
                 </div>
 
-                {/* Shopping List - Grouped by User */}
+                {/* Shopping List — one card per order */}
                 <div className="space-y-6">
-                    {userGroups.length === 0 ? (
+                    {orderCards.length === 0 ? (
                         <div className="text-center py-20 flex flex-col items-center">
                             <div className="w-20 h-20 mb-4 rounded-full bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-3xl">
                                 🛒
@@ -850,15 +920,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             <p className="text-[var(--text-secondary)] text-sm mb-6">Nenhum produto pedido para esta viagem.</p>
                         </div>
                     ) : (
-                        userGroups
-                            .sort((a, b) => {
-                                const timeA = new Date(a.orderCreated).getTime();
-                                const timeB = new Date(b.orderCreated).getTime();
-                                return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
-                            })
-                            .map((group) => {
-                                // Filter items for this group
-                                const filteredItems = group.items.filter(item => {
+                        sortedOrderCards
+                            .map((orderCard, idx) => {
+                                const filteredItems = orderCard.items.filter(item => {
                                     // Status Filter
                                     if (statusFilter !== 'all' && item.found_status !== statusFilter) return false;
 
@@ -869,14 +933,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                     return true;
                                 });
 
-                                // Skip group if no items match filter
                                 if (filteredItems.length === 0) return null;
 
                                 const allProcessed = filteredItems.length > 0 && filteredItems.every(i => i.found_status !== 'pending');
                                 const allMissing = filteredItems.length > 0 && filteredItems.every(i => i.found_status === 'not_available');
+                                const orderNumber = sortedOrderCards.length - idx;
 
                                 return (
-                                    <div key={group.userId} className={cn(
+                                    <div key={orderCard.orderId} className={cn(
                                         "rounded-[24px] shadow-sm overflow-hidden",
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
                                         allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
@@ -891,17 +955,40 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                     {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                                 </div>
                                             )}
-                                            {/* Group Header */}
+                                            {/* Order header */}
                                             <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex -space-x-1 overflow-visible">
-                                                        <Avatar name={group.userName} src={group.userAvatar} size="md" className="shadow-sm ring-2 ring-white !text-gray-900" />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">{group.userName}</h3>
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <Avatar
+                                                        name={orderCard.creatorName}
+                                                        src={orderCard.creatorAvatar}
+                                                        size="md"
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                            Pedido {orderNumber}
+                                                        </h3>
                                                         <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                            {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'itens'} {statusFilter !== 'all' && 'visíveis'} • {getRelativeTime(group.orderCreated)}
+                                                            Por {orderCard.creatorName} • {filteredItems.length}{' '}
+                                                            {filteredItems.length === 1 ? 'item' : 'itens'}
+                                                            {statusFilter !== 'all' && ' visíveis'} •{' '}
+                                                            {getRelativeTime(orderCard.orderCreated)}
                                                         </p>
+                                                        <OrderParticipantsRow
+                                                            participantIds={orderCard.participantIds}
+                                                            members={members}
+                                                            perspectiveUserId={
+                                                                orderCard.creatorUserId ||
+                                                                orderCard.participantIds[0] ||
+                                                                ''
+                                                            }
+                                                            currentUserId={user?.id || ''}
+                                                            expandedParticipants={orderCard.participantUsers}
+                                                            namedPerspective
+                                                            alwaysClickable
+                                                            onClick={() =>
+                                                                setParticipantsSheetOrderId(orderCard.orderId)
+                                                            }
+                                                        />
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
@@ -956,23 +1043,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-3 text-xs font-medium text-slate-600 dark:text-slate-400">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="material-icons text-sm text-slate-500 dark:text-slate-500">shopping_basket</span>
-                                                                        <span>{item.quantity}</span>
-                                                                    </div>
-
-                                                                    {item.brand && (
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="material-icons text-sm text-slate-500">local_offer</span>
-                                                                            <span>
-                                                                                {item.brand.toLowerCase().includes('official') ? 'Original' :
-                                                                                    (item.brand.toLowerCase().includes('white') || item.brand.toLowerCase().includes('brand') || item.brand === 'Branca') ? 'Branca' :
-                                                                                        item.brand}
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
+                                                                <ShoppingItemMeta quantity={item.quantity} brand={item.brand} />
                                                             </div>
                                                         </div>
 
@@ -1043,7 +1114,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 showScanSheet && (
                     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowScanSheet(false)} />
-                        <div className="relative bg-white w-full max-w-2xl sm:rounded-2xl h-[90vh] sm:h-[85vh] flex flex-col shadow-2xl animate-fade-in-up overflow-hidden">
+                        <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl sm:rounded-[28px] min-h-[min(82dvh,82vh)] max-h-[min(92dvh,92vh)] flex flex-col shadow-2xl animate-fade-in-up overflow-hidden">
 
                             {/* Header */}
                             <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-emerald-50 to-teal-50">
@@ -1259,7 +1330,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                             <p className="p-4 text-center text-gray-400 text-sm">Nenhum item correspondido automaticamente.</p>
                                                         ) : (
                                                             scanResult.matches.map((m, i) => {
-                                                                const originalItem = userGroups.flatMap(g => g.items).find(item => item.id === m.itemId);
+                                                                const originalItem = orderCards.flatMap(o => o.items).find(item => item.id === m.itemId);
                                                                 const unmatched = getUnmatchedItems();
 
                                                                 return (
@@ -1412,8 +1483,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 submitLabel="Criar Pedido"
                 submitting={submitting}
                 mode="multi"
+                flow="create"
                 isAdmin={true}
-                users={usersList}
+                groupMembers={members}
+                currentUserId={user?.id || ''}
             />
 
             {/* Edit Item Sheet */}
@@ -1428,6 +1501,16 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 onDelete={handleDeleteItem}
                 mode="single"
                 isAdmin={true}
+            />
+
+            <OrderParticipantsSheet
+                isOpen={!!participantsSheetOrder}
+                onClose={() => setParticipantsSheetOrderId(null)}
+                title="Quem participa?"
+                groupMembers={members}
+                participantIds={participantsSheetOrder?.participantIds ?? []}
+                onSave={handleSaveOrderParticipants}
+                submitting={submitting}
             />
         </div >
     );
