@@ -610,7 +610,7 @@ export default function GroupSplitDetailPage() {
             {/* Mobile Bottom Totals */}
             <div className={cn(
                 "lg:hidden fixed left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] shadow-lg z-40",
-                isAdmin ? "bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom))]" : "bottom-[var(--safe-bottom)]"
+                isAdmin ? "bottom-[calc(var(--bottom-nav-total-height)+var(--dock-gap))]" : "bottom-[var(--safe-bottom)]"
             )}>
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">
                     <span className="font-semibold text-[var(--text-primary)]">Total</span>

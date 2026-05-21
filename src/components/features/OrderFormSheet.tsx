@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Sheet, SheetSize } from '@/components/ui/Sheet';
 import { AnimatedStep } from '@/components/ui/AnimatedStep';
@@ -76,6 +76,11 @@ interface OrderFormSheetProps {
     groupMembers?: User[];
     currentUserId?: string;
     initialParticipantIds?: string[];
+    minimized?: boolean;
+    onMinimize?: () => void;
+    onExpand?: () => void;
+    onDiscard?: () => void;
+    minimizedAboveBottomNav?: boolean;
 }
 
 const DEFAULT_ITEMS: ItemFormData[] = [];
@@ -109,6 +114,11 @@ export function OrderFormSheet({
     groupMembers = EMPTY_GROUP_MEMBERS,
     currentUserId = '',
     initialParticipantIds = EMPTY_PARTICIPANT_IDS,
+    minimized = false,
+    onMinimize,
+    onExpand,
+    onDiscard,
+    minimizedAboveBottomNav = true,
 }: OrderFormSheetProps) {
     const useCreateWizard =
         mode === 'multi' &&
@@ -288,6 +298,16 @@ export function OrderFormSheet({
             step === 'items' ? 'large' :
                 'medium';
 
+    const minimizedSummary = useMemo(() => {
+        if (!useCreateWizard) return null;
+        if (step === 'audience') return 'A escolher para quem é o pedido';
+        if (step === 'participants') {
+            return isSingleMemberPick ? 'A escolher membro' : `${selectedParticipantIds.length} selecionado(s)`;
+        }
+        const count = items.filter(i => i.name.trim()).length;
+        return count === 0 ? 'A adicionar produtos' : `${count} produto${count === 1 ? '' : 's'}`;
+    }, [useCreateWizard, step, items, selectedParticipantIds.length, isSingleMemberPick]);
+
     // --- Search Logic ---
 
     const searchProducts = async (term?: string) => {
@@ -406,6 +426,14 @@ export function OrderFormSheet({
             size={sheetSize}
             footerKey={step === 'audience' ? 'no-footer' : step}
             onBack={showBackButton ? handleBack : undefined}
+            minimizable={useCreateWizard}
+            minimized={minimized}
+            onMinimize={onMinimize}
+            onExpand={onExpand}
+            onDiscard={onDiscard}
+            minimizedSummary={minimizedSummary}
+            discardConfirmMessage="Descartar este pedido? Perdes o que já preencheste."
+            minimizedAboveBottomNav={minimizedAboveBottomNav}
             footer={
                 step === 'audience' ? undefined : step === 'participants' ? (
                     <button

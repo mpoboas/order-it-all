@@ -16,6 +16,8 @@ import {
     type OrderAudienceType,
 } from '@/lib/orderParticipants';
 import { MoveItemSheet } from '@/components/features/MoveItemSheet';
+import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
+import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
 import { Sheet } from '@/components/ui/Sheet';
@@ -190,10 +192,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     };
     // Modals
     const [showEditItemModal, setShowEditItemModal] = useState(false);
-    const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+    const [newOrderSession, setNewOrderSession] = useState<SheetSession>('closed');
+    const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
     const [moveItem, setMoveItem] = useState<ShoppingItem | null>(null);
     const [moveSourceOrderId, setMoveSourceOrderId] = useState('');
+    const [moveItemSession, setMoveItemSession] = useState<SheetSession>('closed');
 
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
@@ -366,15 +370,34 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         setShowEditItemModal(true);
     };
 
+    const openNewOrder = () => {
+        if (newOrderSession === 'minimized') {
+            setNewOrderSession('expanded');
+            return;
+        }
+        setNewOrderSession('expanded');
+    };
+
+    const openParticipantsSheet = (orderId: string) => {
+        if (participantsSheetSession === 'minimized' && participantsSheetOrderId === orderId) {
+            setParticipantsSheetSession('expanded');
+            return;
+        }
+        setParticipantsSheetOrderId(orderId);
+        setParticipantsSheetSession('expanded');
+    };
+
     const openMoveItem = (item: ShoppingItem, sourceOrderId: string) => {
         setMoveItem(item);
         setMoveSourceOrderId(sourceOrderId);
+        setMoveItemSession('expanded');
         setShowEditItemModal(false);
     };
 
     const handleItemMoved = () => {
         setMoveItem(null);
         setMoveSourceOrderId('');
+        setMoveItemSession('closed');
         setSelectedItem(null);
         showToast('Produto movido para outro pedido', 'success');
         loadShoppingItems();
@@ -440,6 +463,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
+            setParticipantsSheetSession('closed');
             loadShoppingItems();
         } catch (error) {
             console.error('Error:', error);
@@ -448,6 +472,23 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             setSubmitting(false);
         }
     };
+
+    const discardAllDrafts = useCallback(() => {
+        setNewOrderSession('closed');
+        setMoveItem(null);
+        setMoveSourceOrderId('');
+        setMoveItemSession('closed');
+        setParticipantsSheetOrderId(null);
+        setParticipantsSheetSession('closed');
+    }, []);
+
+    const hasUnsavedMinimizableDraft = hasAnyActiveSheet(
+        newOrderSession,
+        moveItemSession,
+        participantsSheetSession
+    );
+
+    useUnsavedDraftGuard(hasUnsavedMinimizableDraft, discardAllDrafts);
 
     const handleNewOrder = async (data: {
         items: ItemFormData[];
@@ -498,7 +539,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             }
 
             showToast('Pedido adicionado!', 'success');
-            setShowNewOrderModal(false);
+            setNewOrderSession('closed');
             loadShoppingItems();
         } catch {
             showToast('Falha ao criar pedido', 'error');
@@ -847,6 +888,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     if (!trip) return null;
 
+    const hasMinimizedDock =
+        newOrderSession === 'minimized' ||
+        moveItemSession === 'minimized' ||
+        participantsSheetSession === 'minimized';
+
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
             {stickyCardProps && (
@@ -855,6 +901,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     title={stickyCardProps.title}
                     actionLabel={stickyCardProps.actionLabel}
                     onAction={stickyCardProps.onAction}
+                    stackAboveMinimized={hasMinimizedDock}
                 />
             )}
             <Header title="Admin Panel" subtitle={trip.name} showBack />
@@ -891,7 +938,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             <span className="text-xl">📸</span>
                         </Button>
                         <Button
-                            onClick={() => setShowNewOrderModal(true)}
+                            onClick={openNewOrder}
                             className="btn-primary h-10 px-4 text-sm"
                         >
                             + Novo Pedido
@@ -1018,7 +1065,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                             namedPerspective
                                                             alwaysClickable
                                                             onClick={() =>
-                                                                setParticipantsSheetOrderId(orderCard.orderId)
+                                                                openParticipantsSheet(orderCard.orderId)
                                                             }
                                                         />
                                                     </div>
@@ -1491,8 +1538,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
             {/* New Order Sheet */}
             <OrderFormSheet
-                isOpen={showNewOrderModal}
-                onClose={() => setShowNewOrderModal(false)}
+                isOpen={isSheetActive(newOrderSession)}
+                onClose={() => setNewOrderSession('closed')}
                 onSubmit={handleNewOrder}
                 title="Novo Pedido"
                 submitLabel="Criar Pedido"
@@ -1502,6 +1549,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 isAdmin={true}
                 groupMembers={members}
                 currentUserId={user?.id || ''}
+                minimized={newOrderSession === 'minimized'}
+                onMinimize={() => setNewOrderSession('minimized')}
+                onExpand={() => setNewOrderSession('expanded')}
+                onDiscard={() => setNewOrderSession('closed')}
             />
 
             {/* Edit Item Sheet */}
@@ -1528,6 +1579,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 onClose={() => {
                     setMoveItem(null);
                     setMoveSourceOrderId('');
+                    setMoveItemSession('closed');
                 }}
                 item={moveItem}
                 sourceOrderId={moveSourceOrderId}
@@ -1536,16 +1588,34 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 currentUserId={user?.id || ''}
                 orderOptions={moveOrderOptions}
                 onMoved={handleItemMoved}
+                minimized={moveItemSession === 'minimized'}
+                onMinimize={() => setMoveItemSession('minimized')}
+                onExpand={() => setMoveItemSession('expanded')}
+                onDiscard={() => {
+                    setMoveItem(null);
+                    setMoveSourceOrderId('');
+                    setMoveItemSession('closed');
+                }}
             />
 
             <OrderParticipantsSheet
-                isOpen={!!participantsSheetOrder}
-                onClose={() => setParticipantsSheetOrderId(null)}
+                isOpen={isSheetActive(participantsSheetSession)}
+                onClose={() => {
+                    setParticipantsSheetOrderId(null);
+                    setParticipantsSheetSession('closed');
+                }}
                 title="Quem participa?"
                 groupMembers={members}
                 participantIds={participantsSheetOrder?.participantIds ?? []}
                 onSave={handleSaveOrderParticipants}
                 submitting={submitting}
+                minimized={participantsSheetSession === 'minimized'}
+                onMinimize={() => setParticipantsSheetSession('minimized')}
+                onExpand={() => setParticipantsSheetSession('expanded')}
+                onDiscard={() => {
+                    setParticipantsSheetOrderId(null);
+                    setParticipantsSheetSession('closed');
+                }}
             />
         </div >
     );

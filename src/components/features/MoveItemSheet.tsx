@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { AnimatedStep } from '@/components/ui/AnimatedStep';
 import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
@@ -43,6 +43,11 @@ interface MoveItemSheetProps {
   currentUserId: string;
   orderOptions: MoveItemOrderOption[];
   onMoved: () => void;
+  minimized?: boolean;
+  onMinimize?: () => void;
+  onExpand?: () => void;
+  onDiscard?: () => void;
+  minimizedAboveBottomNav?: boolean;
 }
 
 export function MoveItemSheet({
@@ -55,6 +60,11 @@ export function MoveItemSheet({
   currentUserId,
   orderOptions,
   onMoved,
+  minimized = false,
+  onMinimize,
+  onExpand,
+  onDiscard,
+  minimizedAboveBottomNav = true,
 }: MoveItemSheetProps) {
   const { trigger } = useWebHaptics();
   const { showToast } = useToast();
@@ -86,13 +96,26 @@ export function MoveItemSheet({
     setSubmitting(false);
   };
 
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) reset();
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+    if (wasOpenRef.current) return;
+    wasOpenRef.current = true;
+    reset();
   }, [isOpen, item?.id]);
 
   const handleClose = () => {
     reset();
     onClose();
+  };
+
+  const handleDiscard = () => {
+    reset();
+    onDiscard?.();
   };
 
   const handleBack = () => {
@@ -187,6 +210,17 @@ export function MoveItemSheet({
 
   const showBack = step !== 'choose';
 
+  const minimizedSummary = useMemo(() => {
+    if (!item) return null;
+    const stepLabels: Record<MoveStep, string> = {
+      choose: 'A escolher destino',
+      existing: 'Pedido existente',
+      'new-audience': 'Novo pedido',
+      'new-participants': isSingleMemberPick ? 'A escolher membro' : 'Participantes',
+    };
+    return `${stepLabels[step]}`;
+  }, [item, step, isSingleMemberPick]);
+
   const footer =
     step === 'existing' ? (
       <button
@@ -226,6 +260,14 @@ export function MoveItemSheet({
       size={step === 'new-participants' || step === 'existing' ? 'large' : 'medium'}
       footerKey={step}
       onBack={showBack ? handleBack : undefined}
+      minimizable
+      minimized={minimized}
+      onMinimize={onMinimize}
+      onExpand={onExpand}
+      onDiscard={handleDiscard}
+      minimizedSummary={minimizedSummary}
+      discardConfirmMessage="Descartar mover produto? Perdes o progresso."
+      minimizedAboveBottomNav={minimizedAboveBottomNav}
       footer={footer}
     >
       <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-visible">

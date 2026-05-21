@@ -7,6 +7,7 @@ import { useGroup } from '@/context/GroupContext';
 import { groupsApi } from '@/lib/pocketbase';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
 
 export default function GroupLayout({
     children,
@@ -90,10 +91,12 @@ export default function GroupLayout({
     }
 
     return (
-        <div className={isAdmin ? 'has-bottom-nav' : ''}>
-            {children}
-            {/* Only show BottomNav for admins */}
-            {isAdmin && currentGroup && <BottomNav groupId={groupId} />}
-        </div>
+        <UnsavedDraftProvider>
+            <div className={isAdmin ? 'has-bottom-nav' : ''}>
+                {children}
+                {/* Only show BottomNav for admins */}
+                {isAdmin && currentGroup && <BottomNav groupId={groupId} />}
+            </div>
+        </UnsavedDraftProvider>
     );
 }

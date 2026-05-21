@@ -22,6 +22,9 @@ import { useGroup } from '@/context/GroupContext';
 
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
 import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
+import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
+import { getFabBottom } from '@/lib/bottomDock';
+import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -38,7 +41,8 @@ export default function GroupTripDetailPage() {
     const [trip, setTrip] = useState<Trip | null>(null);
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showOrderSheet, setShowOrderSheet] = useState(false);
+    const [orderSheetSession, setOrderSheetSession] = useState<SheetSession>('closed');
+    const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
     const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -103,10 +107,23 @@ export default function GroupTripDetailPage() {
     );
 
     const openNewOrder = () => {
+        if (orderSheetSession === 'minimized') {
+            setOrderSheetSession('expanded');
+            return;
+        }
         setEditingOrderId(null);
         setInitialFormItems([]);
         setInitialParticipantIds([]);
-        setShowOrderSheet(true);
+        setOrderSheetSession('expanded');
+    };
+
+    const openParticipantsSheet = (orderId: string) => {
+        if (participantsSheetSession === 'minimized' && participantsSheetOrderId === orderId) {
+            setParticipantsSheetSession('expanded');
+            return;
+        }
+        setParticipantsSheetOrderId(orderId);
+        setParticipantsSheetSession('expanded');
     };
 
     const handleOrderSubmit = async (data: {
@@ -157,7 +174,7 @@ export default function GroupTripDetailPage() {
                 }
                 showToast('Pedido criado!', 'success');
             }
-            setShowOrderSheet(false);
+            setOrderSheetSession('closed');
             loadData();
         } catch (error) {
             console.error('Error:', error);
@@ -182,7 +199,7 @@ export default function GroupTripDetailPage() {
             notes: i.notes || '',
             image_url: i.image_url || '',
         })));
-        setShowOrderSheet(true);
+        setOrderSheetSession('expanded');
     };
 
     const participantsSheetOrder = participantsSheetOrderId
@@ -195,6 +212,21 @@ export default function GroupTripDetailPage() {
             participantsSheetOrder.expand?.user?.id === currentUserId)
     );
 
+    const discardAllDrafts = useCallback(() => {
+        setOrderSheetSession('closed');
+        setParticipantsSheetOrderId(null);
+        setParticipantsSheetSession('closed');
+        setEditingOrderId(null);
+        setInitialFormItems([]);
+        setInitialParticipantIds([]);
+    }, []);
+
+    const hasUnsavedMinimizableDraft =
+        (isSheetActive(orderSheetSession) && !editingOrderId) ||
+        (isSheetActive(participantsSheetSession) && participantsSheetEditable);
+
+    useUnsavedDraftGuard(hasUnsavedMinimizableDraft, discardAllDrafts);
+
     const handleSaveParticipants = async (participantIds: string[]) => {
         if (!participantsSheetOrder) return;
         setSubmitting(true);
@@ -206,6 +238,7 @@ export default function GroupTripDetailPage() {
             });
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
+            setParticipantsSheetSession('closed');
             loadData();
         } catch (error) {
             console.error('Error:', error);
@@ -270,8 +303,12 @@ export default function GroupTripDetailPage() {
         );
     }
 
+    const hasMinimizedDock =
+        orderSheetSession === 'minimized' ||
+        participantsSheetSession === 'minimized';
+
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+        <div className={cn('min-h-screen bg-[var(--bg-primary)]', isAdmin && 'has-bottom-nav')}>
             <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
 
             {trip.status !== 'open' && (
@@ -385,7 +422,7 @@ export default function GroupTripDetailPage() {
                                                         members={groupMembers}
                                                         currentUserId={currentUserId}
                                                         expandedParticipants={order.expand?.participants}
-                                                        onClick={() => setParticipantsSheetOrderId(order.id)}
+                                                        onClick={() => openParticipantsSheet(order.id)}
                                                     />
                                                 </div>
                                             </div>
@@ -506,11 +543,9 @@ export default function GroupTripDetailPage() {
                     <button
                         onClick={openNewOrder}
                         className={cn(
-                            "fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 z-40 transition-all duration-300",
-                            isAdmin
-                                ? "!bottom-[calc(var(--bottom-nav-height)+var(--safe-bottom)+1.5rem)]"
-                                : "!bottom-[calc(var(--safe-bottom)+1.5rem)]"
+                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition-all duration-300'
                         )}
+                        style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
                         aria-label="Novo pedido"
                     >
                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -525,8 +560,8 @@ export default function GroupTripDetailPage() {
             {/* Order Sheet */}
             {/* Order Sheet */}
             <OrderFormSheet
-                isOpen={showOrderSheet}
-                onClose={() => setShowOrderSheet(false)}
+                isOpen={isSheetActive(orderSheetSession)}
+                onClose={() => setOrderSheetSession('closed')}
                 onSubmit={handleOrderSubmit}
                 initialItems={initialFormItems}
                 title={editingOrderId ? 'Editar Pedido' : 'Novo Pedido'}
@@ -536,17 +571,33 @@ export default function GroupTripDetailPage() {
                 groupMembers={groupMembers}
                 currentUserId={currentUserId}
                 initialParticipantIds={initialParticipantIds}
+                minimized={orderSheetSession === 'minimized'}
+                onMinimize={() => setOrderSheetSession('minimized')}
+                onExpand={() => setOrderSheetSession('expanded')}
+                onDiscard={() => setOrderSheetSession('closed')}
+                minimizedAboveBottomNav={isAdmin}
             />
 
             <OrderParticipantsSheet
-                isOpen={!!participantsSheetOrder}
-                onClose={() => setParticipantsSheetOrderId(null)}
+                isOpen={isSheetActive(participantsSheetSession)}
+                onClose={() => {
+                    setParticipantsSheetOrderId(null);
+                    setParticipantsSheetSession('closed');
+                }}
                 title={participantsSheetEditable ? 'Quem participa?' : 'Participantes'}
                 groupMembers={groupMembers}
                 participantIds={participantsSheetOrder?.participants ?? []}
                 readOnly={!participantsSheetEditable}
                 onSave={participantsSheetEditable ? handleSaveParticipants : undefined}
                 submitting={submitting}
+                minimized={participantsSheetSession === 'minimized'}
+                onMinimize={() => setParticipantsSheetSession('minimized')}
+                onExpand={() => setParticipantsSheetSession('expanded')}
+                onDiscard={() => {
+                    setParticipantsSheetOrderId(null);
+                    setParticipantsSheetSession('closed');
+                }}
+                minimizedAboveBottomNav={isAdmin}
             />
         </div >
     );

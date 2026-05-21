@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { getNotificationCardBottom, getStackAboveMinimizedBottom } from '@/lib/bottomDock';
 
 interface StickyActionCardProps {
     visible: boolean;
@@ -9,19 +10,34 @@ interface StickyActionCardProps {
     onAction: () => void;
     icon?: string;
     className?: string;
+    /** When a minimized wizard sheet is open, sit above its dock pill */
+    stackAboveMinimized?: boolean;
 }
 
-export function StickyActionCard({ visible, title, actionLabel, onAction, icon = '🛍️', className }: StickyActionCardProps) {
+export function StickyActionCard({
+    visible,
+    title,
+    actionLabel,
+    onAction,
+    icon = '🛍️',
+    className,
+    stackAboveMinimized = false,
+}: StickyActionCardProps) {
     if (!visible) return null;
 
+    const bottomStyle = stackAboveMinimized
+        ? { bottom: getStackAboveMinimizedBottom(true) }
+        : { bottom: getNotificationCardBottom(true) };
+
     return (
-        <div className={cn(
-            "fixed left-0 right-0 z-40 p-4 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in duration-500",
-            // Positioned above bottom nav. Adjust bottom-nav-height variable as needed or use a safe fallback
-            "bottom-[calc(80px+var(--safe-bottom,0px))]",
-            "container mx-auto max-w-2xl pointer-events-none",
-            className
-        )}>
+        <div
+            className={cn(
+                'fixed left-0 right-0 z-[54] px-4 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in duration-500',
+                'container mx-auto max-w-2xl pointer-events-none',
+                className
+            )}
+            style={bottomStyle}
+        >
             <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-violet-200 dark:border-violet-900/50 rounded-2xl shadow-xl shadow-violet-900/10 p-4 flex items-center justify-between gap-4 pointer-events-auto ring-1 ring-black/5">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-xl shrink-0 animate-bounce-subtle">
