@@ -36,31 +36,31 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
 
     const sizeClass = sizes[size];
 
+    const shellClass = cn(
+        'rounded-full shrink-0 shadow-sm overflow-hidden',
+        ringClass,
+        sizeClass,
+        className
+    );
+
     if (showImage) {
         return (
-            <img
-                src={imageSrc}
-                alt={displayName}
-                onError={() => setImgFailed(true)}
-                className={cn(
-                    'rounded-full object-cover shrink-0 bg-gray-200',
-                    ringClass,
-                    'shadow-sm',
-                    sizeClass,
-                    className
-                )}
-            />
+            <span className={cn(shellClass, 'inline-block bg-gray-200')}>
+                <img
+                    src={imageSrc}
+                    alt={displayName}
+                    onError={() => setImgFailed(true)}
+                    className="h-full w-full object-cover"
+                />
+            </span>
         );
     }
 
     return (
-        <div
+        <span
             className={cn(
-                'rounded-full flex items-center justify-center font-bold shrink-0',
-                'text-white shadow-sm',
-                ringClass,
-                sizeClass,
-                className
+                shellClass,
+                'inline-flex items-center justify-center font-bold text-white'
             )}
             style={{
                 background: `linear-gradient(135deg, var(--primary-600), var(--primary-800))`,
@@ -69,6 +69,6 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
             aria-hidden
         >
             {initials}
-        </div>
+        </span>
     );
 }

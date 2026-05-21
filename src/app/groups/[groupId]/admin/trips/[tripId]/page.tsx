@@ -15,6 +15,7 @@ import {
     getUserAvatarUrl,
     type OrderAudienceType,
 } from '@/lib/orderParticipants';
+import { MoveItemSheet } from '@/components/features/MoveItemSheet';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
 import { Sheet } from '@/components/ui/Sheet';
@@ -191,6 +192,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const [showEditItemModal, setShowEditItemModal] = useState(false);
     const [showNewOrderModal, setShowNewOrderModal] = useState(false);
     const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
+    const [moveItem, setMoveItem] = useState<ShoppingItem | null>(null);
+    const [moveSourceOrderId, setMoveSourceOrderId] = useState('');
 
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
@@ -230,6 +233,21 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
         });
     }, [orderCards, sortOrder]);
+
+    const moveOrderOptions = useMemo(() => {
+        const total = sortedOrderCards.length;
+        return sortedOrderCards.map((card, idx) => {
+            const orderNumber = total - idx;
+            const perspectiveId = card.creatorUserId || card.participantIds[0] || '';
+            return {
+                orderId: card.orderId,
+                label: `Pedido ${orderNumber}`,
+                participantIds: card.participantIds,
+                itemCount: card.items.length,
+                creatorUserId: card.creatorUserId,
+            };
+        });
+    }, [sortedOrderCards]);
     const { showToast } = useToast();
     const router = useRouter();
 
@@ -346,6 +364,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const openEditItemModal = (item: ShoppingItem) => {
         setSelectedItem(item);
         setShowEditItemModal(true);
+    };
+
+    const openMoveItem = (item: ShoppingItem, sourceOrderId: string) => {
+        setMoveItem(item);
+        setMoveSourceOrderId(sourceOrderId);
+        setShowEditItemModal(false);
+    };
+
+    const handleItemMoved = () => {
+        setMoveItem(null);
+        setMoveSourceOrderId('');
+        setSelectedItem(null);
+        showToast('Produto movido para outro pedido', 'success');
+        loadShoppingItems();
     };
 
     const handleUpdateItem = async (data: { items: ItemFormData[] }) => {
@@ -1092,23 +1124,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 </div>
             </main>
 
-            {/* Edit Item Sheet */}
-            {/* ... rest of the component ... */}
-
-            {/* Edit Item Sheet */}
-            <OrderFormSheet
-                isOpen={showEditItemModal}
-                onClose={() => setShowEditItemModal(false)}
-                onSubmit={handleUpdateItem}
-                onDelete={handleDeleteItem}
-                initialItems={editInitialItems}
-                title="Editar Produto"
-                submitLabel="Guardar Alterações"
-                submitting={submitting}
-                mode="single"
-                isAdmin={true}
-            />
-
             {/* Invoice Scanner Sheet */}
             {
                 showScanSheet && (
@@ -1499,8 +1514,28 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 submitLabel="Guardar"
                 submitting={submitting}
                 onDelete={handleDeleteItem}
+                onMoveToOtherOrder={
+                    selectedItem
+                        ? () => openMoveItem(selectedItem, selectedItem.order_id)
+                        : undefined
+                }
                 mode="single"
                 isAdmin={true}
+            />
+
+            <MoveItemSheet
+                isOpen={!!moveItem}
+                onClose={() => {
+                    setMoveItem(null);
+                    setMoveSourceOrderId('');
+                }}
+                item={moveItem}
+                sourceOrderId={moveSourceOrderId}
+                tripId={tripId}
+                groupMembers={members}
+                currentUserId={user?.id || ''}
+                orderOptions={moveOrderOptions}
+                onMoved={handleItemMoved}
             />
 
             <OrderParticipantsSheet

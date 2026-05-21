@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/types';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { useWebHaptics } from 'web-haptics/react';
+import { fadeUpTransition, staggerContainerVariants, staggerItemVariants } from '@/lib/motion';
 
 interface OrderParticipantsPickerProps {
     groupMembers: User[];
@@ -25,12 +27,16 @@ function MemberPickCard({
     selected: boolean;
     onClick: () => void;
 }) {
+    const reduceMotion = useReducedMotion();
+
     return (
-        <button
+        <motion.button
             type="button"
+            variants={staggerItemVariants}
             onClick={onClick}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             className={cn(
-                'flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-[0.98]',
+                'flex flex-col items-center gap-2 p-3 pt-3.5 rounded-2xl overflow-visible',
                 selected
                     ? 'bg-violet-50/90 dark:bg-violet-950/40 ring-2 ring-primary-500 dark:ring-primary-400 shadow-sm'
                     : 'bg-white dark:bg-slate-800 ring-1 ring-gray-200 dark:ring-slate-600 hover:ring-primary-300 dark:hover:ring-primary-600 hover:bg-primary-50/30 dark:hover:bg-primary-900/15'
@@ -52,7 +58,7 @@ function MemberPickCard({
             >
                 {member.name}
             </span>
-        </button>
+        </motion.button>
     );
 }
 
@@ -100,7 +106,12 @@ export function OrderParticipantsPicker({
 
     if (selectionMode === 'single' && !readOnly) {
         return (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4">
+            <motion.div
+                className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 py-1 overflow-visible"
+                variants={staggerContainerVariants}
+                initial="enter"
+                animate="center"
+            >
                 {groupMembers.map(member => (
                     <MemberPickCard
                         key={member.id}
@@ -109,22 +120,26 @@ export function OrderParticipantsPicker({
                         onClick={() => pickSingleMember(member.id)}
                     />
                 ))}
-            </div>
+            </motion.div>
         );
     }
 
     return (
         <div className={cn('flex flex-col gap-6 flex-1 min-h-0', readOnly && 'gap-4')}>
-            <div
+            <motion.div
                 className={cn(
-                    'grid gap-4 shrink-0',
+                    'grid gap-4 shrink-0 py-1 overflow-visible',
                     readOnly ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3 sm:grid-cols-4'
                 )}
             >
                 {selectedMembers.map(member => (
-                    <div
+                    <motion.div
                         key={member.id}
-                        className="relative flex flex-col items-center gap-2 p-3 rounded-2xl bg-violet-50/90 dark:bg-violet-950/40 ring-1 ring-violet-100 dark:ring-violet-800/50"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                        transition={fadeUpTransition}
+                        className="relative flex flex-col items-center gap-2 p-3 pt-3.5 overflow-visible rounded-2xl bg-violet-50/90 dark:bg-violet-950/40 ring-1 ring-violet-100 dark:ring-violet-800/50"
                     >
                         {!readOnly && (
                             <button
@@ -144,9 +159,9 @@ export function OrderParticipantsPicker({
                         <span className="text-xs font-semibold text-center text-violet-950 dark:text-violet-100 line-clamp-2 max-w-full">
                             {member.name}
                         </span>
-                    </div>
+                    </motion.div>
                 ))}
-            </div>
+            </motion.div>
 
             {!readOnly && (
                 <div className="flex flex-1 flex-col min-h-[min(40dvh,280px)]">
@@ -166,7 +181,12 @@ export function OrderParticipantsPicker({
                         className="input w-full h-12 rounded-lg border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white shrink-0"
                     />
                     {participantDropdownOpen && (
-                        <div className="mt-3 flex-1 min-h-0 flex flex-col rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={fadeUpTransition}
+                            className="mt-3 flex-1 min-h-0 flex flex-col rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-hidden"
+                        >
                             {availableToAdd.length > 0 ? (
                                 <ul className="overflow-y-auto overscroll-contain py-1 max-h-[min(50dvh,360px)]">
                                     {availableToAdd.map(m => (
@@ -175,7 +195,7 @@ export function OrderParticipantsPicker({
                                                 type="button"
                                                 onMouseDown={e => e.preventDefault()}
                                                 onClick={() => addParticipant(m.id)}
-                                                className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 flex items-center gap-3"
+                                                className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors"
                                             >
                                                 <Avatar
                                                     name={m.name}
@@ -196,7 +216,7 @@ export function OrderParticipantsPicker({
                                         : 'Todos os membros já foram adicionados'}
                                 </p>
                             )}
-                        </div>
+                        </motion.div>
                     )}
                 </div>
             )}

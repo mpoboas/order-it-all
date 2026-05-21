@@ -1,5 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { Sheet, SheetSize } from '@/components/ui/Sheet';
+import { AnimatedStep } from '@/components/ui/AnimatedStep';
+import { staggerContainerVariants, staggerItemVariants, fadeUpTransition } from '@/lib/motion';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
@@ -14,6 +17,12 @@ import {
 import { useWebHaptics } from 'web-haptics/react';
 
 type OrderFormStep = 'audience' | 'participants' | 'items';
+
+const STEP_ORDER: Record<OrderFormStep, number> = {
+    audience: 0,
+    participants: 1,
+    items: 2,
+};
 
 export interface OrderSubmitData {
     items: ItemFormData[];
@@ -52,6 +61,8 @@ interface OrderFormSheetProps {
     onClose: () => void;
     onSubmit: (data: OrderSubmitData) => Promise<void>;
     onDelete?: () => Promise<void>;
+    /** Admin edit item: open move-to-order flow */
+    onMoveToOtherOrder?: () => void;
     initialItems?: ItemFormData[];
     title: string;
     submitLabel: string;
@@ -85,6 +96,7 @@ export function OrderFormSheet({
     onClose,
     onSubmit,
     onDelete,
+    onMoveToOtherOrder,
     initialItems = DEFAULT_ITEMS,
     title,
     submitLabel,
@@ -107,7 +119,13 @@ export function OrderFormSheet({
     const [step, setStep] = useState<OrderFormStep>(
         () => (flow === 'edit' ? 'items' : useCreateWizard ? 'audience' : 'items')
     );
+    const [stepDirection, setStepDirection] = useState(1);
     const [audienceType, setAudienceType] = useState<OrderAudienceType | null>(null);
+
+    const navigateToStep = useCallback((next: OrderFormStep) => {
+        setStepDirection(STEP_ORDER[next] >= STEP_ORDER[step] ? 1 : -1);
+        setStep(next);
+    }, [step]);
     const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
     const [items, setItems] = useState<ItemFormData[]>([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
     const [userId, setUserId] = useState('');
@@ -125,6 +143,7 @@ export function OrderFormSheet({
     const [priceExpandedByIndex, setPriceExpandedByIndex] = useState<boolean[]>([]);
 
     const applyOpenState = () => {
+        setStepDirection(1);
         if (flow === 'edit') {
             setStep('items');
             setSelectedParticipantIds([...initialParticipantIds]);
@@ -221,17 +240,17 @@ export function OrderFormSheet({
         if (type === 'me') {
             if (isAdmin) {
                 setSelectedParticipantIds([]);
-                setStep('participants');
+                navigateToStep('participants');
             } else {
                 setSelectedParticipantIds([currentUserId]);
-                setStep('items');
+                navigateToStep('items');
             }
         } else if (type === 'all') {
             setSelectedParticipantIds(groupMembers.map(m => m.id));
-            setStep('items');
+            navigateToStep('items');
         } else {
             setSelectedParticipantIds(currentUserId ? [currentUserId] : []);
-            setStep('participants');
+            navigateToStep('participants');
         }
     };
 
@@ -255,10 +274,10 @@ export function OrderFormSheet({
 
     const handleBack = () => {
         if (step === 'items' && (audienceType === 'several' || (isAdmin && audienceType === 'me'))) {
-            setStep('participants');
+            navigateToStep('participants');
         } else if (step === 'participants' || (step === 'items' && audienceType !== 'several' && !(isAdmin && audienceType === 'me'))) {
-            setStep('audience');
             setAudienceType(null);
+            navigateToStep('audience');
         }
     };
 
@@ -360,19 +379,22 @@ export function OrderFormSheet({
         onClick: () => void;
         className?: string;
     }) => (
-        <button
+        <motion.button
             type="button"
+            variants={staggerItemVariants}
             onClick={onClick}
+            whileTap={{ scale: 0.97 }}
+            transition={fadeUpTransition}
             className={cn(
                 'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700',
                 'bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 dark:hover:border-primary-600',
-                'hover:bg-primary-50/50 dark:hover:bg-primary-900/20 active:scale-[0.98] transition-all',
+                'hover:bg-primary-50/50 dark:hover:bg-primary-900/20',
                 className
             )}
         >
             <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
             <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
-        </button>
+        </motion.button>
     );
 
     return (
@@ -382,13 +404,14 @@ export function OrderFormSheet({
             title={sheetTitle}
             subtitle={sheetSubtitle}
             size={sheetSize}
+            footerKey={step === 'audience' ? 'no-footer' : step}
             onBack={showBackButton ? handleBack : undefined}
             footer={
                 step === 'audience' ? undefined : step === 'participants' ? (
                     <button
                         type="button"
                         disabled={selectedParticipantIds.length === 0}
-                        onClick={() => { trigger(); setStep('items'); }}
+                        onClick={() => { trigger(); navigateToStep('items'); }}
                         className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
                     >
                         {isSingleMemberPick ? 'Confirmar' : 'Continuar'}
@@ -420,11 +443,24 @@ export function OrderFormSheet({
             }
         >
             <div className={cn(
-                'flex flex-col gap-6 pb-2',
-                step === 'participants' && 'flex-1 min-h-0'
+                'flex flex-col flex-1 min-h-0 min-w-0',
+                step === 'participants' && 'min-h-0'
             )}>
+                <AnimatedStep
+                    stepKey={step}
+                    direction={stepDirection}
+                    className={cn(
+                        'flex flex-col gap-6 pb-2 flex-1 min-h-0 overflow-visible',
+                        step === 'participants' && 'flex-1 min-h-0'
+                    )}
+                >
                 {step === 'audience' && useCreateWizard && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <motion.div
+                        className="grid grid-cols-2 gap-3"
+                        variants={staggerContainerVariants}
+                        initial="enter"
+                        animate="center"
+                    >
                         <AudienceCard
                             icon="person"
                             label={isAdmin ? 'Um membro' : 'Eu'}
@@ -432,7 +468,7 @@ export function OrderFormSheet({
                         />
                         <AudienceCard icon="group" label="Vários" onClick={() => selectAudience('several')} />
                         <AudienceCard icon="groups" label="Todos" onClick={() => selectAudience('all')} className="col-span-2" />
-                    </div>
+                    </motion.div>
                 )}
                 {step === 'participants' && useCreateWizard && (
                     <OrderParticipantsPicker
@@ -677,6 +713,19 @@ export function OrderFormSheet({
                             </div>
                         )}
 
+                        {isAdmin && mode === 'single' && onMoveToOtherOrder && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                            <button
+                                type="button"
+                                onClick={() => { trigger(); onMoveToOtherOrder(); }}
+                                className="w-full py-3 text-sm font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/40 rounded-xl border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span className="material-icons text-lg">drive_file_move</span>
+                                Mover para outro pedido
+                            </button>
+                            </div>
+                        )}
+
                     </div>
                 ))}
 
@@ -762,6 +811,7 @@ export function OrderFormSheet({
                 )}
                 </>
                 )}
+                </AnimatedStep>
             </div>
         </Sheet>
     );
