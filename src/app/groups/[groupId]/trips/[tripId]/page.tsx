@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
@@ -11,6 +11,8 @@ import {
     orderVisibleToUser,
     deriveOrderUserName,
     inferAudienceType,
+    partitionOrdersForUser,
+    isOrderCreatedByUser,
 } from '@/lib/orderParticipants';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
@@ -48,6 +50,7 @@ export default function GroupTripDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
     const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
+    const [ordersTab, setOrdersTab] = useState<'mine' | 'participating'>('mine');
 
     const groupMembers: User[] = currentGroup?.expand?.members ?? [];
     const currentUserId = user?.id || '';
@@ -97,7 +100,14 @@ export default function GroupTripDetailPage() {
         return () => subscriptions.unsubscribeAll();
     }, [tripId, loadData]);
 
-    // Stats
+    const { mine: myOrders, participating: participatingOrders } = useMemo(
+        () => partitionOrdersForUser(orders, currentUserId),
+        [orders, currentUserId]
+    );
+
+    const displayedOrders = ordersTab === 'mine' ? myOrders : participatingOrders;
+
+    // Stats (all orders visible to this user)
     const totalItems = orders.reduce((sum, order) => sum + order.items.length, 0);
     const estimatedCost = orders.reduce(
         (sum, order) => sum + order.items.reduce((itemSum, item) => {
@@ -185,6 +195,7 @@ export default function GroupTripDetailPage() {
     };
 
     const handleEdit = (order: OrderWithItems) => {
+        if (!isOrderCreatedByUser(order, currentUserId)) return;
         if (!isOrderEditable(order.can_edit_until)) {
             showToast('Limite de 5 minutos excedido', 'error');
             return;
@@ -250,7 +261,8 @@ export default function GroupTripDetailPage() {
 
     const handleDelete = async (orderId: string) => {
         const order = orders.find(o => o.id === orderId);
-        if (!order || !isOrderEditable(order.can_edit_until)) {
+        if (!order || !isOrderCreatedByUser(order, currentUserId)) return;
+        if (!isOrderEditable(order.can_edit_until)) {
             showToast('Limite de 5 minutos excedido', 'error');
             return;
         }
@@ -353,10 +365,46 @@ export default function GroupTripDetailPage() {
                     </div>
                 )}
 
-                {/* Section Header */}
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">Os Teus Pedidos</h3>
-                    <button onClick={loadData} className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
+                {/* Orders tabs */}
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 flex p-1 bg-[var(--bg-tertiary)] rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => setOrdersTab('mine')}
+                            className={cn(
+                                'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
+                                ordersTab === 'mine'
+                                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                            )}
+                        >
+                            Os teus pedidos
+                            {myOrders.length > 0 && (
+                                <span className="ml-1.5 text-xs opacity-80">({myOrders.length})</span>
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setOrdersTab('participating')}
+                            className={cn(
+                                'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
+                                ordersTab === 'participating'
+                                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                            )}
+                        >
+                            Em que participas
+                            {participatingOrders.length > 0 && (
+                                <span className="ml-1.5 text-xs opacity-80">({participatingOrders.length})</span>
+                            )}
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={loadData}
+                        className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors shrink-0"
+                        aria-label="Atualizar pedidos"
+                    >
                         <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
@@ -372,10 +420,22 @@ export default function GroupTripDetailPage() {
                         <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Ainda sem pedidos</h4>
                         <p className="text-[var(--text-secondary)] mb-4">Toca no + para fazer o primeiro!</p>
                     </div>
+                ) : displayedOrders.length === 0 ? (
+                    <div className="text-center py-12 animate-fade-in-up">
+                        <p className="text-[var(--text-secondary)] text-sm">
+                            {ordersTab === 'mine'
+                                ? 'Ainda não criaste pedidos nesta viagem.'
+                                : 'Não estás incluído em pedidos de outros membros.'}
+                        </p>
+                    </div>
                 ) : (
                     <div className="space-y-6">
-                        {orders.map((order, idx) => {
-                            const canEdit = isOrderEditable(order.can_edit_until);
+                        {displayedOrders.map((order, idx) => {
+                            const isCreator = isOrderCreatedByUser(order, currentUserId);
+                            const canEdit =
+                                isCreator && isOrderEditable(order.can_edit_until);
+                            const creatorName =
+                                order.expand?.user?.name || order.user_name || 'Membro';
                             const remaining = getRemainingEditTime(order.can_edit_until);
                             const isWarning = remaining > 0 && remaining < 60;
                             const orderTotal = order.items.reduce((acc, item) => acc + (item.price || 0), 0);
@@ -412,8 +472,13 @@ export default function GroupTripDetailPage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
-                                                        Pedido {orders.length - idx}
+                                                        Pedido {displayedOrders.length - idx}
                                                     </h3>
+                                                    {!isCreator && (
+                                                        <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mb-0.5">
+                                                            Pedido por {creatorName}
+                                                        </p>
+                                                    )}
                                                     <p className="text-xs text-[var(--text-muted)] font-medium">
                                                         {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
                                                     </p>
@@ -423,6 +488,7 @@ export default function GroupTripDetailPage() {
                                                         currentUserId={currentUserId}
                                                         expandedParticipants={order.expand?.participants}
                                                         onClick={() => openParticipantsSheet(order.id)}
+                                                        alwaysClickable
                                                     />
                                                 </div>
                                             </div>

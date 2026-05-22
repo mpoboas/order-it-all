@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { tripsApi, subscriptions, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
 import type { Trip, Group } from '@/lib/types';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -17,14 +17,23 @@ import { cn, getRelativeTime } from '@/lib/utils';
 import { getSplitParticipantNames } from '@/lib/orderParticipants';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
+import { SplitwiseIntegrationCard } from '@/components/features/SplitwiseIntegrationCard';
 
-export default function GroupAdminDashboardPage() {
+function AdminDashboardContent() {
     const params = useParams();
     const groupId = params.groupId as string;
     const { currentGroup, isAdmin, refreshGroup } = useGroup();
     const { user } = useUser();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToast();
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'settings' || tab === 'members' || tab === 'trips') {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     // Data
     const [trips, setTrips] = useState<Trip[]>([]);
@@ -501,6 +510,9 @@ export default function GroupAdminDashboardPage() {
                 {/* SETTINGS */}
                 {activeTab === 'settings' && (
                     <div className="animate-fade-in-up space-y-6">
+                        <Suspense fallback={null}>
+                            <SplitwiseIntegrationCard />
+                        </Suspense>
                         <section>
                             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Link de Convite</h2>
                             <div className="card p-4">
@@ -684,5 +696,17 @@ export default function GroupAdminDashboardPage() {
                 </div>
             </Sheet>
         </div>
+    );
+}
+
+export default function GroupAdminDashboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+            </div>
+        }>
+            <AdminDashboardContent />
+        </Suspense>
     );
 }

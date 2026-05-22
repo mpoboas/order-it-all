@@ -1,5 +1,7 @@
 import type { Split, SplitItem, User } from '@/lib/types';
 
+// Split used in calculateSplitTotals
+
 const STORAGE_PREFIX = 'split_guest_participant_';
 
 export function buildSplitShareUrl(shareCode: string): string {
@@ -83,6 +85,59 @@ export function toggleItemParticipant(
   return next;
 }
 
+export function calculateSplitTotals(
+  split: Pick<Split, 'participants' | 'items'>
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  split.participants.forEach((p) => {
+    totals[p] = 0;
+  });
+  split.items.forEach((item) => {
+    if (item.participants.length > 0) {
+      const share = item.price / item.participants.length;
+      item.participants.forEach((p) => {
+        if (totals[p] !== undefined) totals[p] += share;
+      });
+    }
+  });
+  return totals;
+}
+
+export function calculateExportGrandTotal(
+  items: SplitItem[]
+): number {
+  return items.reduce(
+    (sum, item) =>
+      item.participants.length > 0 ? sum + item.price : sum,
+    0
+  );
+}
+
+/** Label for how the current participant shares an item (null if they are not on it). */
+export function getItemSplitLabel(
+  itemParticipants: string[],
+  me: string,
+  allParticipants: string[]
+): string | null {
+  if (!me || !itemParticipants.includes(me)) return null;
+
+  const total = allParticipants.length;
+  if (total === 0) return null;
+
+  if (itemParticipants.length === 1) return 'Apenas eu';
+
+  if (
+    itemParticipants.length === total &&
+    allParticipants.every((p) => itemParticipants.includes(p))
+  ) {
+    return 'Dividir por todos';
+  }
+
+  const others = itemParticipants.filter((p) => p !== me).length;
+  if (others <= 0) return 'Apenas eu';
+  return `Dividir com mais ${others}`;
+}
+
 export function calculateParticipantTotal(
   items: SplitItem[],
   participantName: string
@@ -100,7 +155,12 @@ export function calculateParticipantTotal(
 
 export type PublicSplitPayload = Pick<
   Split,
-  'id' | 'name' | 'description' | 'group_id' | 'participants' | 'items'
+  | 'id'
+  | 'name'
+  | 'description'
+  | 'group_id'
+  | 'participants'
+  | 'items'
 >;
 
 export function toPublicSplitPayload(split: Split): PublicSplitPayload {

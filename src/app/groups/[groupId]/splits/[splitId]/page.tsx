@@ -8,6 +8,9 @@ import { splitsApi, subscriptions } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { SplitShareSheet } from '@/components/features/SplitShareSheet';
+import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
+import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
+import { calculateSplitTotals } from '@/lib/splitShare';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -78,6 +81,7 @@ export default function GroupSplitDetailPage() {
     const [totalsExpanded, setTotalsExpanded] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [showInviteSheet, setShowInviteSheet] = useState(false);
+    const [showSplitwiseExport, setShowSplitwiseExport] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
@@ -214,23 +218,7 @@ export default function GroupSplitDetailPage() {
         await saveSplit({ items });
     };
 
-    // Calculate totals
-    const calculateTotals = () => {
-        if (!split) return {};
-        const totals: Record<string, number> = {};
-        split.participants.forEach(p => totals[p] = 0);
-        split.items.forEach(item => {
-            if (item.participants.length > 0) {
-                const share = item.price / item.participants.length;
-                item.participants.forEach(p => {
-                    if (totals[p] !== undefined) totals[p] += share;
-                });
-            }
-        });
-        return totals;
-    };
-
-    const totals = calculateTotals();
+    const totals = split ? calculateSplitTotals(split) : {};
     const grandTotal = split?.items.reduce((sum, item) => sum + item.price, 0) || 0;
 
     // Share
@@ -294,6 +282,17 @@ export default function GroupSplitDetailPage() {
         );
     }
 
+    if (!isAdmin) {
+        return (
+            <SplitMemberDetailView
+                split={split}
+                groupId={groupId}
+                user={user}
+                onSplitUpdate={setSplit}
+            />
+        );
+    }
+
     const sortedTotals = Object.entries(totals).sort(([, a], [, b]) => b - a);
 
     return (
@@ -326,7 +325,7 @@ export default function GroupSplitDetailPage() {
                                 className="block text-sm text-[var(--text-muted)] bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-violet-500 rounded-lg px-2 py-1 w-full max-w-md"
                             />
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3 items-center">
                             <button
                                 type="button"
                                 onClick={() => setShowInviteSheet(true)}
@@ -337,6 +336,15 @@ export default function GroupSplitDetailPage() {
                                 </svg>
                                 Convidar a marcar
                             </button>
+                            {isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSplitwiseExport(true)}
+                                    className="btn bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 px-4 py-2 flex items-center gap-2"
+                                >
+                                    Enviar para Splitwise
+                                </button>
+                            )}
                             <button onClick={handleShare} disabled={sharing} className="btn btn-primary px-4 py-2 flex items-center gap-2">
                                 {sharing ? <LoadingSpinner size="sm" /> : '📤'} Partilhar
                             </button>
@@ -516,16 +524,6 @@ export default function GroupSplitDetailPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowInviteSheet(true)}
-                            className="shrink-0 flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                            Convidar
-                        </button>
                     </div>
                     {participantsExpanded && (
                         <div className="px-3 pb-3 border-t border-[var(--border)]">
@@ -575,9 +573,30 @@ export default function GroupSplitDetailPage() {
                 </section>
 
                 {/* Items */}
-                <div className="flex items-center gap-2 my-3">
-                    <span className="font-semibold text-[var(--text-primary)]">Itens</span>
-                    <span className="text-sm text-[var(--text-muted)]">{split.items.length}</span>
+                <div className="flex items-center justify-between gap-2 my-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-[var(--text-primary)]">Itens</span>
+                        <span className="text-sm text-[var(--text-muted)]">{split.items.length}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setShowSplitwiseExport(true)}
+                            className="text-xs font-semibold text-teal-700 dark:text-teal-400 px-2.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/30"
+                        >
+                            Splitwise
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowInviteSheet(true)}
+                            className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            Convidar
+                        </button>
+                    </div>
                 </div>
 
                 <div className="space-y-3">
@@ -873,6 +892,15 @@ export default function GroupSplitDetailPage() {
                 split={split}
                 onSplitUpdate={setSplit}
             />
+
+            {isAdmin && (
+                <SplitwiseExportSheet
+                    isOpen={showSplitwiseExport}
+                    onClose={() => setShowSplitwiseExport(false)}
+                    split={split}
+                    onExported={setSplit}
+                />
+            )}
         </div>
     );
 }

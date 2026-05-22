@@ -124,6 +124,31 @@ export function getOrderAudienceShortLabel(
   return `Para ti e mais ${otherCount}`;
 }
 
+export function getOrderCreatorId(order: Order): string | undefined {
+  return order.user || order.expand?.user?.id;
+}
+
+export function isOrderCreatedByUser(order: Order, userId: string): boolean {
+  const creatorId = getOrderCreatorId(order);
+  return Boolean(userId && creatorId && creatorId === userId);
+}
+
+export function partitionOrdersForUser<T extends Order>(
+  orders: T[],
+  userId: string
+): { mine: T[]; participating: T[] } {
+  const mine: T[] = [];
+  const participating: T[] = [];
+  for (const order of orders) {
+    if (isOrderCreatedByUser(order, userId)) {
+      mine.push(order);
+    } else {
+      participating.push(order);
+    }
+  }
+  return { mine, participating };
+}
+
 export function orderVisibleToUser(order: Order, userId: string, userName: string): boolean {
   if (order.participants?.length) {
     return order.participants.includes(userId) || order.user === userId;

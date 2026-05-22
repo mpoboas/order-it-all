@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import {
-  calculateParticipantTotal,
   clearStoredParticipant,
   findSuggestedParticipant,
   getStoredParticipant,
@@ -16,6 +15,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
+import { SplitParticipantItemsView } from '@/components/features/SplitParticipantItemsView';
 
 const POLL_MS = 4000;
 
@@ -90,13 +90,23 @@ export default function PublicSplitPage() {
     load();
   }, [load]);
 
+  const suggested = split
+    ? findSuggestedParticipant(split.participants, user)
+    : null;
+
   useEffect(() => {
     const stored = getStoredParticipant(shareCode);
     if (stored && split?.participants.includes(stored)) {
       setSelectedName(stored);
       setStep('items');
+      return;
     }
-  }, [shareCode, split?.participants]);
+    if (isLoggedIn && suggested && split?.participants.includes(suggested)) {
+      setSelectedName(suggested);
+      setStoredParticipant(shareCode, suggested);
+      setStep('items');
+    }
+  }, [shareCode, split?.participants, isLoggedIn, suggested]);
 
   useEffect(() => {
     if (step !== 'items' || notFound || !split) return;
@@ -110,10 +120,6 @@ export default function PublicSplitPage() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [step, notFound, split, shareCode]);
-
-  const suggested = split
-    ? findSuggestedParticipant(split.participants, user)
-    : null;
 
   useEffect(() => {
     if (step !== 'identity' || !suggested || selectedName) return;
@@ -306,10 +312,6 @@ export default function PublicSplitPage() {
     );
   }
 
-  const myTotal = selectedName
-    ? calculateParticipantTotal(split.items, selectedName)
-    : 0;
-
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
       <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-5">
@@ -332,85 +334,21 @@ export default function PublicSplitPage() {
             href={`/groups/${split.group_id}/splits/${split.id}`}
             className="block mb-4 text-sm text-violet-600 dark:text-violet-400 hover:underline"
           >
-            Abrir divisão completa (membros)
+            Abrir no grupo
           </Link>
         )}
 
-        <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Marca os itens em que participaste.
-        </p>
-
-        <ul className="space-y-3">
-          {split.items.map((item, idx) => {
-            const checked =
-              selectedName != null && item.participants.includes(selectedName);
-            const busy = togglingIdx === idx;
-            return (
-              <li
-                key={idx}
-                className="card p-4 flex items-start gap-3"
-              >
-                <button
-                  type="button"
-                  disabled={busy || !selectedName}
-                  onClick={() => handleToggle(idx, !checked)}
-                  className={cn(
-                    'w-10 h-10 rounded-xl border-2 flex items-center justify-center shrink-0 transition-colors',
-                    checked
-                      ? 'bg-violet-600 border-violet-600 text-white'
-                      : 'border-[var(--border)] bg-[var(--bg-primary)]'
-                  )}
-                  aria-pressed={checked}
-                >
-                  {checked && (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  )}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-[var(--text-primary)] break-words leading-snug">
-                    {item.name || 'Item sem nome'}
-                  </p>
-                  <p className="text-sm text-violet-600 dark:text-violet-400 font-semibold">
-                    {formatCurrency(item.price)}
-                  </p>
-                </div>
-                {busy && (
-                  <div className="shrink-0 pt-2">
-                    <LoadingSpinner size="sm" />
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        {split.items.length === 0 && (
-          <p className="text-center text-[var(--text-muted)] py-8 text-sm">
-            Ainda não há itens nesta divisão.
-          </p>
+        {selectedName && (
+          <SplitParticipantItemsView
+            items={split.items}
+            allParticipants={split.participants}
+            participantName={selectedName}
+            togglingIdx={togglingIdx}
+            onToggle={handleToggle}
+            footerOffset="safe"
+          />
         )}
       </main>
-
-      <div className="fixed left-0 right-0 bottom-0 p-4 bg-[var(--bg-secondary)] border-t border-[var(--border)] safe-bottom">
-        <div className="flex justify-between items-center max-w-lg mx-auto">
-          <span className="text-sm text-[var(--text-secondary)]">O teu total</span>
-          <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
-            {formatCurrency(myTotal)}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
