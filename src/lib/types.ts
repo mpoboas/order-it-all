@@ -84,6 +84,8 @@ export interface Split {
   group_id: string;
   participants: string[];
   items: SplitItem[];
+  share_code?: string;
+  share_active?: boolean;
   created_by: string;
   expand?: {
     created_by?: User;

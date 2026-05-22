@@ -228,6 +228,39 @@ export const splitsApi = {
     await pb.collection('splits').delete(id);
     return true;
   },
+
+  getByShareCode: async (code: string): Promise<Split | null> => {
+    try {
+      return await pb.collection('splits').getFirstListItem<Split>(
+        `share_code = "${code}" && share_active = true`
+      );
+    } catch {
+      return null;
+    }
+  },
+
+  ensureShareCode: async (id: string): Promise<Split> => {
+    const split = await pb.collection('splits').getOne<Split>(id);
+    if (split.share_code) return split;
+    return await pb.collection('splits').update<Split>(id, {
+      share_code: generateInviteCode(),
+      share_active: split.share_active ?? false,
+    });
+  },
+
+  toggleShare: async (id: string, active: boolean): Promise<Split> => {
+    const split = await splitsApi.ensureShareCode(id);
+    return await pb.collection('splits').update<Split>(id, {
+      share_active: active,
+      share_code: split.share_code,
+    });
+  },
+
+  regenerateShareCode: async (id: string): Promise<Split> => {
+    return await pb.collection('splits').update<Split>(id, {
+      share_code: generateInviteCode(),
+    });
+  },
 };
 
 // Helper to generate invite codes

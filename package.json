@@ -17,6 +17,7 @@
     "pocketbase": "^0.26.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-qr-code": "^2.0.21",
     "web-haptics": "^0.0.6",
     "web-push": "^3.6.7"
   },
