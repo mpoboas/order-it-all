@@ -7,6 +7,8 @@ import {
   findSuggestedParticipant,
   toggleItemParticipant,
 } from '@/lib/splitShare';
+import { reconcileSplitItems } from '@/lib/splitItems';
+import { canMembersEditSplit } from '@/lib/splitStatus';
 import { splitsApi } from '@/lib/pocketbase';
 import type { Split, User } from '@/lib/types';
 import { useToast } from '@/context/ToastContext';
@@ -38,9 +40,10 @@ export function SplitMemberDetailView({
     itemIndex?: number
   ) => {
     if (itemIndex !== undefined) setTogglingIdx(itemIndex);
-    onSplitUpdate({ ...split, items });
+    const nextItems = reconcileSplitItems(items, split.participants);
+    onSplitUpdate({ ...split, items: nextItems });
     try {
-      await splitsApi.update(split.id, { items });
+      await splitsApi.update(split.id, { items: nextItems });
     } catch {
       onSplitUpdate(rollback);
       showToast('Erro ao guardar', 'error');
@@ -49,15 +52,27 @@ export function SplitMemberDetailView({
     }
   };
 
+  const membersCanEdit = canMembersEditSplit(split);
+
   const handleToggle = async (itemIndex: number, include: boolean) => {
     if (!myName) return;
-    const items = toggleItemParticipant(
+    if (!membersCanEdit) {
+      showToast('Esta divisão está fechada', 'error');
+      return;
+    }
+    const result = toggleItemParticipant(
       split.items,
       itemIndex,
       myName,
       include
     );
-    await saveItems(items, split, itemIndex);
+    if (!result.ok) {
+      if (result.reason === 'locked') {
+        showToast('Este item está bloqueado — não podes remover-te', 'error');
+      }
+      return;
+    }
+    await saveItems(result.items, split, itemIndex);
   };
 
   if (!myName) {
@@ -101,6 +116,11 @@ export function SplitMemberDetailView({
           A marcar como:{' '}
           <strong className="text-[var(--text-primary)]">{myName}</strong>
         </p>
+        {!membersCanEdit && (
+          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 max-w-lg mx-auto font-medium">
+            Esta divisão está fechada.
+          </p>
+        )}
       </div>
 
       <main className="container mx-auto px-4 py-4 max-w-lg w-full">
@@ -110,6 +130,7 @@ export function SplitMemberDetailView({
           participantName={myName}
           togglingIdx={togglingIdx}
           onToggle={handleToggle}
+          readOnly={!membersCanEdit}
           showFooter
           footerOffset="safe"
         />

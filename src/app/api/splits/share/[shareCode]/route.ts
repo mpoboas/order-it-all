@@ -7,6 +7,8 @@ import {
   toPublicSplitPayload,
   toggleItemParticipant,
 } from '@/lib/splitShare';
+import { reconcileSplitItems } from '@/lib/splitItems';
+import { isSplitClosed } from '@/lib/splitStatus';
 
 const SHARE_CODE_RE = /^[A-Za-z0-9]{6,12}$/;
 
@@ -65,16 +67,34 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid participant' }, { status: 400 });
     }
 
+    if (isSplitClosed(split)) {
+      return NextResponse.json(
+        { error: 'Divisão fechada — já não é possível alterar' },
+        { status: 403 }
+      );
+    }
+
     if (itemIndex >= split.items.length) {
       return NextResponse.json({ error: 'Invalid item' }, { status: 400 });
     }
 
-    const items = toggleItemParticipant(
+    const toggleResult = toggleItemParticipant(
       split.items,
       itemIndex,
       participantName,
       include
     );
+    if (!toggleResult.ok) {
+      if (toggleResult.reason === 'locked') {
+        return NextResponse.json(
+          { error: 'Item bloqueado — não podes remover-te desta divisão' },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json({ error: 'Invalid item' }, { status: 400 });
+    }
+
+    const items = reconcileSplitItems(toggleResult.items, split.participants);
 
     const updated = await updateSplitItems(split.id, items);
     return NextResponse.json(toPublicSplitPayload(updated));

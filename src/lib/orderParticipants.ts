@@ -78,6 +78,99 @@ export function inferAudienceType(
   return 'several';
 }
 
+export function isOrderAudienceAll(
+  participantIds: string[],
+  members: User[]
+): boolean {
+  const memberIds = members.map(m => m.id);
+  return (
+    memberIds.length > 0 &&
+    participantIds.length === memberIds.length &&
+    memberIds.every(id => participantIds.includes(id))
+  );
+}
+
+export function isGroupDisplayLabel(userName?: string): boolean {
+  const label = userName?.trim();
+  return label === 'Todos' || label === 'Geral';
+}
+
+/** True when user_name looks like deriveOrderUserName aggregate, not a single person */
+export function isAggregatedOrderLabel(userName?: string): boolean {
+  const label = userName?.trim();
+  if (!label || isGroupDisplayLabel(label)) return false;
+  return label.includes(',') || /\s\+\d+$/.test(label);
+}
+
+export function participantIdsToNames(
+  participantIds: string[],
+  memberMap: Map<string, string>,
+  expanded?: User[]
+): string[] {
+  return participantIds
+    .map(
+      id =>
+        memberMap.get(id) ??
+        expanded?.find(p => p.id === id)?.name
+    )
+    .filter((name): name is string => Boolean(name?.trim()));
+}
+
+export interface OrderCreatePayloadInput {
+  tripId: string;
+  participantIds: string[];
+  members: User[];
+  audienceType: OrderAudienceType;
+  createdByUserId: string;
+}
+
+export interface OrderCreatePayload {
+  trip_id: string;
+  user_name: string;
+  participantIds: string[];
+  createdByUserId: string;
+}
+
+export function buildOrderCreatePayload(
+  input: OrderCreatePayloadInput
+): OrderCreatePayload {
+  const { tripId, members, audienceType, createdByUserId } = input;
+  let participantIds = [...input.participantIds];
+
+  if (audienceType === 'all') {
+    participantIds = members.map(m => m.id);
+  }
+
+  return {
+    trip_id: tripId,
+    user_name: deriveOrderUserName(participantIds, members, audienceType),
+    participantIds,
+    createdByUserId,
+  };
+}
+
+/** Who placed the order — never an aggregated user_name summary */
+export function getOrderPlacedByLabel(order: Order, members: User[] = []): string {
+  const fromExpand = order.expand?.user?.name?.trim();
+  if (fromExpand) return fromExpand;
+
+  const creatorId = order.user || order.expand?.user?.id;
+  if (creatorId) {
+    const fromMembers = members.find(m => m.id === creatorId)?.name?.trim();
+    if (fromMembers) return fromMembers;
+  }
+
+  if (isGroupDisplayLabel(order.user_name)) {
+    return 'O grupo';
+  }
+
+  if (order.user_name?.trim() && !isAggregatedOrderLabel(order.user_name)) {
+    return order.user_name.trim();
+  }
+
+  return 'Pedido';
+}
+
 function getMemberDisplayName(userId: string, members: User[]): string {
   return members.find(m => m.id === userId)?.name?.trim() || 'membro';
 }
@@ -170,25 +263,37 @@ export function getSplitParticipantNames(
   memberMap: Map<string, string>,
   allMemberNames: string[]
 ): string[] {
-  const expanded = order.expand?.participants;
-  if (expanded?.length) {
-    const names = expanded.map(p => memberMap.get(p.id) || p.name).filter(Boolean);
-    const memberIds = [...memberMap.keys()];
+  const memberIds = [...memberMap.keys()];
+  const participantIds = order.participants ?? [];
+
+  if (participantIds.length > 0) {
+    const names = participantIdsToNames(
+      participantIds,
+      memberMap,
+      order.expand?.participants
+    );
     if (
-      order.participants?.length === memberIds.length &&
-      memberIds.every(id => order.participants!.includes(id))
+      memberIds.length > 0 &&
+      participantIds.length === memberIds.length &&
+      memberIds.every(id => participantIds.includes(id))
     ) {
       return allMemberNames;
     }
-    return names;
+    if (names.length > 0) return names;
   }
-  if (order.user_name === 'Geral' || order.user_name === 'Todos') {
+
+  if (isGroupDisplayLabel(order.user_name)) {
     return allMemberNames;
   }
-  let displayName = order.user_name;
+
   const orderUserId = order.user || order.expand?.user?.id;
   if (orderUserId && memberMap.has(orderUserId)) {
-    displayName = memberMap.get(orderUserId)!;
+    return [memberMap.get(orderUserId)!];
   }
-  return [displayName];
+
+  if (order.user_name?.trim() && !isAggregatedOrderLabel(order.user_name)) {
+    return [order.user_name.trim()];
+  }
+
+  return allMemberNames;
 }

@@ -8,8 +8,8 @@ import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow
 import { ordersApi, itemsApi } from '@/lib/pocketbase';
 import type { Item, User } from '@/lib/types';
 import {
-  deriveOrderUserName,
   inferAudienceType,
+  buildOrderCreatePayload,
   type OrderAudienceType,
 } from '@/lib/orderParticipants';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,7 @@ interface MoveItemSheetProps {
   onExpand?: () => void;
   onDiscard?: () => void;
   minimizedAboveBottomNav?: boolean;
+  onDraftActiveChange?: (active: boolean) => void;
 }
 
 export function MoveItemSheet({
@@ -65,6 +66,7 @@ export function MoveItemSheet({
   onExpand,
   onDiscard,
   minimizedAboveBottomNav = true,
+  onDraftActiveChange,
 }: MoveItemSheetProps) {
   const { trigger } = useWebHaptics();
   const { showToast } = useToast();
@@ -146,13 +148,10 @@ export function MoveItemSheet({
   };
 
   const cleanupEmptySourceOrder = async () => {
-    const source = orderOptions.find(o => o.orderId === sourceOrderId);
-    if (source && source.itemCount <= 1) {
-      try {
-        await ordersApi.delete(sourceOrderId);
-      } catch {
-        /* ignore — order may still have items if race */
-      }
+    try {
+      await itemsApi.pruneOrderIfEmpty(sourceOrderId);
+    } catch {
+      /* ignore — order may still have items if race */
     }
   };
 
@@ -180,15 +179,17 @@ export function MoveItemSheet({
 
   const handleConfirmNew = async () => {
     if (!item || selectedParticipantIds.length === 0) return;
-    const audience = audienceType ?? inferAudienceType(selectedParticipantIds, groupMembers, selectedParticipantIds[0]);
+    const audience = audienceType ?? inferAudienceType(selectedParticipantIds, groupMembers, currentUserId);
     setSubmitting(true);
     try {
-      const order = await ordersApi.create({
-        trip_id: tripId,
-        user_name: deriveOrderUserName(selectedParticipantIds, groupMembers, audience),
+      const createPayload = buildOrderCreatePayload({
+        tripId,
         participantIds: selectedParticipantIds,
-        user_id: audience === 'all' ? null : (selectedParticipantIds[0] ?? null),
+        members: groupMembers,
+        audienceType: audience,
+        createdByUserId: currentUserId,
       });
+      const order = await ordersApi.create(createPayload);
       await itemsApi.update(item.id, { order_id: order.id });
       await cleanupEmptySourceOrder();
       trigger('success');
@@ -209,6 +210,12 @@ export function MoveItemSheet({
           isSingleMemberPick ? 'Qual membro?' : 'Quem participa?';
 
   const showBack = step !== 'choose';
+
+  const isDraftActive = step !== 'choose';
+
+  useEffect(() => {
+    onDraftActiveChange?.(isOpen ? isDraftActive : false);
+  }, [isOpen, isDraftActive, onDraftActiveChange]);
 
   const minimizedSummary = useMemo(() => {
     if (!item) return null;
@@ -261,6 +268,7 @@ export function MoveItemSheet({
       footerKey={step}
       onBack={showBack ? handleBack : undefined}
       minimizable
+      draftActive={isDraftActive}
       minimized={minimized}
       onMinimize={onMinimize}
       onExpand={onExpand}

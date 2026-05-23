@@ -11,6 +11,10 @@ export function buildSplitShareUrl(shareCode: string): string {
   return `${window.location.origin}/split/${shareCode}`;
 }
 
+export function buildSplitShareMessage(splitName: string, shareUrl: string): string {
+  return `Estás convidado a marcar os itens em que participaste na divisão ${splitName}. Abre o link, escolhe o teu nome e confirma: ${shareUrl}`;
+}
+
 export function getStoredParticipant(shareCode: string): string | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -61,18 +65,27 @@ export function findSuggestedParticipant(
   return null;
 }
 
+export type ToggleItemParticipantResult =
+  | { ok: true; items: SplitItem[] }
+  | { ok: false; reason: 'locked' | 'invalid_index' };
+
 export function toggleItemParticipant(
   items: SplitItem[],
   itemIndex: number,
   participantName: string,
-  include: boolean
-): SplitItem[] {
+  include: boolean,
+  options?: { bypassLock?: boolean }
+): ToggleItemParticipantResult {
   const next = items.map((item) => ({
     ...item,
     participants: [...item.participants],
   }));
   const item = next[itemIndex];
-  if (!item) return items;
+  if (!item) return { ok: false, reason: 'invalid_index' };
+
+  if (!include && item.locked === true && !options?.bypassLock) {
+    return { ok: false, reason: 'locked' };
+  }
 
   if (include) {
     if (!item.participants.includes(participantName)) {
@@ -82,7 +95,7 @@ export function toggleItemParticipant(
     item.participants = item.participants.filter((p) => p !== participantName);
   }
 
-  return next;
+  return { ok: true, items: next };
 }
 
 export function calculateSplitTotals(
@@ -159,6 +172,7 @@ export type PublicSplitPayload = Pick<
   | 'name'
   | 'description'
   | 'group_id'
+  | 'status'
   | 'participants'
   | 'items'
 >;
@@ -169,11 +183,13 @@ export function toPublicSplitPayload(split: Split): PublicSplitPayload {
     name: split.name,
     description: split.description,
     group_id: split.group_id,
+    status: split.status,
     participants: split.participants,
     items: split.items.map((item) => ({
       name: item.name,
       price: item.price,
       participants: [...item.participants],
+      locked: item.locked === true,
     })),
   };
 }

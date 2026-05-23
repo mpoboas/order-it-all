@@ -1,5 +1,6 @@
 import PocketBase from 'pocketbase';
 import type { Split, SplitItem } from '@/lib/types';
+import { normalizeSplitRecord } from '@/lib/splitStatus';
 
 const pb = new PocketBase(
   process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top'
@@ -23,11 +24,11 @@ function normalizeItems(items: unknown): SplitItem[] {
 }
 
 function normalizeSplit(record: Split): Split {
-  return {
+  return normalizeSplitRecord({
     ...record,
     participants: Array.isArray(record.participants) ? record.participants : [],
     items: normalizeItems(record.items),
-  };
+  });
 }
 
 /** Public PocketBase rules allow read when share_active + share_code match. */

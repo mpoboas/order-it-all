@@ -104,11 +104,14 @@ export interface OrderWithItems extends Order {
   items: Item[];
 }
 
+export type SplitStatus = 'open' | 'closed';
+
 export interface Split {
   id: string;
   name: string;
   description: string;
   group_id: string;
+  status?: SplitStatus;
   participants: string[];
   items: SplitItem[];
   share_code?: string;
@@ -129,6 +132,8 @@ export interface SplitItem {
   name: string;
   price: number;
   participants: string[];
+  /** When true, non-admins cannot remove themselves from this item. */
+  locked?: boolean;
 }
 
 // Form types

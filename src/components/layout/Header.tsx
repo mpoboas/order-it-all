@@ -87,7 +87,11 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         ) : (
                             <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 overflow-hidden">
                                 {icon ? (
-                                    <span className="text-xl">{icon}</span>
+                                    typeof icon === 'string' ? (
+                                        <span className="text-xl">{icon}</span>
+                                    ) : (
+                                        icon
+                                    )
                                 ) : currentGroup?.avatar && currentGroup.avatar.length > 2 ? (
                                     <img src={`https://pb-orderit.povoas.top/api/files/groups/${currentGroup.id}/${currentGroup.avatar}`} alt="Group" className="w-full h-full object-cover" />
                                 ) : (

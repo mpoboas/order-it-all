@@ -85,8 +85,9 @@ export const ordersApi = {
     trip_id: string;
     user_name: string;
     participantIds: string[];
-    user_id?: string | null;
+    createdByUserId?: string;
   }): Promise<Order> => {
+    const creatorId = data.createdByUserId ?? pb.authStore.model?.id;
     const payload: Record<string, unknown> = {
       trip_id: data.trip_id,
       user_name: data.user_name,
@@ -94,9 +95,8 @@ export const ordersApi = {
       can_edit_until: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     };
 
-    // Default to current user if undefined. Pass null to skip.
-    if (data.user_id !== null) {
-      payload.user = data.user_id || pb.authStore.model?.id;
+    if (creatorId) {
+      payload.user = creatorId;
     }
 
     return await pb.collection('orders').create<Order>(payload);
@@ -132,17 +132,23 @@ export const itemsApi = {
     brand?: string;
     notes?: string;
     price?: number;
+    unit_price?: number;
     image_url?: string;
     found_status?: Item['found_status'];
   }): Promise<Item> => {
+    const qty = data.quantity || 1;
+    const unitPrice =
+      data.unit_price ??
+      (data.price != null && qty > 0 ? data.price / qty : 0);
     return await pb.collection('items').create<Item>({
       order_id: data.order_id,
       name: data.name,
-      quantity: data.quantity,
+      quantity: qty,
       brand: data.brand || '',
       notes: data.notes || '',
       found_status: data.found_status || 'pending',
-      price: data.price || 0,
+      price: data.price ?? unitPrice * qty,
+      unit_price: unitPrice,
       image_url: data.image_url || '',
     });
   },
@@ -154,6 +160,34 @@ export const itemsApi = {
   delete: async (id: string): Promise<boolean> => {
     await pb.collection('items').delete(id);
     return true;
+  },
+
+  /** Delete item; remove parent order if it has no items left */
+  deleteAndPruneEmptyOrder: async (
+    itemId: string,
+    orderId: string
+  ): Promise<{ orderDeleted: boolean }> => {
+    await pb.collection('items').delete(itemId);
+    const remaining = await pb.collection('items').getFullList<Item>({
+      filter: `order_id = "${orderId}"`,
+    });
+    if (remaining.length === 0) {
+      await pb.collection('orders').delete(orderId);
+      return { orderDeleted: true };
+    }
+    return { orderDeleted: false };
+  },
+
+  /** Delete order when it has zero items (e.g. after moving the last product) */
+  pruneOrderIfEmpty: async (orderId: string): Promise<boolean> => {
+    const remaining = await pb.collection('items').getFullList<Item>({
+      filter: `order_id = "${orderId}"`,
+    });
+    if (remaining.length === 0) {
+      await pb.collection('orders').delete(orderId);
+      return true;
+    }
+    return false;
   },
 
   updateStatus: async (id: string, status: Item['found_status']): Promise<Item> => {
@@ -214,6 +248,7 @@ export const splitsApi = {
       name: data.name,
       description: data.description || '',
       group_id: data.group_id,
+      status: 'open',
       created_by: data.created_by,
       participants: data.participants || [data.created_by],
       items: data.items || [],
@@ -333,8 +368,19 @@ export const groupsApi = {
     return await pb.collection('groups').create<Group>(formData);
   },
 
-  update: async (id: string, data: Partial<Pick<Group, 'name' | 'avatar'>>): Promise<Group> => {
-    return await pb.collection('groups').update<Group>(id, data);
+  update: async (
+    id: string,
+    data: { name?: string; avatar?: Blob | File }
+  ): Promise<Group> => {
+    if (data.avatar) {
+      const formData = new FormData();
+      if (data.name !== undefined) formData.append('name', data.name);
+      formData.append('avatar', data.avatar);
+      return await pb.collection('groups').update<Group>(id, formData);
+    }
+    return await pb.collection('groups').update<Group>(id, {
+      ...(data.name !== undefined ? { name: data.name } : {}),
+    });
   },
 
   delete: async (id: string): Promise<boolean> => {

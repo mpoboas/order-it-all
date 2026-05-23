@@ -8,6 +8,7 @@ import {
   isSplitwiseConnected,
 } from '@/lib/splitwisePb';
 import { exportSplitToSplitwise } from '@/lib/splitwiseExport';
+import { closeSplitPayload } from '@/lib/splitStatus';
 
 function appBaseUrl(): string {
   return (
@@ -72,6 +73,7 @@ export async function POST(
       splitwise_participant_map: participantMap,
       splitwise_expense_id: result.expenseId,
       splitwise_exported_at: now,
+      ...closeSplitPayload(),
     });
 
     if (saveNameMap) {

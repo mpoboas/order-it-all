@@ -20,8 +20,10 @@ interface SheetProps {
     footer?: React.ReactNode;
     footerKey?: string;
     size?: SheetSize;
-    /** Wizard drafts: minimize instead of closing on X / backdrop */
+    /** Wizard drafts: minimize instead of closing on X / backdrop when draftActive */
     minimizable?: boolean;
+    /** When false, dismiss closes the sheet even if minimizable */
+    draftActive?: boolean;
     minimized?: boolean;
     onMinimize?: () => void;
     onExpand?: () => void;
@@ -51,6 +53,7 @@ export function Sheet({
     footerKey = 'footer',
     size = 'medium',
     minimizable = false,
+    draftActive = false,
     minimized = false,
     onMinimize,
     onExpand,
@@ -60,11 +63,22 @@ export function Sheet({
     minimizedAboveBottomNav = true,
 }: SheetProps) {
     const reduceMotion = useReducedMotion();
-    const isExpanded = isOpen && (!minimizable || !minimized);
+    const shouldMinimize = minimizable && draftActive;
+    const isExpanded = isOpen && (!shouldMinimize || !minimized);
 
-    const handleMinimize = useCallback(() => {
-        onMinimize?.();
-    }, [onMinimize]);
+    const handleDismiss = useCallback(() => {
+        if (shouldMinimize) {
+            onMinimize?.();
+        } else {
+            onClose();
+        }
+    }, [shouldMinimize, onMinimize, onClose]);
+
+    useEffect(() => {
+        if (isOpen && minimized && minimizable && !draftActive) {
+            onClose();
+        }
+    }, [isOpen, minimized, minimizable, draftActive, onClose]);
 
     const handleDiscard = useCallback(() => {
         if (!onDiscard) {
@@ -87,22 +101,22 @@ export function Sheet({
     }, [isExpanded]);
 
     useEffect(() => {
-        if (!isOpen || !minimizable || minimized) return;
+        if (!isOpen || !shouldMinimize || minimized) return;
 
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
-                handleMinimize();
+                handleDismiss();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [isOpen, minimizable, minimized, handleMinimize]);
+    }, [isOpen, shouldMinimize, minimized, handleDismiss]);
 
     const panelTransition = reduceMotion ? { duration: 0.01 } : sheetSpring;
     const backdropTransition = reduceMotion ? { duration: 0.01 } : sheetEase;
 
-    const headerDismiss = minimizable ? handleMinimize : onClose;
+    const headerDismiss = handleDismiss;
 
     return (
         <AnimatePresence>
@@ -116,7 +130,7 @@ export function Sheet({
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={backdropTransition}
-                                onClick={minimizable ? handleMinimize : onClose}
+                                onClick={handleDismiss}
                             />
 
                             <motion.div
@@ -169,9 +183,9 @@ export function Sheet({
                                             type="button"
                                             onClick={headerDismiss}
                                             className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
-                                            aria-label={minimizable ? 'Minimizar' : 'Fechar'}
+                                            aria-label={shouldMinimize ? 'Minimizar' : 'Fechar'}
                                         >
-                                            {minimizable ? (
+                                            {shouldMinimize ? (
                                                 <span className="material-icons text-2xl">keyboard_arrow_down</span>
                                             ) : (
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +221,7 @@ export function Sheet({
                         </div>
                     )}
 
-                    {minimizable && minimized && (
+                    {shouldMinimize && minimized && (
                         <motion.div
                             className="fixed inset-x-0 z-[52] flex justify-center px-4 pointer-events-none max-w-2xl mx-auto left-0 right-0"
                             style={{ bottom: getMinimizedSheetBottom(minimizedAboveBottomNav) }}

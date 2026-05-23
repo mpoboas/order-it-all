@@ -12,6 +12,7 @@ import {
   setStoredParticipant,
   type PublicSplitPayload,
 } from '@/lib/splitShare';
+import { canMembersEditSplit, normalizeSplitStatus } from '@/lib/splitStatus';
 import { formatCurrency, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
@@ -75,7 +76,7 @@ export default function PublicSplitPage() {
       } else {
         setNotFound(false);
         setLoadError(false);
-        setSplit(data);
+        setSplit({ ...data, status: normalizeSplitStatus(data) });
       }
     } catch {
       setLoadError(true);
@@ -113,7 +114,7 @@ export default function PublicSplitPage() {
     const id = setInterval(async () => {
       try {
         const data = await fetchPublicSplit(shareCode);
-        if (data) setSplit(data);
+        if (data) setSplit({ ...data, status: normalizeSplitStatus(data) });
       } catch {
         /* ignore poll errors */
       }
@@ -139,6 +140,15 @@ export default function PublicSplitPage() {
 
   const handleToggle = async (itemIndex: number, include: boolean) => {
     if (!split || !selectedName) return;
+    if (!canMembersEditSplit(split)) {
+      showToast('Esta divisão está fechada', 'error');
+      return;
+    }
+    const item = split.items[itemIndex];
+    if (!include && item?.locked) {
+      showToast('Este item está bloqueado — não podes remover-te', 'error');
+      return;
+    }
     setTogglingIdx(itemIndex);
     const prev = split;
     const optimistic = {
@@ -165,9 +175,20 @@ export default function PublicSplitPage() {
         include
       );
       setSplit(updated);
-    } catch {
+    } catch (err) {
       setSplit(prev);
-      showToast('Erro ao guardar', 'error');
+      const message = err instanceof Error ? err.message : '';
+      if (
+        message.includes('fechada') ||
+        message.includes('Fechada') ||
+        message.includes('alterar')
+      ) {
+        showToast('Esta divisão está fechada', 'error');
+      } else if (message.includes('bloqueado') || message.includes('locked')) {
+        showToast('Este item está bloqueado — não podes remover-te', 'error');
+      } else {
+        showToast('Erro ao guardar', 'error');
+      }
     } finally {
       setTogglingIdx(null);
     }
@@ -319,6 +340,11 @@ export default function PublicSplitPage() {
         <p className="text-sm text-white/90 mt-1">
           A marcar como: <strong>{selectedName}</strong>
         </p>
+        {split && !canMembersEditSplit(split) && (
+          <p className="text-xs text-amber-200 mt-2 font-medium">
+            Esta divisão está fechada.
+          </p>
+        )}
         <button
           type="button"
           onClick={handleChangePerson}
@@ -345,6 +371,7 @@ export default function PublicSplitPage() {
             participantName={selectedName}
             togglingIdx={togglingIdx}
             onToggle={handleToggle}
+            readOnly={!canMembersEditSplit(split)}
             footerOffset="safe"
           />
         )}

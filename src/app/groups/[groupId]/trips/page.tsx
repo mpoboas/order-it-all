@@ -94,12 +94,12 @@ export default function GroupTripsPage() {
                     /* Trips Grid */
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {trips.map((trip, index) => (
-                            <div key={trip.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
-                                <TripCard
-                                    trip={trip}
-                                    onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
-                                />
-                            </div>
+                            <TripCard
+                                key={trip.id}
+                                trip={trip}
+                                onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
+                                style={{ animationDelay: `${index * 0.05}s` }}
+                            />
                         ))}
                     </div>
                 )}

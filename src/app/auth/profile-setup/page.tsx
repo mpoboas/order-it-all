@@ -5,6 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { pb } from '@/lib/pocketbase';
+import {
+    clearOAuthProfileHints,
+    loadOAuthProfileHints,
+    loadGoogleAvatarFromUrl,
+    urlToAvatarFile,
+} from '@/lib/googleAuth';
 
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
@@ -17,16 +23,54 @@ export default function ProfileSetupPage() {
     const [loading, setLoading] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [googleAvatarUrl, setGoogleAvatarUrl] = useState<string | null>(null);
+    const [avatarRemoved, setAvatarRemoved] = useState(false);
+    const [hasOAuthHints, setHasOAuthHints] = useState(false);
+    const [avatarLoading, setAvatarLoading] = useState(false);
 
-    // Camera State
     const [stream, setStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const previewObjectUrl = useRef<string | null>(null);
+
+    useEffect(() => {
+        const hints = loadOAuthProfileHints();
+        if (hints) {
+            setHasOAuthHints(true);
+            if (hints.oauthAvatarUrl && !avatarRemoved) {
+                setGoogleAvatarUrl(hints.oauthAvatarUrl);
+                setAvatarLoading(true);
+                loadGoogleAvatarFromUrl(hints.oauthAvatarUrl).then((result) => {
+                    if (!result) {
+                        setAvatarLoading(false);
+                        return;
+                    }
+                    if (previewObjectUrl.current) {
+                        URL.revokeObjectURL(previewObjectUrl.current);
+                    }
+                    previewObjectUrl.current = result.previewUrl;
+                    setAvatarPreview(result.previewUrl);
+                    setAvatarFile(result.file);
+                    setAvatarLoading(false);
+                });
+            }
+        }
+
+        return () => {
+            if (previewObjectUrl.current) {
+                URL.revokeObjectURL(previewObjectUrl.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (user) {
-            if (user.name) setName(user.name);
-            if (user.avatar) {
+            const hints = loadOAuthProfileHints();
+            if (user.name && !hints) {
+                setName((prev) => prev || user.name);
+            }
+            if (user.avatar && !hints?.oauthAvatarUrl) {
                 const url = pb.files.getUrl(user, user.avatar);
                 setAvatarPreview(url);
             }
@@ -34,12 +78,28 @@ export default function ProfileSetupPage() {
 
         return () => {
             if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach((track) => track.stop());
             }
         };
-    }, [user]);
+    }, [user, stream]);
+
+    const stopStream = () => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            setStream(null);
+        }
+    };
 
     const startCamera = async () => {
+        if (previewObjectUrl.current) {
+            URL.revokeObjectURL(previewObjectUrl.current);
+            previewObjectUrl.current = null;
+        }
+        setAvatarPreview(null);
+        setAvatarFile(null);
+        setGoogleAvatarUrl(null);
+        setAvatarRemoved(true);
+
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
             setStream(mediaStream);
@@ -47,12 +107,11 @@ export default function ProfileSetupPage() {
                 videoRef.current.srcObject = mediaStream;
             }
         } catch (err) {
-            console.warn("Camera access denied or not available", err);
+            console.warn('Camera access denied or not available', err);
             showToast('Não foi possível aceder à câmara', 'error');
         }
     };
 
-    // Update video ref if stream changes (e.g. after retake)
     useEffect(() => {
         if (stream && videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -62,13 +121,17 @@ export default function ProfileSetupPage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setAvatarFile(file);
-            setAvatarPreview(URL.createObjectURL(file));
-            // Stop camera if file uploaded
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                setStream(null);
+            if (previewObjectUrl.current) {
+                URL.revokeObjectURL(previewObjectUrl.current);
+                previewObjectUrl.current = null;
             }
+            setAvatarFile(file);
+            const preview = URL.createObjectURL(file);
+            previewObjectUrl.current = preview;
+            setAvatarPreview(preview);
+            setAvatarRemoved(false);
+            setGoogleAvatarUrl(null);
+            stopStream();
         }
     };
 
@@ -76,40 +139,53 @@ export default function ProfileSetupPage() {
         if (videoRef.current && canvasRef.current) {
             const context = canvasRef.current.getContext('2d');
             if (context) {
-                // Set canvas dimensions to match video
                 canvasRef.current.width = videoRef.current.videoWidth;
                 canvasRef.current.height = videoRef.current.videoHeight;
+                context.drawImage(
+                    videoRef.current,
+                    0,
+                    0,
+                    canvasRef.current.width,
+                    canvasRef.current.height
+                );
 
-                // Draw video frame
-                context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-
-                // Convert to blob/file
                 canvasRef.current.toBlob((blob) => {
                     if (blob) {
-                        const file = new File([blob], "camera-capture.png", { type: "image/png" });
+                        if (previewObjectUrl.current) {
+                            URL.revokeObjectURL(previewObjectUrl.current);
+                            previewObjectUrl.current = null;
+                        }
+                        const file = new File([blob], 'camera-capture.png', {
+                            type: 'image/png',
+                        });
+                        const preview = URL.createObjectURL(blob);
+                        previewObjectUrl.current = preview;
                         setAvatarFile(file);
-                        setAvatarPreview(URL.createObjectURL(file));
+                        setAvatarPreview(preview);
+                        setAvatarRemoved(false);
+                        setGoogleAvatarUrl(null);
                     }
                 }, 'image/png');
 
-                // Stop stream to save resources/battery
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                    setStream(null);
-                }
+                stopStream();
             }
         }
     };
 
-    const handleRetake = async () => {
+    const handleCancelCamera = () => {
+        stopStream();
+    };
+
+    const handleRemovePhoto = () => {
+        if (previewObjectUrl.current) {
+            URL.revokeObjectURL(previewObjectUrl.current);
+            previewObjectUrl.current = null;
+        }
         setAvatarPreview(null);
         setAvatarFile(null);
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            setStream(mediaStream);
-        } catch (err) {
-            console.error("Failed to restart camera", err);
-        }
+        setGoogleAvatarUrl(null);
+        setAvatarRemoved(true);
+        stopStream();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -120,11 +196,24 @@ export default function ProfileSetupPage() {
         try {
             const formData = new FormData();
             formData.append('name', name);
-            if (avatarFile) {
-                formData.append('avatar', avatarFile);
+
+            let fileToUpload = avatarFile;
+            if (!fileToUpload && !avatarRemoved && googleAvatarUrl) {
+                fileToUpload = await urlToAvatarFile(googleAvatarUrl);
+                if (!fileToUpload) {
+                    showToast(
+                        'Não foi possível usar a foto do Google; podes continuar sem foto.',
+                        'error'
+                    );
+                }
+            }
+
+            if (fileToUpload) {
+                formData.append('avatar', fileToUpload);
             }
 
             await updateProfile(formData);
+            clearOAuthProfileHints();
             showToast('Perfil configurado!', 'success');
             if (redirect) {
                 router.push(redirect);
@@ -139,9 +228,11 @@ export default function ProfileSetupPage() {
         }
     };
 
+    const isCameraActive = Boolean(stream) && !avatarLoading;
+    const hasPhoto = Boolean(avatarPreview) && !avatarLoading;
+
     return (
         <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden">
-            {/* Decorative elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
@@ -153,91 +244,137 @@ export default function ProfileSetupPage() {
                         Configurar Perfil
                     </h2>
                     <p className="text-white/80 text-sm">
-                        Quase lá! Diz-nos como te tratar.
+                        {hasOAuthHints
+                            ? 'Escolhe o teu nome. A foto é opcional.'
+                            : 'Como te chamamos nos grupos?'}
                     </p>
                 </div>
 
                 <form className="space-y-6" onSubmit={handleSubmit}>
-
-                    {/* Avatar Section */}
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative group w-32 h-32">
-                            <div className="w-32 h-32 rounded-full overflow-hidden bg-white/10 ring-4 ring-white/30 shadow-lg flex items-center justify-center relative bg-black/50 backdrop-blur-sm">
-                                {avatarPreview ? (
-                                    <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
-                                ) : stream ? (
+                    <div className="flex flex-col items-center gap-5">
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => !isCameraActive && fileInputRef.current?.click()}
+                                disabled={avatarLoading || isCameraActive}
+                                className="relative w-28 h-28 rounded-full overflow-hidden ring-4 ring-white/30 shadow-lg bg-white/10 disabled:cursor-default"
+                                aria-label="Escolher foto da galeria"
+                            >
+                                {avatarLoading ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-black/40">
+                                        <span className="material-icons text-white/70 animate-pulse text-3xl">
+                                            photo
+                                        </span>
+                                    </div>
+                                ) : isCameraActive ? (
                                     <video
                                         ref={videoRef}
                                         autoPlay
                                         muted
                                         playsInline
+                                        className="w-full h-full object-cover scale-x-[-1]"
+                                    />
+                                ) : avatarPreview ? (
+                                    <img
+                                        src={avatarPreview}
+                                        alt=""
+                                        referrerPolicy="no-referrer"
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-5xl">
-                                        {name ? <span className="text-white font-bold">{name[0].toUpperCase()}</span> : '👤'}
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500/80 to-indigo-600/80">
+                                        {name ? (
+                                            <span className="text-white font-bold text-4xl">
+                                                {name[0].toUpperCase()}
+                                            </span>
+                                        ) : (
+                                            <span className="material-icons text-white/80 text-5xl">
+                                                person
+                                            </span>
+                                        )}
                                     </div>
                                 )}
-                            </div>
+
+                            </button>
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
                         </div>
 
                         <canvas ref={canvasRef} className="hidden" />
 
-                        <div className="flex flex-col items-center gap-3 w-full">
-                            {!avatarPreview && !stream && (
+                        {isCameraActive ? (
+                            <div className="flex w-full gap-3">
                                 <button
                                     type="button"
-                                    onClick={startCamera}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-full font-medium transition-all text-sm border border-white/30"
+                                    onClick={handleCancelCamera}
+                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white/90 bg-white/10 border border-white/25 hover:bg-white/20 transition-colors"
                                 >
-                                    <span className="material-icons text-lg">photo_camera</span>
-                                    <span>Ativar Câmara</span>
+                                    Cancelar
                                 </button>
-                            )}
-
-                            {!avatarPreview && stream && (
                                 <button
                                     type="button"
                                     onClick={handleCapture}
-                                    className="flex items-center gap-2 px-6 py-2 bg-white text-violet-600 rounded-full font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-violet-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
                                 >
-                                    <span className="material-icons">camera</span>
-                                    <span>Capturar</span>
+                                    <span className="material-icons text-lg">camera</span>
+                                    Capturar
                                 </button>
-                            )}
+                            </div>
+                        ) : (
+                            <div className="w-full space-y-2">
+                                <div className="flex w-full gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={avatarLoading}
+                                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                                    >
+                                        <span className="material-icons text-lg">photo_library</span>
+                                        Galeria
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={startCamera}
+                                        disabled={avatarLoading}
+                                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                                    >
+                                        <span className="material-icons text-lg">photo_camera</span>
+                                        Câmara
+                                    </button>
+                                </div>
 
-                            {avatarPreview && (
-                                <button
-                                    type="button"
-                                    onClick={handleRetake}
-                                    className="text-sm text-white/90 hover:text-white font-medium hover:underline"
-                                >
-                                    Tirar outra foto
-                                </button>
-                            )}
-
-                            <label className="cursor-pointer text-xs text-white/60 hover:text-white hover:underline mt-1 transition-colors">
-                                Ou carrega da galeria
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
-                            </label>
-                        </div>
+                                {hasPhoto && (
+                                    <button
+                                        type="button"
+                                        onClick={handleRemovePhoto}
+                                        className="w-full py-2 text-sm font-medium text-white/60 hover:text-red-200 transition-colors"
+                                    >
+                                        Remover foto
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-1">
-                            Nome de Exibição
+                        <label
+                            htmlFor="name"
+                            className="block text-sm font-medium text-white/90 mb-1"
+                        >
+                            Nome
                         </label>
                         <input
                             id="name"
                             type="text"
                             required
                             value={name}
-                            onChange={e => setName(e.target.value)}
+                            onChange={(e) => setName(e.target.value)}
                             placeholder="Ex: Habelius Chabierius"
                             className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
                         />

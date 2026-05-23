@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
+import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { pb } from '@/lib/pocketbase';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -22,7 +24,14 @@ export default function LoginPage() {
         try {
             await login(email, password);
             showToast('Bem-vindo de volta!', 'success');
-            if (redirect) {
+            const record = pb.authStore.model as { name?: string } | null;
+            if (!record?.name?.trim()) {
+                router.push(
+                    redirect
+                        ? `/auth/profile-setup?redirect=${encodeURIComponent(redirect)}`
+                        : '/auth/profile-setup'
+                );
+            } else if (redirect) {
                 router.push(redirect);
             } else {
                 router.push('/groups');
@@ -69,7 +78,12 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="space-y-5">
+                    <GoogleSignInButton redirect={redirect} />
+                    <AuthDivider />
+                </div>
+
+                <form className="space-y-5 mt-5" onSubmit={handleSubmit}>
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-1">
                             Email

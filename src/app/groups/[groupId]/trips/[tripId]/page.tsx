@@ -13,6 +13,8 @@ import {
     inferAudienceType,
     partitionOrdersForUser,
     isOrderCreatedByUser,
+    buildOrderCreatePayload,
+    getOrderPlacedByLabel,
 } from '@/lib/orderParticipants';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
@@ -45,6 +47,8 @@ export default function GroupTripDetailPage() {
     const [loading, setLoading] = useState(true);
     const [orderSheetSession, setOrderSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
+    const [orderSheetDraftActive, setOrderSheetDraftActive] = useState(false);
+    const [participantsSheetDraftActive, setParticipantsSheetDraftActive] = useState(false);
     const [participantsSheetOrderId, setParticipantsSheetOrderId] = useState<string | null>(null);
     const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -145,31 +149,42 @@ export default function GroupTripDetailPage() {
         try {
             if (editingOrderId) {
                 const existing = orders.find(o => o.id === editingOrderId);
-                if (existing) {
+                const validItems = data.items.filter(i => i.name.trim());
+
+                if (validItems.length === 0) {
+                    if (existing) {
+                        for (const item of existing.items) await itemsApi.delete(item.id);
+                    }
+                    await ordersApi.delete(editingOrderId);
+                    showToast('Pedido eliminado (sem produtos)', 'success');
+                } else if (existing) {
                     for (const item of existing.items) await itemsApi.delete(item.id);
+                    for (const item of validItems) {
+                        await itemsApi.create({
+                            order_id: editingOrderId,
+                            name: item.name,
+                            quantity: item.quantity,
+                            brand: item.brand,
+                            notes: item.notes,
+                            price: item.quantity * item.unit_price,
+                            image_url: item.image_url,
+                        });
+                    }
+                    showToast('Pedido atualizado!', 'success');
                 }
-                for (const item of data.items) {
-                    await itemsApi.create({
-                        order_id: editingOrderId,
-                        name: item.name,
-                        quantity: item.quantity,
-                        brand: item.brand,
-                        notes: item.notes,
-                        price: item.quantity * item.unit_price,
-                        image_url: item.image_url,
-                    });
-                }
-                showToast('Pedido atualizado!', 'success');
             } else {
                 const participantIds = data.participantIds?.length
                     ? data.participantIds
                     : [currentUserId];
                 const audienceType = data.audienceType || 'me';
-                const order = await ordersApi.create({
-                    trip_id: tripId,
-                    user_name: deriveOrderUserName(participantIds, groupMembers, audienceType),
+                const createPayload = buildOrderCreatePayload({
+                    tripId,
                     participantIds,
+                    members: groupMembers,
+                    audienceType,
+                    createdByUserId: currentUserId,
                 });
+                const order = await ordersApi.create(createPayload);
                 startTimer(order.id, order.can_edit_until);
                 for (const item of data.items) {
                     await itemsApi.create({
@@ -184,6 +199,7 @@ export default function GroupTripDetailPage() {
                 }
                 showToast('Pedido criado!', 'success');
             }
+            setEditingOrderId(null);
             setOrderSheetSession('closed');
             loadData();
         } catch (error) {
@@ -233,8 +249,8 @@ export default function GroupTripDetailPage() {
     }, []);
 
     const hasUnsavedMinimizableDraft =
-        (isSheetActive(orderSheetSession) && !editingOrderId) ||
-        (isSheetActive(participantsSheetSession) && participantsSheetEditable);
+        (isSheetActive(orderSheetSession) && orderSheetDraftActive) ||
+        (isSheetActive(participantsSheetSession) && participantsSheetDraftActive);
 
     useUnsavedDraftGuard(hasUnsavedMinimizableDraft, discardAllDrafts);
 
@@ -243,10 +259,15 @@ export default function GroupTripDetailPage() {
         setSubmitting(true);
         try {
             const audienceType = inferAudienceType(participantIds, groupMembers, currentUserId);
-            await ordersApi.update(participantsSheetOrder.id, {
+            const updatePayload: Partial<OrderWithItems> = {
                 participants: participantIds,
                 user_name: deriveOrderUserName(participantIds, groupMembers, audienceType),
-            });
+            };
+            const creatorId = participantsSheetOrder.user || participantsSheetOrder.expand?.user?.id;
+            if (!creatorId && currentUserId) {
+                updatePayload.user = currentUserId;
+            }
+            await ordersApi.update(participantsSheetOrder.id, updatePayload);
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
@@ -316,8 +337,8 @@ export default function GroupTripDetailPage() {
     }
 
     const hasMinimizedDock =
-        orderSheetSession === 'minimized' ||
-        participantsSheetSession === 'minimized';
+        (orderSheetSession === 'minimized' && orderSheetDraftActive) ||
+        (participantsSheetSession === 'minimized' && participantsSheetDraftActive);
 
     return (
         <div className={cn('min-h-screen bg-[var(--bg-primary)]', isAdmin && 'has-bottom-nav')}>
@@ -434,8 +455,7 @@ export default function GroupTripDetailPage() {
                             const isCreator = isOrderCreatedByUser(order, currentUserId);
                             const canEdit =
                                 isCreator && isOrderEditable(order.can_edit_until);
-                            const creatorName =
-                                order.expand?.user?.name || order.user_name || 'Membro';
+                            const creatorName = getOrderPlacedByLabel(order, groupMembers);
                             const remaining = getRemainingEditTime(order.can_edit_until);
                             const isWarning = remaining > 0 && remaining < 60;
                             const orderTotal = order.items.reduce((acc, item) => acc + (item.price || 0), 0);
@@ -555,7 +575,7 @@ export default function GroupTripDetailPage() {
                                                                 <div className="flex justify-between items-start gap-2 mb-1">
                                                                     <h4 className={cn(
                                                                         "font-bold text-[var(--text-primary)] text-base leading-tight",
-                                                                        item.found_status !== 'pending' && "opacity-50 line-through"
+                                                                        item.found_status !== 'pending' && "opacity-50"
                                                                     )}>
                                                                         {item.name}
                                                                     </h4>
@@ -642,6 +662,7 @@ export default function GroupTripDetailPage() {
                 onExpand={() => setOrderSheetSession('expanded')}
                 onDiscard={() => setOrderSheetSession('closed')}
                 minimizedAboveBottomNav={isAdmin}
+                onDraftActiveChange={setOrderSheetDraftActive}
             />
 
             <OrderParticipantsSheet
@@ -664,6 +685,7 @@ export default function GroupTripDetailPage() {
                     setParticipantsSheetSession('closed');
                 }}
                 minimizedAboveBottomNav={isAdmin}
+                onDraftActiveChange={setParticipantsSheetDraftActive}
             />
         </div >
     );

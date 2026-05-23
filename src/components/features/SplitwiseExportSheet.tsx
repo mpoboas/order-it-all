@@ -108,6 +108,8 @@ export function SplitwiseExportSheet({
         splitwise_participant_map: map,
         splitwise_expense_id: data.expenseId,
         splitwise_exported_at: new Date().toISOString(),
+        status: 'closed',
+        share_active: false,
       });
       if (data.url) window.open(data.url, '_blank');
       onClose();

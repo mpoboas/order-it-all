@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { Sheet } from '@/components/ui/Sheet';
 import { splitsApi } from '@/lib/pocketbase';
-import { buildSplitShareUrl } from '@/lib/splitShare';
+import { buildSplitShareMessage, buildSplitShareUrl } from '@/lib/splitShare';
+import { isSplitClosed } from '@/lib/splitStatus';
 import type { Split } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
@@ -56,7 +57,13 @@ export function SplitShareSheet({
 
   const shareUrl = shareCode ? buildSplitShareUrl(shareCode) : '';
 
+  const splitClosed = isSplitClosed(split);
+
   const handleToggle = async () => {
+    if (splitClosed) {
+      showToast('Divisão fechada — reabre para ativar o link', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const updated = await splitsApi.toggleShare(split.id, !shareActive);
@@ -81,6 +88,28 @@ export function SplitShareSheet({
       showToast('Link copiado!', 'success');
     } catch {
       showToast('Não foi possível copiar', 'error');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!shareUrl) return;
+    const message = buildSplitShareMessage(split.name, shareUrl);
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: `Divisão — ${split.name}`,
+          text: message,
+        });
+        return;
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(message);
+      showToast('Mensagem copiada — cola no WhatsApp ou Instagram', 'success');
+    } catch {
+      showToast('Não foi possível partilhar', 'error');
     }
   };
 
@@ -115,9 +144,14 @@ export function SplitShareSheet({
     >
       <div className="space-y-5 px-1">
         <p className="text-sm text-[var(--text-secondary)]">
-          Cada pessoa escolhe o seu nome na lista e marca apenas os seus itens.
-          Isto evita que alguém altere as escolhas de outra pessoa.
+          Cada pessoa escolhe o seu nome na lista e marca os itens que participou.
         </p>
+
+        {splitClosed && (
+          <p className="text-sm text-amber-700 dark:text-amber-400 font-medium rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 border border-amber-200 dark:border-amber-800">
+            Divisão fechada. Reabre a divisão para voltar a permitir alterações pelo link.
+          </p>
+        )}
 
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-[var(--text-secondary)]">
@@ -125,7 +159,7 @@ export function SplitShareSheet({
           </span>
           <button
             type="button"
-            disabled={loading}
+            disabled={loading || splitClosed}
             onClick={handleToggle}
             className={cn(
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
@@ -152,23 +186,34 @@ export function SplitShareSheet({
                 <div className="p-4 bg-white rounded-xl shadow-sm border border-[var(--border)]">
                   <QRCode value={shareUrl} size={160} />
                 </div>
-                <p className="text-xs text-[var(--text-muted)] text-center">
-                  Escaneia para abrir no telemóvel
-                </p>
               </div>
             )}
 
+            <code className="block w-full px-3 py-2.5 rounded-xl text-xs bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-secondary)] truncate">
+              {shareUrl || '…'}
+            </code>
             <div className="flex gap-2">
-              <code className="flex-1 bg-gray-100 dark:bg-slate-800 p-3 rounded-lg text-xs block overflow-hidden text-ellipsis dark:text-gray-200 border dark:border-slate-700">
-                {shareUrl || '…'}
-              </code>
               <button
                 type="button"
-                onClick={handleCopy}
-                disabled={!shareUrl}
-                className="px-4 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 font-medium text-sm shrink-0"
+                onClick={() => void handleCopy()}
+                disabled={!shareUrl || !shareActive}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
               >
-                Copiar
+                <span className="material-icons text-[18px]" aria-hidden>
+                  content_copy
+                </span>
+                Copiar link
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleShare()}
+                disabled={!shareUrl || !shareActive}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                <span className="material-icons text-[18px]" aria-hidden>
+                  share
+                </span>
+                Partilhar
               </button>
             </div>
 

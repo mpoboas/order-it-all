@@ -14,10 +14,16 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getRelativeTime } from '@/lib/utils';
-import { getSplitParticipantNames } from '@/lib/orderParticipants';
+import {
+    getSplitParticipantNames,
+    participantIdsToNames,
+    isGroupDisplayLabel,
+    isAggregatedOrderLabel,
+} from '@/lib/orderParticipants';
+import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
-import { SplitwiseIntegrationCard } from '@/components/features/SplitwiseIntegrationCard';
+import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
 
 function AdminDashboardContent() {
     const params = useParams();
@@ -230,28 +236,38 @@ function AdminDashboardContent() {
             const allParticipantsSet = new Set<string>();
             const memberMap = new Map<string, string>(); // ID -> Name
 
-            // 2a. Add all registered group members
-            if (currentGroup?.expand?.members) {
-                currentGroup.expand.members.forEach((m: any) => {
-                    memberMap.set(m.id, m.name);
-                    allParticipantsSet.add(m.name);
-                });
+            // 2a. Add all registered group members (creator, admins, members)
+            const groupPeople: { id: string; name: string }[] = [];
+            if (currentGroup?.expand?.creator) groupPeople.push(currentGroup.expand.creator);
+            if (currentGroup?.expand?.admins) groupPeople.push(...currentGroup.expand.admins);
+            if (currentGroup?.expand?.members) groupPeople.push(...currentGroup.expand.members);
+            const seenIds = new Set<string>();
+            for (const m of groupPeople) {
+                if (!m?.id || seenIds.has(m.id)) continue;
+                seenIds.add(m.id);
+                memberMap.set(m.id, m.name);
+                allParticipantsSet.add(m.name);
             }
 
-            // 2b. Scan orders to find any "extra" people (ad-hoc names like "Manelll") 
-            // who aren't group members but made orders.
+            // 2b. Include order participant IDs and legacy single-name orders (not aggregate labels)
             for (const order of orders) {
-                let displayName = order.user_name;
-                const orderUserId = order.user || order.expand?.user?.id;
-
-                // If it's a registered user, use their verified name
-                if (orderUserId && memberMap.has(orderUserId)) {
-                    displayName = memberMap.get(orderUserId)!;
+                if (order.participants?.length) {
+                    participantIdsToNames(
+                        order.participants,
+                        memberMap,
+                        order.expand?.participants
+                    ).forEach((name) => allParticipantsSet.add(name));
                 }
 
-                // If it's a real person (not 'Geral'), add them to the universe of participants
-                if (displayName !== 'Geral') {
-                    allParticipantsSet.add(displayName);
+                const orderUserId = order.user || order.expand?.user?.id;
+                if (orderUserId && memberMap.has(orderUserId)) {
+                    allParticipantsSet.add(memberMap.get(orderUserId)!);
+                } else if (
+                    order.user_name?.trim() &&
+                    !isGroupDisplayLabel(order.user_name) &&
+                    !isAggregatedOrderLabel(order.user_name)
+                ) {
+                    allParticipantsSet.add(order.user_name.trim());
                 }
             }
 
@@ -277,18 +293,23 @@ function AdminDashboardContent() {
 
                 for (const item of items) {
                     if (item.found_status === 'found') {
-                        splitItems.push({
-                            name: item.name,
-                            price: item.price,
-                            participants: splitNames,
-                        });
+                        splitItems.push(
+                            reconcileItemLock(
+                                {
+                                    name: item.name,
+                                    price: item.price,
+                                    participants: splitNames,
+                                },
+                                allParticipantsList
+                            )
+                        );
                     }
                 }
             }
 
             // 4. Create Split
             const split = await splitsApi.create({
-                name: `Divisão: ${trip.name}`,
+                name: trip.name,
                 description: `Gerado automaticamente a partir da viagem "${trip.name}"`,
                 group_id: groupId,
                 created_by: user!.id,
@@ -336,27 +357,6 @@ function AdminDashboardContent() {
             refreshGroup();
         } catch (error: any) {
             showToast(error.message || 'Erro ao despromover', 'error');
-        }
-    };
-
-    const handleRegenerateInvite = async () => {
-        if (!confirm('Gerar novo código? O anterior deixará de funcionar.')) return;
-        try {
-            await groupsApi.regenerateInviteCode(groupId);
-            showToast('Novo código gerado', 'success');
-            refreshGroup();
-        } catch (error) {
-            showToast('Erro ao gerar código', 'error');
-        }
-    };
-
-    const handleToggleInvite = async (active: boolean) => {
-        try {
-            await groupsApi.toggleInvite(groupId, active);
-            showToast(active ? 'Convites ativados' : 'Convites desativados', 'success');
-            refreshGroup();
-        } catch (error) {
-            showToast('Erro ao alterar estado', 'error');
         }
     };
 
@@ -509,69 +509,12 @@ function AdminDashboardContent() {
 
                 {/* SETTINGS */}
                 {activeTab === 'settings' && (
-                    <div className="animate-fade-in-up space-y-6">
-                        <Suspense fallback={null}>
-                            <SplitwiseIntegrationCard />
-                        </Suspense>
-                        <section>
-                            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Link de Convite</h2>
-                            <div className="card p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-sm font-medium text-[var(--text-secondary)]">Estado do convite</span>
-                                    <button
-                                        onClick={() => handleToggleInvite(!currentGroup.invite_active)}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                            currentGroup.invite_active ? "bg-violet-600" : "bg-gray-200"
-                                        )}
-                                    >
-                                        <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ml-1", currentGroup.invite_active ? "translate-x-5" : "")} />
-                                    </button>
-                                </div>
-
-                                {currentGroup.invite_active && (
-                                    <>
-                                        <div className="flex gap-2 mb-4">
-                                            <code className="flex-1 bg-gray-100 dark:bg-slate-800 p-3 rounded-lg text-sm block overflow-hidden text-ellipsis dark:text-gray-200 border dark:border-slate-700">
-                                                {typeof window !== 'undefined' ? `${window.location.origin}/invite/${currentGroup.invite_code}` : `.../invite/${currentGroup.invite_code}`}
-                                            </code>
-                                            <button
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(`${window.location.origin}/invite/${currentGroup.invite_code}`);
-                                                    showToast('Link copiado!', 'success');
-                                                }}
-                                                className="px-4 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 font-medium"
-                                            >
-                                                Copiar
-                                            </button>
-                                        </div>
-
-                                        <button
-                                            onClick={handleRegenerateInvite}
-                                            className="text-sm text-amber-600 dark:text-amber-500 hover:underline"
-                                        >
-                                            Gerar novo código de convite
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </section>
-
-                        <section>
-                            <h2 className="text-xl font-bold text-red-600 dark:text-red-500 mb-4">Perigo</h2>
-                            <div className="card p-4 border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-semibold text-red-900 dark:text-red-200">Eliminar Grupo</h3>
-                                        <p className="text-sm text-red-700 dark:text-red-300">Esta acção é irreversível e eliminará todas as viagens e dados.</p>
-                                    </div>
-                                    <Button disabled className="bg-red-200 dark:bg-red-900/20 text-red-400 dark:text-red-700 cursor-not-allowed">
-                                        Eliminar
-                                    </Button>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
+                    <GroupSettingsTab
+                        group={currentGroup}
+                        groupId={groupId}
+                        isCreator={isCreator}
+                        onGroupUpdated={refreshGroup}
+                    />
                 )}
             </main>
 

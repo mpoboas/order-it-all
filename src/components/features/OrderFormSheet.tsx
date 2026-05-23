@@ -81,6 +81,25 @@ interface OrderFormSheetProps {
     onExpand?: () => void;
     onDiscard?: () => void;
     minimizedAboveBottomNav?: boolean;
+    onDraftActiveChange?: (active: boolean) => void;
+}
+
+function normalizeParticipantIds(ids: string[]): string {
+    return [...ids].sort().join(',');
+}
+
+function snapshotOrderItems(items: ItemFormData[]): string {
+    return JSON.stringify(
+        items.map((i) => ({
+            name: i.name.trim(),
+            quantity: Number(i.quantity) || 1,
+            unit_price: Number(i.unit_price) || 0,
+            brand: i.brand || '',
+            notes: (i.notes || '').trim(),
+            image_url: i.image_url || '',
+            found_status: i.found_status || 'pending',
+        }))
+    );
 }
 
 const DEFAULT_ITEMS: ItemFormData[] = [];
@@ -119,6 +138,7 @@ export function OrderFormSheet({
     onExpand,
     onDiscard,
     minimizedAboveBottomNav = true,
+    onDraftActiveChange,
 }: OrderFormSheetProps) {
     const useCreateWizard =
         mode === 'multi' &&
@@ -298,6 +318,53 @@ export function OrderFormSheet({
             step === 'items' ? 'large' :
                 'medium';
 
+    const supportsMinimize = useCreateWizard || flow === 'edit';
+
+    const isDraftActive = useMemo(() => {
+        if (!supportsMinimize) return false;
+
+        if (flow === 'edit') {
+            const itemsDirty =
+                snapshotOrderItems(items) !== snapshotOrderItems(initialItems);
+            const participantsDirty =
+                normalizeParticipantIds(selectedParticipantIds) !==
+                normalizeParticipantIds(initialParticipantIds);
+            return itemsDirty || participantsDirty;
+        }
+
+        if (useCreateWizard) {
+            if (audienceType !== null || step !== 'audience') return true;
+            return items.some(
+                (i) =>
+                    i.name.trim() ||
+                    (i.notes || '').trim() ||
+                    (i.unit_price || 0) > 0 ||
+                    (i.brand && i.brand !== 'Official')
+            );
+        }
+
+        return items.some(
+            (i) =>
+                i.name.trim() ||
+                (i.notes || '').trim() ||
+                (i.unit_price || 0) > 0
+        );
+    }, [
+        supportsMinimize,
+        flow,
+        useCreateWizard,
+        items,
+        initialItems,
+        selectedParticipantIds,
+        initialParticipantIds,
+        audienceType,
+        step,
+    ]);
+
+    useEffect(() => {
+        onDraftActiveChange?.(isOpen ? isDraftActive : false);
+    }, [isOpen, isDraftActive, onDraftActiveChange]);
+
     const minimizedSummary = useMemo(() => {
         if (!useCreateWizard) return null;
         if (step === 'audience') return 'A escolher para quem é o pedido';
@@ -426,7 +493,8 @@ export function OrderFormSheet({
             size={sheetSize}
             footerKey={step === 'audience' ? 'no-footer' : step}
             onBack={showBackButton ? handleBack : undefined}
-            minimizable={useCreateWizard}
+            minimizable={supportsMinimize}
+            draftActive={isDraftActive}
             minimized={minimized}
             onMinimize={onMinimize}
             onExpand={onExpand}

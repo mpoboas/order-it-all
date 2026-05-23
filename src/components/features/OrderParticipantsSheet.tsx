@@ -19,6 +19,7 @@ interface OrderParticipantsSheetProps {
     onExpand?: () => void;
     onDiscard?: () => void;
     minimizedAboveBottomNav?: boolean;
+    onDraftActiveChange?: (active: boolean) => void;
 }
 
 export function OrderParticipantsSheet({
@@ -35,6 +36,7 @@ export function OrderParticipantsSheet({
     onExpand,
     onDiscard,
     minimizedAboveBottomNav = true,
+    onDraftActiveChange,
 }: OrderParticipantsSheetProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>(participantIds);
     const wasOpenRef = useRef(false);
@@ -65,6 +67,17 @@ export function OrderParticipantsSheet({
 
     const minimizable = !readOnly;
 
+    const isDraftActive = useMemo(() => {
+        if (readOnly) return false;
+        const initial = [...participantIds].sort().join(',');
+        const current = [...selectedIds].sort().join(',');
+        return initial !== current;
+    }, [readOnly, participantIds, selectedIds]);
+
+    useEffect(() => {
+        onDraftActiveChange?.(isOpen ? isDraftActive : false);
+    }, [isOpen, isDraftActive, onDraftActiveChange]);
+
     return (
         <Sheet
             isOpen={isOpen}
@@ -72,6 +85,7 @@ export function OrderParticipantsSheet({
             title={title}
             size="large"
             minimizable={minimizable}
+            draftActive={isDraftActive}
             minimized={minimized}
             onMinimize={onMinimize}
             onExpand={onExpand}

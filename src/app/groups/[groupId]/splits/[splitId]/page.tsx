@@ -11,6 +11,20 @@ import { SplitShareSheet } from '@/components/features/SplitShareSheet';
 import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
 import { calculateSplitTotals } from '@/lib/splitShare';
+import {
+    cloneSplitItems,
+    getRemoveItemConfirmMessage,
+    isItemLocked,
+    reconcileItemLock,
+    setItemLocked,
+    shouldConfirmRemoveItem,
+} from '@/lib/splitItems';
+import {
+    closeSplitPayload,
+    isSplitClosed,
+    normalizeSplitRecord,
+    openSplitPayload,
+} from '@/lib/splitStatus';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -91,7 +105,7 @@ export default function GroupSplitDetailPage() {
     const loadSplit = useCallback(async () => {
         try {
             const data = await splitsApi.getById(splitId);
-            setSplit(data);
+            setSplit(normalizeSplitRecord(data));
         } catch (error) {
             console.error('Error loading split:', error);
             showToast('Erro ao carregar divisão', 'error');
@@ -172,11 +186,17 @@ export default function GroupSplitDetailPage() {
 
     const addItem = async () => {
         if (!split) return;
-        await saveSplit({ items: [...split.items, { name: '', price: 0, participants: [] }] });
+        await saveSplit({
+            items: [...split.items, { name: '', price: 0, participants: [], locked: false }],
+        });
     };
 
     const removeItem = async (idx: number) => {
         if (!split) return;
+        const item = split.items[idx];
+        if (item && shouldConfirmRemoveItem(item)) {
+            if (!confirm(getRemoveItemConfirmMessage(item))) return;
+        }
         const newItems = split.items.filter((_, i) => i !== idx);
         await saveSplit({ items: newItems });
     };
@@ -184,36 +204,47 @@ export default function GroupSplitDetailPage() {
     const toggleParticipant = async (itemIdx: number, participant: string) => {
         if (!split) return;
 
-        // Deep clone items to avoid mutation issues
-        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
+        const items = cloneSplitItems(split.items);
         const item = items[itemIdx];
+        if (!item) return;
 
         if (item.participants.includes(participant)) {
             item.participants = item.participants.filter(p => p !== participant);
         } else {
             item.participants = [...item.participants, participant];
         }
+        items[itemIdx] = reconcileItemLock(item, split.participants);
 
         await saveSplit({ items });
     };
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
         if (!split) return;
-        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
+        const items = cloneSplitItems(split.items);
         items[itemIdx].participants = checked ? [...split.participants] : [];
+        items[itemIdx] = reconcileItemLock(items[itemIdx], split.participants);
+        await saveSplit({ items });
+    };
+
+    const toggleItemLock = async (itemIdx: number) => {
+        if (!split) return;
+        const items = cloneSplitItems(split.items);
+        const item = items[itemIdx];
+        if (!item) return;
+        items[itemIdx] = setItemLocked(item, !isItemLocked(item));
         await saveSplit({ items });
     };
 
     const updateItemName = async (idx: number, name: string) => {
         if (!split) return;
-        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
+        const items = cloneSplitItems(split.items);
         items[idx].name = name;
         await saveSplit({ items });
     };
 
     const updateItemPrice = async (idx: number, price: number) => {
         if (!split) return;
-        const items = split.items.map(item => ({ ...item, participants: [...item.participants] }));
+        const items = cloneSplitItems(split.items);
         items[idx].price = price;
         await saveSplit({ items });
     };
@@ -245,6 +276,21 @@ export default function GroupSplitDetailPage() {
             if ((error as Error).name !== 'AbortError') showToast('Erro ao partilhar', 'error');
         } finally {
             setSharing(false);
+        }
+    };
+
+    const setSplitStatus = async (closed: boolean) => {
+        if (!split) return;
+        if (closed) {
+            const msg =
+                'Fechar esta divisão? Os participantes deixam de poder alterar marcações e o link público será desativado.';
+            if (!confirm(msg)) return;
+            await saveSplit(closeSplitPayload());
+            showToast('Divisão fechada', 'success');
+        } else {
+            if (!confirm('Reabrir esta divisão para permitir alterações?')) return;
+            await saveSplit(openSplitPayload());
+            showToast('Divisão reaberta', 'success');
         }
     };
 
@@ -294,6 +340,25 @@ export default function GroupSplitDetailPage() {
     }
 
     const sortedTotals = Object.entries(totals).sort(([, a], [, b]) => b - a);
+    const splitClosed = isSplitClosed(split);
+
+    const renderItemLockButton = (itemIdx: number, locked: boolean) => (
+        <button
+            type="button"
+            onClick={() => toggleItemLock(itemIdx)}
+            className={cn(
+                'p-1.5 rounded-lg transition-colors',
+                locked
+                    ? 'text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
+            )}
+            title={locked ? 'Desbloquear (permite remover participantes)' : 'Bloquear item'}
+        >
+            <span className="material-icons text-[20px]" aria-hidden>
+                {locked ? 'lock' : 'lock_open'}
+            </span>
+        </button>
+    );
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] pb-32 md:pb-8">
@@ -302,6 +367,13 @@ export default function GroupSplitDetailPage() {
             {saving && (
                 <div className="fixed top-20 right-4 z-50 bg-violet-600 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
                     <LoadingSpinner size="sm" /> A guardar...
+                </div>
+            )}
+
+            {splitClosed && (
+                <div className="mx-4 md:mx-8 mt-4 max-w-[99%] lg:mx-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                    <strong>Divisão fechada.</strong> Os participantes já não podem alterar marcações.
+                    {split.splitwise_exported_at && ' Exportada para Splitwise.'}
                 </div>
             )}
 
@@ -328,8 +400,24 @@ export default function GroupSplitDetailPage() {
                         <div className="flex flex-wrap gap-3 items-center">
                             <button
                                 type="button"
+                                onClick={() => setSplitStatus(!splitClosed)}
+                                className={cn(
+                                    'btn px-4 py-2 flex items-center gap-2',
+                                    splitClosed
+                                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
+                                        : 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60'
+                                )}
+                            >
+                                <span className="material-icons text-lg" aria-hidden>
+                                    {splitClosed ? 'lock_open' : 'lock'}
+                                </span>
+                                {splitClosed ? 'Reabrir' : 'Fechar divisão'}
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => setShowInviteSheet(true)}
-                                className="btn bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60 px-4 py-2 flex items-center gap-2"
+                                disabled={splitClosed}
+                                className="btn bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60 px-4 py-2 flex items-center gap-2 disabled:opacity-50"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -413,6 +501,7 @@ export default function GroupSplitDetailPage() {
                                     {split.items.map((item, idx) => {
                                         const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
                                         const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                                        const locked = isItemLocked(item);
                                         return (
                                             <tr key={idx} className="hover:bg-[var(--bg-tertiary)] transition-colors">
                                                 <td className="px-4 py-3">
@@ -457,9 +546,12 @@ export default function GroupSplitDetailPage() {
                                                     </td>
                                                 ))}
                                                 <td className="px-3 py-3 text-center">
-                                                    <button onClick={() => removeItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors">
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
-                                                    </button>
+                                                    <div className="flex items-center justify-center gap-0.5">
+                                                        {renderItemLockButton(idx, locked)}
+                                                        <button onClick={() => removeItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors" title="Remover item">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-violet-600">
                                                     {formatCurrency(perPerson)}
@@ -588,8 +680,21 @@ export default function GroupSplitDetailPage() {
                         </button>
                         <button
                             type="button"
+                            onClick={() => setSplitStatus(!splitClosed)}
+                            className={cn(
+                                'text-xs font-semibold px-2.5 py-1.5 rounded-lg border',
+                                splitClosed
+                                    ? 'text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30'
+                                    : 'text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30'
+                            )}
+                        >
+                            {splitClosed ? 'Reabrir' : 'Fechar'}
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => setShowInviteSheet(true)}
-                            className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30"
+                            disabled={splitClosed}
+                            className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 disabled:opacity-50"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -603,6 +708,7 @@ export default function GroupSplitDetailPage() {
                     {split.items.map((item, idx) => {
                         const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
                         const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                        const locked = isItemLocked(item);
                         return (
                             <div key={idx} className="card p-3 space-y-3 shadow-sm border border-[var(--border)]">
                                 <div className="flex items-center gap-2">
@@ -629,13 +735,16 @@ export default function GroupSplitDetailPage() {
                                         <span className="absolute right-3 text-[var(--text-muted)] text-sm font-medium">€</span>
                                     </div>
 
-                                    <button
-                                        onClick={() => removeItem(idx)}
-                                        className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
-                                        title="Remover item"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                    </button>
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                        {renderItemLockButton(idx, locked)}
+                                        <button
+                                            onClick={() => removeItem(idx)}
+                                            className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                                            title="Remover item"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Participants Section */}
@@ -643,6 +752,11 @@ export default function GroupSplitDetailPage() {
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Dividir com</span>
+                                            {locked && (
+                                                <span className="material-icons text-[14px] text-violet-600 dark:text-violet-400" title="Bloqueado" aria-hidden>
+                                                    lock
+                                                </span>
+                                            )}
                                             <button
                                                 onClick={() => toggleAllParticipants(idx, !allSelected)}
                                                 className="text-[10px] font-bold text-violet-600 hover:underline bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md"
@@ -689,10 +803,12 @@ export default function GroupSplitDetailPage() {
             </main>
 
             {/* Mobile Bottom Totals */}
-            <div className={cn(
-                "lg:hidden fixed left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] shadow-lg z-40",
-                isAdmin ? "bottom-[calc(var(--bottom-nav-total-height)+var(--dock-gap))]" : "bottom-[var(--safe-bottom)]"
-            )}>
+            <div
+                className={cn(
+                    'lg:hidden fixed left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] shadow-lg z-40',
+                    isAdmin ? 'bottom-[var(--bottom-nav-total-height)]' : 'bottom-[var(--safe-bottom)]'
+                )}
+            >
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">
                     <span className="font-semibold text-[var(--text-primary)]">Total</span>
                     <div className="flex items-center gap-2">
@@ -803,6 +919,7 @@ export default function GroupSplitDetailPage() {
                                         {split.items.map((item, idx) => {
                                             const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
                                             const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                                            const locked = isItemLocked(item);
                                             return (
                                                 <tr key={idx} className="hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
                                                     <td className="px-3 py-2">
@@ -847,9 +964,12 @@ export default function GroupSplitDetailPage() {
                                                         </td>
                                                     ))}
                                                     <td className="px-2 py-2 text-center">
-                                                        <button onClick={() => removeItem(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors">
-                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
-                                                        </button>
+                                                        <div className="flex items-center justify-center gap-0.5">
+                                                            {renderItemLockButton(idx, locked)}
+                                                            <button onClick={() => removeItem(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Remover item">
+                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-bold text-violet-600 text-base">
                                                         {formatCurrency(perPerson)}

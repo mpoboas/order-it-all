@@ -3,110 +3,212 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface RawItem {
-    name: string;
-    quantity: number;
-    notes?: string;
-    id?: string; // App ID for matching
+  name: string;
+  quantity: number;
+  notes?: string;
+  id?: string;
 }
 
-interface ReconciliationResult {
-    matches: {
-        itemId: string;
-        price: number;
-        quantity: number;
-        foundName: string;
-    }[];
-    extras: {
-        name: string;
-        price: number;
-        quantity: number;
-        unit_price: number;
-    }[];
+export interface ReconciliationMatch {
+  itemId: string;
+  price: number;
+  quantity: number;
+  foundName: string;
 }
 
-// Deprecated: Old Summary Function (keeping for interface compatibility if needed, or matched plan to remove)
-// The plan said "Refactor to support reconciliation logic", effectively replacing it or adding alongside.
-// I will REPLACE it since the user said "podes remover esta feature de teste que fizeste agora".
+export interface ReconciliationExtra {
+  name: string;
+  price: number;
+  quantity: number;
+  unit_price: number;
+}
 
+export interface ReconciliationResult {
+  matches: ReconciliationMatch[];
+  extras: ReconciliationExtra[];
+}
 
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'] as const;
+
+function parseGeminiJsonResponse(text: string): ReconciliationResult {
+  let jsonStr = text.trim();
+
+  const fenced = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    jsonStr = fenced[1].trim();
+  } else {
+    const start = jsonStr.indexOf('{');
+    const end = jsonStr.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      jsonStr = jsonStr.slice(start, end + 1);
+    }
+  }
+
+  const parsed = JSON.parse(jsonStr) as Partial<ReconciliationResult>;
+
+  const matches = Array.isArray(parsed.matches)
+    ? parsed.matches
+        .filter(
+          (m): m is ReconciliationMatch =>
+            Boolean(m) &&
+            typeof m.itemId === 'string' &&
+            typeof m.foundName === 'string' &&
+            typeof m.price === 'number' &&
+            typeof m.quantity === 'number'
+        )
+        .map((m) => ({
+          itemId: m.itemId,
+          foundName: m.foundName,
+          price: m.price,
+          quantity: m.quantity > 0 ? m.quantity : 1,
+        }))
+    : [];
+
+  const extras = Array.isArray(parsed.extras)
+    ? parsed.extras
+        .filter(
+          (e): e is ReconciliationExtra =>
+            Boolean(e) &&
+            typeof e.name === 'string' &&
+            typeof e.price === 'number'
+        )
+        .map((e) => {
+          const quantity =
+            typeof e.quantity === 'number' && e.quantity > 0 ? e.quantity : 1;
+          const unit_price =
+            typeof e.unit_price === 'number' && e.unit_price > 0
+              ? e.unit_price
+              : e.price / quantity;
+          return {
+            name: e.name,
+            price: e.price,
+            quantity,
+            unit_price,
+          };
+        })
+    : [];
+
+  return { matches, extras };
+}
+
+async function generateWithModel(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+  base64Data: string,
+  mimeType: string
+) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.2,
+    },
+  });
+
+  return model.generateContent([
+    prompt,
+    {
+      inlineData: {
+        data: base64Data,
+        mimeType,
+      },
+    },
+  ]);
+}
 
 export async function reconcileWithGeminiImage(
-    formData: FormData,
-    tripItems: RawItem[],
-    apiKey: string
+  imageBase64: string,
+  mimeType: string,
+  tripItems: RawItem[],
+  apiKey: string
 ): Promise<ReconciliationResult> {
-  if (!apiKey) throw new Error('API Key is missing');
+  if (!apiKey?.trim()) throw new Error('API Key em falta');
+  if (!imageBase64?.trim()) throw new Error('Imagem da fatura em falta');
 
-  const file = formData.get('file') as File;
-  if (!file) throw new Error('No file provided for Gemini Vision');
+  const normalizedMime =
+    mimeType && mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
 
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+  const prompt = `
+Act as a smart accountant for a shopping app.
+I have an image of a supermarket receipt (Portuguese, English, Spanish, etc.) and a list of requested items from my app.
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+Reconcile the receipt with the request list using ONLY what you see in the image.
 
-    const prompt = `
-      Act as a smart accountant for a shopping app.
-      I have an image of a supermarket receipt (which may be in Portuguese, English, Spanish, or other languages) and a list of requested items from my app.
-      
-      Your goal is to RECONCILE the receipt with the requested items directly from the image.
+Request list (items we wanted to buy):
+${JSON.stringify(
+  tripItems.map((i) => ({
+    id: i.id,
+    name: i.name,
+    quantity_requested: i.quantity,
+    notes: i.notes || '',
+  }))
+)}
 
-      INPUT DATA:
-      **Request List** (Items I wanted to buy):
-      ${JSON.stringify(tripItems.map(i => ({ id: i.id, name: i.name, value_guess: i.notes })))}
+Rules:
+1. Read line items, total price per line, quantity, and unit price when visible.
+2. Ignore headers, NIF, dates, payment method, and store address.
+3. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
+4. Match receipt lines to request items only when the product is clearly the same.
+5. Put unmatched receipt lines in "extras".
 
-      INSTRUCTIONS:
-      1. **Analyze the Receipt Image**: Visually identify purchased items, their TOTAL price, quantity, and unit price. 
-         - Ignore date, tax IDs (NIF), address, or random headers.
-         - Handle abbreviations (e.g. "P. DE ACUCAR" = "PAO DE ACUCAR").
-      
-      2. **Fuzzy Match**: Compare receipt items against the "Request List".
-         - If a receipt item strongly resembles a request item (e.g. "Coca Cola" ~= "Coke"), match them.
-         - *Strictness*: If the product is significantly different, do NOT match.
-      
-      3. **Categorize**:
-         - **matches**: Items found in both lists. Return the App Item ID, the TOTAL price paid, and the **quantity found on the receipt**.
-         - **extras**: Items on the receipt that are NOT in the Request List.
-      
-      OUTPUT JSON FORMAT:
-      {
-        "matches": [
-          { "itemId": "APP_ITEM_ID", "price": TOTAL_PRICE_NUMBER, "quantity": QUANTITY_NUMBER, "foundName": "RECEIPT_ITEM_NAME_CLEANED" }
-        ],
-        "extras": [
-          { "name": "RECEIPT_ITEM_NAME_CLEANED", "price": TOTAL_PRICE_NUMBER, "quantity": NUMBER_OF_UNITS, "unit_price": SINGLE_UNIT_PRICE_NUMBER }
-        ]
-      }
-      
-      CRITICAL:
-      - Return ONLY valid JSON.
-      - Prices and quantities must be numbers.
-      - If you can't read a price clearly, skip the item.
-    `;
+Return ONLY valid JSON with this exact shape:
+{
+  "matches": [
+    { "itemId": "APP_ITEM_ID", "price": 12.34, "quantity": 2, "foundName": "NAME ON RECEIPT" }
+  ],
+  "extras": [
+    { "name": "NAME ON RECEIPT", "price": 5.99, "quantity": 1, "unit_price": 5.99 }
+  ]
+}
 
-    const result = await model.generateContent([
+Use numbers for price, quantity, and unit_price. Skip lines you cannot read confidently.
+`;
+
+  let lastError: unknown;
+
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const result = await generateWithModel(
+        apiKey.trim(),
+        modelName,
         prompt,
-        {
-            inlineData: {
-                data: base64Data,
-                mimeType: file.type
-            }
-        }
-    ]);
-    
-    const response = await result.response;
-    const text = response.text();
-    
-    // Clean JSON (remove markdown)
-    const jsonStr = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-    const data = JSON.parse(jsonStr);
-
-    return data as ReconciliationResult;
-  } catch (error: unknown) {
-    console.error('Gemini Vision Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Falha na análise de imagem com Gemini';
-    throw new Error(errorMessage);
+        imageBase64,
+        normalizedMime
+      );
+      const response = await result.response;
+      const text = response.text();
+      if (!text?.trim()) {
+        throw new Error('Resposta vazia do Gemini');
+      }
+      return parseGeminiJsonResponse(text);
+    } catch (error) {
+      lastError = error;
+      const message =
+        error instanceof Error ? error.message : String(error);
+      const retryable =
+        /not found|404|429|503|overload|quota|rate|JSON|Unexpected token/i.test(
+          message
+        );
+      if (!retryable) {
+        break;
+      }
+      console.warn(`Gemini model ${modelName} failed:`, message);
+    }
   }
+
+  console.error('Gemini Vision Error:', lastError);
+  if (lastError instanceof Error) {
+    if (/API key|API_KEY|invalid/i.test(lastError.message)) {
+      throw new Error('Chave Gemini inválida. Verifica em aistudio.google.com');
+    }
+    if (/JSON|Unexpected token/i.test(lastError.message)) {
+      throw new Error(
+        'Não consegui ler a estrutura da fatura. Tenta outra foto mais nítida.'
+      );
+    }
+    throw new Error(lastError.message);
+  }
+  throw new Error('Falha na análise da fatura com Gemini');
 }

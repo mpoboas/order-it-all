@@ -139,100 +139,110 @@ export function SplitwiseIntegrationCard() {
   if (!isAdmin || !groupId) return null;
 
   return (
-    <section>
-      <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
-        Integração Splitwise
-      </h2>
-      <div className="card p-4 space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <LoadingSpinner size="md" />
-          </div>
-        ) : !connected ? (
-          <>
-            <p className="text-sm text-[var(--text-secondary)]">
+    <section className="card p-5 space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <span
+              className="material-icons text-teal-600 dark:text-teal-400 text-xl shrink-0"
+              aria-hidden
+            >
+              call_split
+            </span>
+            Integração Splitwise
+          </h2>
+          {!loading && !connected && (
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               Liga a tua conta Splitwise (uma vez por grupo). Os restantes membros
               não precisam de ligar — usamos a lista de membros do grupo Splitwise
               no export.
             </p>
-            <button
-              type="button"
-              onClick={handleConnect}
-              className="btn btn-primary px-4 py-2"
-            >
-              Ligar Splitwise
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                Conta ligada
-              </span>
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                className="text-sm text-red-600 hover:underline"
-              >
-                Desligar
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                Grupo Splitwise
-              </label>
-              <select
-                value={selectedSwGroupId}
-                onChange={(e) =>
-                  setSelectedSwGroupId(
-                    e.target.value ? Number(e.target.value) : ''
-                  )
-                }
-                className="w-full h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-sm"
-              >
-                <option value="">Seleccionar grupo…</option>
-                {swGroups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.memberCount} membros)
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!selectedSwGroupId || saving}
-                onClick={handleSaveGroup}
-                className="mt-2 text-sm font-semibold text-violet-600 disabled:opacity-50"
-              >
-                {saving ? 'A guardar…' : 'Guardar e actualizar membros'}
-              </button>
-            </div>
-
-            {members.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">
-                  Membros no Splitwise ({members.length})
-                </p>
-                <ul className="max-h-40 overflow-y-auto space-y-1 text-sm">
-                  {members.map((m) => (
-                    <li
-                      key={m.id}
-                      className="py-1.5 px-2 rounded-lg bg-[var(--bg-tertiary)]"
-                    >
-                      <span className="font-medium">{m.displayName}</span>
-                      {m.email && (
-                        <span className="text-[var(--text-muted)] ml-2 text-xs">
-                          {m.email}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
+          )}
+          {!loading && connected && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+              Conta ligada
+            </p>
+          )}
+        </div>
+        {!loading && connected && (
+          <button
+            type="button"
+            onClick={handleDisconnect}
+            className="shrink-0 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+          >
+            Desligar
+          </button>
         )}
       </div>
+
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <LoadingSpinner size="md" />
+        </div>
+      ) : !connected ? (
+        <button
+          type="button"
+          onClick={handleConnect}
+          className="w-full sm:w-auto btn bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5"
+        >
+          Ligar Splitwise
+        </button>
+      ) : (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+              Grupo Splitwise
+            </label>
+            <select
+              value={selectedSwGroupId}
+              onChange={(e) =>
+                setSelectedSwGroupId(
+                  e.target.value ? Number(e.target.value) : ''
+                )
+              }
+              className="w-full h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-sm"
+            >
+              <option value="">Seleccionar grupo…</option>
+              {swGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({g.memberCount} membros)
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!selectedSwGroupId || saving}
+              onClick={handleSaveGroup}
+              className="mt-2 text-sm font-semibold text-teal-600 dark:text-teal-400 disabled:opacity-50"
+            >
+              {saving ? 'A guardar…' : 'Guardar e actualizar membros'}
+            </button>
+          </div>
+
+          {members.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">
+                Membros no Splitwise ({members.length})
+              </p>
+              <ul className="max-h-40 overflow-y-auto space-y-1 text-sm">
+                {members.map((m) => (
+                  <li
+                    key={m.id}
+                    className="py-1.5 px-2 rounded-lg bg-[var(--bg-tertiary)]"
+                  >
+                    <span className="font-medium">{m.displayName}</span>
+                    {m.email && (
+                      <span className="text-[var(--text-muted)] ml-2 text-xs">
+                        {m.email}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
     </section>
   );
 }
