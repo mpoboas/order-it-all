@@ -6,7 +6,6 @@ import { useToast } from '@/context/ToastContext';
 import {
   buildPostAuthPath,
   completeGoogleOAuth,
-  consumeOAuthRedirectPath,
   needsProfileSetup,
   saveOAuthProfileHints,
 } from '@/lib/googleAuth';
@@ -24,7 +23,6 @@ export default function OAuthCallbackPage() {
 
     const code = searchParams.get('code');
     const state = searchParams.get('state');
-    const redirectPath = consumeOAuthRedirectPath();
 
     if (!code || !state) {
       showToast('Login Google incompleto', 'error');
@@ -34,14 +32,17 @@ export default function OAuthCallbackPage() {
 
     (async () => {
       try {
-        const { record, meta } = await completeGoogleOAuth(code, state);
+        const { record, meta, redirectPath } = await completeGoogleOAuth(
+          code,
+          state
+        );
         saveOAuthProfileHints(meta);
 
         const setup = needsProfileSetup(
           record as { name?: string },
           meta
         );
-        const path = buildPostAuthPath(setup, redirectPath);
+        const path = buildPostAuthPath(setup, redirectPath ?? null);
 
         if (setup) {
           showToast('Completa o teu perfil', 'success');

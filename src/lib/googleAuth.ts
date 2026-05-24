@@ -1,4 +1,11 @@
 import { pb } from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
+import { getAppOAuthRedirectUrl as getSharedOAuthRedirectUrl } from '@/lib/googleOAuthShared';
+import {
+  getInAppBrowserMessage,
+  isDisallowedOAuthBrowser,
+  openInSystemBrowser,
+} from '@/lib/oauthBrowser';
 
 const PROVIDER_STORAGE_KEY = 'oauth_provider';
 const HINTS_STORAGE_KEY = 'oauth_profile_hints';
@@ -30,13 +37,13 @@ export interface OAuthMeta {
 export interface GoogleOAuthResult {
   record: Record<string, unknown>;
   meta: OAuthMeta;
+  redirectPath?: string | null;
 }
 
 export function getAppOAuthRedirectUrl(): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
-  return `${base}/auth/oauth/callback`;
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : undefined;
+  return getSharedOAuthRedirectUrl(origin);
 }
 
 export function setOAuthRedirectPath(path: string | null): void {
@@ -90,34 +97,62 @@ export function needsProfileSetup(
   return meta.isNew === true;
 }
 
-export async function startGoogleOAuth(redirectPath?: string | null): Promise<void> {
-  setOAuthRedirectPath(redirectPath ?? null);
+export type GoogleOAuthStartResult = 'redirect' | 'external';
 
-  const authMethods = await pb.collection('users').listAuthMethods();
-  const providers = authMethods.oauth2?.providers ?? [];
-  const provider = providers.find((p) => p.name === 'google');
-  if (!provider) {
-    throw new Error('Google OAuth não está configurado no PocketBase');
+export async function startGoogleOAuth(
+  redirectPath?: string | null
+): Promise<GoogleOAuthStartResult> {
+  const params = new URLSearchParams();
+  if (redirectPath) params.set('redirect', redirectPath);
+  const startPath = `/api/auth/google/start${params.toString() ? `?${params}` : ''}`;
+
+  if (isDisallowedOAuthBrowser()) {
+    openInSystemBrowser(`${window.location.origin}${startPath}`);
+    return 'external';
   }
 
-  const session: OAuthProviderSession = {
-    name: provider.name,
-    state: provider.state,
-    codeVerifier: provider.codeVerifier,
-  };
-  sessionStorage.setItem(PROVIDER_STORAGE_KEY, JSON.stringify(session));
+  window.location.href = startPath;
+  return 'redirect';
+}
 
-  const redirectUrl = getAppOAuthRedirectUrl();
-  window.location.href = provider.authURL + encodeURIComponent(redirectUrl);
+export function getGoogleOAuthInAppBrowserMessage(): string {
+  return getInAppBrowserMessage();
 }
 
 export async function completeGoogleOAuth(
   code: string,
   state: string
 ): Promise<GoogleOAuthResult> {
+  const res = await fetch('/api/auth/google/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, state }),
+  });
+
+  if (res.ok) {
+    const data = (await res.json()) as {
+      token: string;
+      record: Record<string, unknown>;
+      meta: OAuthMeta;
+      redirectPath?: string | null;
+    };
+    pb.authStore.save(data.token, data.record as RecordModel);
+    return {
+      record: data.record,
+      meta: data.meta,
+      redirectPath: data.redirectPath ?? null,
+    };
+  }
+
+  const apiError = await res.json().catch(() => null);
+  const apiMessage =
+    apiError && typeof apiError.error === 'string' ? apiError.error : null;
+
   const raw = sessionStorage.getItem(PROVIDER_STORAGE_KEY);
   if (!raw) {
-    throw new Error('Sessão OAuth expirada. Tenta iniciar sessão outra vez.');
+    throw new Error(
+      apiMessage || 'Sessão OAuth expirada. Tenta iniciar sessão outra vez.'
+    );
   }
 
   let provider: OAuthProviderSession;
@@ -144,7 +179,11 @@ export async function completeGoogleOAuth(
   const record = authData.record as Record<string, unknown>;
   const meta = (authData.meta ?? {}) as OAuthMeta;
 
-  return { record, meta };
+  return {
+    record,
+    meta,
+    redirectPath: consumeOAuthRedirectPath(),
+  };
 }
 
 export async function urlToAvatarFile(url: string): Promise<File | null> {

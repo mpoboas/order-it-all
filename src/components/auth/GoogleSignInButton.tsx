@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useToast } from '@/context/ToastContext';
-import { startGoogleOAuth } from '@/lib/googleAuth';
+import {
+  getGoogleOAuthInAppBrowserMessage,
+  startGoogleOAuth,
+} from '@/lib/googleAuth';
 
 interface GoogleSignInButtonProps {
   redirect?: string | null;
@@ -19,14 +22,21 @@ export function GoogleSignInButton({
   const handleClick = () => {
     if (loading) return;
     setLoading(true);
-    startGoogleOAuth(redirect ?? null).catch((error) => {
-      console.error('Google OAuth start:', error);
-      showToast(
-        error instanceof Error ? error.message : 'Erro ao iniciar login Google',
-        'error'
-      );
-      setLoading(false);
-    });
+    startGoogleOAuth(redirect ?? null)
+      .then((result) => {
+        if (result === 'external') {
+          showToast(getGoogleOAuthInAppBrowserMessage(), 'info');
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error('Google OAuth start:', error);
+        showToast(
+          error instanceof Error ? error.message : 'Erro ao iniciar login Google',
+          'error'
+        );
+        setLoading(false);
+      });
   };
 
   return (
