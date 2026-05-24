@@ -26,7 +26,9 @@ export function GoogleSignInButton({
       .then((result) => {
         if (result === 'external') {
           showToast(getGoogleOAuthInAppBrowserMessage(), 'info');
-          setLoading(false);
+          // Intent / window.open may fail silently; allow retry after a moment.
+          window.setTimeout(() => setLoading(false), 2500);
+          return;
         }
       })
       .catch((error) => {
