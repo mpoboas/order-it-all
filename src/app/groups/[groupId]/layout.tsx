@@ -6,7 +6,7 @@ import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { groupsApi } from '@/lib/pocketbase';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
 
 export default function GroupLayout({
@@ -60,11 +60,11 @@ export default function GroupLayout({
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-                <div className="text-center">
-                    <LoadingSpinner size="lg" />
-                    <p className="text-[var(--text-muted)] mt-4">A carregar grupo...</p>
-                </div>
+            <div className="min-h-screen bg-[var(--bg-primary)]">
+                <PageHeaderSkeleton />
+                <main className="container mx-auto px-4 py-6 md:py-8">
+                    <EntityCardSkeletonGrid count={3} />
+                </main>
             </div>
         );
     }

@@ -9,6 +9,7 @@ import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
@@ -126,10 +127,7 @@ export default function GroupsPage() {
 
                 {/* Loading */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <LoadingSpinner size="lg" />
-                        <p className="text-[var(--text-muted)] mt-4 animate-pulse-soft">A carregar grupos...</p>
-                    </div>
+                    <EntityCardSkeletonGrid count={3} />
                 ) : (
                     <>
                         {/* Create Group Button */}

@@ -6,8 +6,12 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { splitsApi, subscriptions } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
-import { SplitShareSheet } from '@/components/features/SplitShareSheet';
+const SplitShareSheet = dynamic(
+    () => import('@/components/features/SplitShareSheet').then((m) => m.SplitShareSheet),
+    { ssr: false }
+);
 import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
 import { calculateSplitTotals } from '@/lib/splitShare';

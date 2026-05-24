@@ -151,7 +151,7 @@ export function EntityCardActionIcon({
     <span
       role="button"
       tabIndex={0}
-      title={title}
+      aria-label={title}
       onClick={(e) => {
         e.stopPropagation();
         if (hapticError) trigger('error');

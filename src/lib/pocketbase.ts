@@ -121,6 +121,15 @@ export const itemsApi = {
     });
   },
 
+  getByOrderIds: async (orderIds: string[]): Promise<Item[]> => {
+    if (orderIds.length === 0) return [];
+    const filter = orderIds.map((id) => `order_id = "${id}"`).join(' || ');
+    return await pb.collection('items').getFullList<Item>({
+      filter,
+      sort: 'created',
+    });
+  },
+
   getById: async (id: string): Promise<Item> => {
     return await pb.collection('items').getOne<Item>(id);
   },

@@ -89,7 +89,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                             className={cn(
                                 'flex flex-col items-center justify-center flex-1 h-full transition-all duration-200',
                                 'active:scale-95',
-                                active ? 'text-primary-600' : 'text-gray-400'
+                                active ? 'text-primary-600' : 'text-gray-600 dark:text-gray-400'
                             )}
                         >
                             <div className={cn(

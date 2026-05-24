@@ -6,6 +6,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { tripsApi, subscriptions, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
 import type { Trip, Group } from '@/lib/types';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
 import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
@@ -362,8 +363,12 @@ function AdminDashboardContent() {
 
     if (loading || !currentGroup) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-                <LoadingSpinner size="lg" />
+            <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+                <PageHeaderSkeleton />
+                <main className="container mx-auto px-4 py-6 max-w-4xl">
+                    <div className="h-10 w-full mb-6 rounded-xl bg-[var(--bg-tertiary)] animate-pulse" />
+                    <EntityCardSkeletonGrid count={2} className="md:grid-cols-2 lg:grid-cols-2" />
+                </main>
             </div>
         );
     }
@@ -381,7 +386,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('trips')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Viagens
@@ -390,7 +395,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('members')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Membros
@@ -399,7 +404,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('settings')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Definições

@@ -1,7 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "pb-orderit.povoas.top",
+      },
+      {
+        protocol: "https",
+        hostname: "www.continente.pt",
+      },
+      {
+        protocol: "https",
+        hostname: "www.pingodoce.pt",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -25,7 +25,7 @@
   --bg-tertiary: #f1f5f9;
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --border: #e2e8f0;
 
   /* Spacing */
@@ -66,8 +66,8 @@
   /* Slate 50 */
   --text-secondary: #cbd5e1;
   /* Slate 300 */
-  --text-muted: #64748b;
-  /* Slate 500 */
+  --text-muted: #94a3b8;
+  /* Slate 400 — legível sobre fundos escuros */
 
   --border: #1e293b;
   /* Slate 800 */
@@ -82,7 +82,7 @@
 @theme {
   --color-background: var(--bg-primary);
   --color-foreground: var(--text-primary);
-  --font-sans: "Inter", "Poppins", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 
   /* Force override violet/purple to Blue directly */
   --color-violet-50: #eff6ff;

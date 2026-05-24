@@ -4,6 +4,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { Avatar } from '@/components/ui/Avatar';
+import { RemoteImage } from '@/components/ui/RemoteImage';
+import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
@@ -74,6 +76,8 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                     <div className="flex items-center min-w-0">
                         {showBack ? (
                             <button
+                                type="button"
+                                aria-label="Voltar"
                                 onClick={() => {
                                     trigger();
                                     tryNavigate(() => handleBack());
@@ -92,8 +96,14 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                     ) : (
                                         icon
                                     )
-                                ) : currentGroup?.avatar && currentGroup.avatar.length > 2 ? (
-                                    <img src={`https://pb-orderit.povoas.top/api/files/groups/${currentGroup.id}/${currentGroup.avatar}`} alt="Group" className="w-full h-full object-cover" />
+                                ) : currentGroup && getGroupAvatarUrl(currentGroup.id, currentGroup.avatar) ? (
+                                    <RemoteImage
+                                        src={getGroupAvatarUrl(currentGroup.id, currentGroup.avatar)!}
+                                        alt="Grupo"
+                                        width={40}
+                                        height={40}
+                                        className="w-full h-full object-cover"
+                                    />
                                 ) : (
                                     <span className="text-xl">{currentGroup?.avatar || '🛒'}</span>
                                 )}
@@ -110,12 +120,13 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         {/* Toggle button for non-admin users in a group */}
                         {showToggle && (
                             <button
+                                type="button"
+                                aria-label={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
                                 onClick={() => {
                                     trigger();
                                     tryNavigate(() => router.push(toggleHref!));
                                 }}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
-                                title={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
                             >
                                 {isInTrips ? (
                                     // Calculator icon for splits
@@ -148,12 +159,13 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
                         {isLoggedIn && (
                             <button
+                                type="button"
+                                aria-label="Meu perfil"
                                 onClick={() => {
                                     trigger();
                                     tryNavigate(() => router.push('/profile'));
                                 }}
                                 className="relative group"
-                                title="Meu Perfil"
                             >
                                 <Avatar
                                     name={userName}

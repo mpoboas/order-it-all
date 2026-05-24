@@ -9,7 +9,7 @@ import { tripsApi, subscriptions } from '@/lib/pocketbase';
 import type { Trip } from '@/lib/types';
 import { getRelativeTime, cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { Badge } from '@/components/ui/Badge';
 import { TripCard } from '@/components/features/TripCard';
 
@@ -70,10 +70,7 @@ export default function GroupTripsPage() {
 
                 {/* Loading */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <LoadingSpinner size="lg" />
-                        <p className="text-[var(--text-muted)] mt-4 animate-pulse-soft">A carregar viagens...</p>
-                    </div>
+                    <EntityCardSkeletonGrid count={3} />
                 ) : trips.length === 0 ? (
                     /* Empty State */
                     <div className="text-center py-20 animate-fade-in-up">

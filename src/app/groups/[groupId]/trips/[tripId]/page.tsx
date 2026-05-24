@@ -26,6 +26,7 @@ import { useGroup } from '@/context/GroupContext';
 
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
 import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
+import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
@@ -82,12 +83,18 @@ export default function GroupTripDetailPage() {
                 .filter(order => orderVisibleToUser(order, currentUserId, userName))
                 .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
 
-            const ordersWithItems = await Promise.all(
-                userOrders.map(async (order) => {
-                    const items = await itemsApi.getByOrder(order.id);
-                    return { ...order, items };
-                })
-            );
+            const allItems = await itemsApi.getByOrderIds(userOrders.map((order) => order.id));
+            const itemsByOrder = new Map<string, Item[]>();
+            for (const item of allItems) {
+                const list = itemsByOrder.get(item.order_id) ?? [];
+                list.push(item);
+                itemsByOrder.set(item.order_id, list);
+            }
+
+            const ordersWithItems = userOrders.map((order) => ({
+                ...order,
+                items: itemsByOrder.get(order.id) ?? [],
+            }));
             setOrders(ordersWithItems);
         } catch (error) {
             console.error('Error loading trip:', error);
@@ -568,7 +575,13 @@ export default function GroupTripDetailPage() {
                                                             {/* Icon Placeholder */}
                                                             <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-gray-100 dark:border-slate-700", item.image_url ? "bg-white" : "bg-[var(--bg-primary)]")}>
                                                                 {item.image_url ? (
-                                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                                    <RemoteImage
+                                                                        src={item.image_url}
+                                                                        alt={item.name}
+                                                                        width={48}
+                                                                        height={48}
+                                                                        className="w-full h-full object-contain mix-blend-multiply p-1"
+                                                                    />
                                                                 ) : (
                                                                     <span>{getProductEmoji(item.name)}</span>
                                                                 )}

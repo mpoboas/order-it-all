@@ -29,8 +29,13 @@ import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
 import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
+import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
-import { InvoiceScanSheet } from '@/components/features/InvoiceScanSheet';
+import { RemoteImage } from '@/components/ui/RemoteImage';
+const InvoiceScanSheet = dynamic(
+    () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
+    { ssr: false }
+);
 
 interface ShoppingItem extends Item {
     user_name: string;
@@ -183,22 +188,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             const ordersData = await ordersApi.getByTrip(tripId);
             if (activeTripId.current !== tripId) return;
 
-            // PERFORMANCE: Use Promise.all to fetch items in parallel
-            const itemsPromises = ordersData.map(async (order) => {
-                const items = await itemsApi.getByOrder(order.id);
-                return { order, items };
-            });
-
-            const results = await Promise.all(itemsPromises);
+            const allItems = await itemsApi.getByOrderIds(ordersData.map((order) => order.id));
+            const itemsByOrder = new Map<string, Item[]>();
+            for (const item of allItems) {
+                const list = itemsByOrder.get(item.order_id) ?? [];
+                list.push(item);
+                itemsByOrder.set(item.order_id, list);
+            }
 
             if (activeTripId.current !== tripId) return;
 
-            if (activeTripId.current === tripId) {
-                const cards = results.map(({ order, items }) =>
-                    buildAdminOrderCard(order, items, members)
-                );
-                setOrderCards(cards);
-            }
+            const cards = ordersData.map((order) =>
+                buildAdminOrderCard(order, itemsByOrder.get(order.id) ?? [], members)
+            );
+            setOrderCards(cards);
         } catch (error) {
             if (activeTripId.current === tripId) {
                 console.error(error);
@@ -842,7 +845,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                                 className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100 dark:border-slate-700", item.image_url ? "bg-white" : "bg-[var(--bg-primary)]")}
                                                             >
                                                                 {item.image_url ? (
-                                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply p-1" />
+                                                                    <RemoteImage
+                                                                        src={item.image_url}
+                                                                        alt={item.name}
+                                                                        width={48}
+                                                                        height={48}
+                                                                        className="w-full h-full object-contain mix-blend-multiply p-1"
+                                                                    />
                                                                 ) : (
                                                                     <span>{getProductEmoji(item.name)}</span>
                                                                 )}
