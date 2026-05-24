@@ -128,16 +128,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'found' | 'not_available'>('all');
     const [priceFilter, setPriceFilter] = useState<'all' | 'with_price' | 'no_price'>('all');
 
-    const editInitialItems = useMemo(() => {
+    const editInitialItems = useMemo((): ItemFormData[] => {
         if (!selectedItem) return [];
+        const brand: ItemFormData['brand'] =
+            selectedItem.brand === 'Official' || selectedItem.brand === 'Off-brand'
+                ? selectedItem.brand
+                : '';
         return [{
             name: selectedItem.name,
             quantity: selectedItem.quantity,
             unit_price: selectedItem.unit_price || (selectedItem.price / selectedItem.quantity) || 0,
-            brand: (selectedItem.brand as 'Official' | 'Off-brand' | '') || 'Official',
+            brand,
             notes: selectedItem.notes || '',
             image_url: selectedItem.image_url || '',
-            found_status: selectedItem.found_status
+            found_status: selectedItem.found_status,
         }];
     }, [selectedItem]);
 

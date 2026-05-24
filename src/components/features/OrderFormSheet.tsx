@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion } from 'motion/react';
 import { Sheet, SheetSize } from '@/components/ui/Sheet';
 import { AnimatedStep } from '@/components/ui/AnimatedStep';
-import { staggerContainerVariants, staggerItemVariants, fadeUpTransition } from '@/lib/motion';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
@@ -15,6 +13,7 @@ import {
     getUserAvatarUrl,
 } from '@/lib/orderParticipants';
 import { useWebHaptics } from 'web-haptics/react';
+import { useToast } from '@/context/ToastContext';
 
 type OrderFormStep = 'audience' | 'participants' | 'items';
 
@@ -115,6 +114,40 @@ const BRAND_CHOICES: { value: 'Official' | 'Off-brand'; label: string }[] = [
     { value: 'Off-brand', label: 'Marca branca' },
 ];
 
+const EMPTY_ITEM = (): ItemFormData => ({
+    name: '',
+    quantity: 1,
+    unit_price: 0,
+    brand: '',
+    notes: '',
+    image_url: '',
+});
+
+function isBrandSelected(brand: string): brand is 'Official' | 'Off-brand' {
+    return brand === 'Official' || brand === 'Off-brand';
+}
+
+function normalizeFormBrand(brand?: string): '' | 'Official' | 'Off-brand' {
+    if (brand === 'Official' || brand === 'Off-brand') return brand;
+    return '';
+}
+
+function scrollItemCardIntoView(card: HTMLElement) {
+    let parent = card.parentElement;
+    while (parent) {
+        const { overflowY } = getComputedStyle(parent);
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+            const cardTop = card.getBoundingClientRect().top;
+            const parentTop = parent.getBoundingClientRect().top;
+            const top = cardTop - parentTop + parent.scrollTop - 12;
+            parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+            return;
+        }
+        parent = parent.parentElement;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export function OrderFormSheet({
     isOpen,
     onClose,
@@ -157,11 +190,12 @@ export function OrderFormSheet({
         setStep(next);
     }, [step]);
     const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
-    const [items, setItems] = useState<ItemFormData[]>([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
+    const [items, setItems] = useState<ItemFormData[]>([EMPTY_ITEM()]);
     const [userId, setUserId] = useState('');
     const [userName, setUserName] = useState('');
     const [comboboxOpen, setComboboxOpen] = useState(false);
     const { trigger } = useWebHaptics();
+    const { showToast } = useToast();
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -170,6 +204,8 @@ export function OrderFormSheet({
 
     const wasOpenRef = useRef(false);
     const hasAutoSearchedRef = useRef(false);
+    const pendingScrollIndexRef = useRef<number | null>(null);
+    const itemCardRefs = useRef<(HTMLDivElement | null)[]>([]);
     const [priceExpandedByIndex, setPriceExpandedByIndex] = useState<boolean[]>([]);
 
     const applyOpenState = () => {
@@ -190,7 +226,7 @@ export function OrderFormSheet({
                 ...i,
                 quantity: i.quantity || 1,
                 unit_price: i.unit_price || 0,
-                brand: i.brand || 'Official',
+                brand: normalizeFormBrand(i.brand),
                 notes: i.notes || '',
                 image_url: i.image_url || '',
                 found_status: i.found_status || 'pending',
@@ -198,7 +234,7 @@ export function OrderFormSheet({
             setItems(mapped);
             setPriceExpandedByIndex(mapped.map(i => (i.unit_price || 0) > 0));
         } else {
-            setItems([{ name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
+            setItems([EMPTY_ITEM()]);
             setPriceExpandedByIndex([false]);
         }
 
@@ -226,6 +262,18 @@ export function OrderFormSheet({
         applyOpenState();
     }, [isOpen, flow, useCreateWizard, isAdmin, currentUserId, initialItems, initialUser, initialParticipantIds]);
 
+    useEffect(() => {
+        const idx = pendingScrollIndexRef.current;
+        if (idx == null || idx >= items.length) return;
+        pendingScrollIndexRef.current = null;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const card = itemCardRefs.current[idx];
+                if (card) scrollItemCardIntoView(card);
+            });
+        });
+    }, [items.length]);
+
     // --- Actions ---
 
     const updateItem = (index: number, field: keyof ItemFormData, value: any) => {
@@ -246,14 +294,20 @@ export function OrderFormSheet({
 
     const addEmptyItem = () => {
         trigger();
-        setItems([...items, { name: '', quantity: 1, unit_price: 0, brand: 'Official', notes: '', image_url: '' }]);
+        pendingScrollIndexRef.current = items.length;
+        setItems([...items, EMPTY_ITEM()]);
         setPriceExpandedByIndex(prev => [...prev, false]);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const validItems = items.filter(i => i.name.trim());
-        if (validItems.length === 0) return;
+        const namedItems = items.filter(i => i.name.trim());
+        if (namedItems.length === 0) return;
+        if (namedItems.some(i => !isBrandSelected(i.brand))) {
+            showToast('Escolhe a marca em cada produto', 'error');
+            return;
+        }
+        const validItems = namedItems;
         trigger('success');
         onSubmit({
             items: validItems,
@@ -339,7 +393,7 @@ export function OrderFormSheet({
                     i.name.trim() ||
                     (i.notes || '').trim() ||
                     (i.unit_price || 0) > 0 ||
-                    (i.brand && i.brand !== 'Official')
+                    isBrandSelected(i.brand)
             );
         }
 
@@ -361,8 +415,12 @@ export function OrderFormSheet({
         step,
     ]);
 
+    const draftActiveRef = useRef(false);
     useEffect(() => {
-        onDraftActiveChange?.(isOpen ? isDraftActive : false);
+        const next = isOpen ? isDraftActive : false;
+        if (draftActiveRef.current === next) return;
+        draftActiveRef.current = next;
+        onDraftActiveChange?.(next);
     }, [isOpen, isDraftActive, onDraftActiveChange]);
 
     const minimizedSummary = useMemo(() => {
@@ -466,22 +524,20 @@ export function OrderFormSheet({
         onClick: () => void;
         className?: string;
     }) => (
-        <motion.button
+        <button
             type="button"
-            variants={staggerItemVariants}
             onClick={onClick}
-            whileTap={{ scale: 0.97 }}
-            transition={fadeUpTransition}
             className={cn(
                 'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700',
                 'bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 dark:hover:border-primary-600',
                 'hover:bg-primary-50/50 dark:hover:bg-primary-900/20',
+                'active:scale-[0.98] transition-[transform,background-color,border-color]',
                 className
             )}
         >
             <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
             <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
-        </motion.button>
+        </button>
     );
 
     return (
@@ -545,18 +601,14 @@ export function OrderFormSheet({
                 <AnimatedStep
                     stepKey={step}
                     direction={stepDirection}
+                    variant={step === 'audience' ? 'fade' : 'slide'}
                     className={cn(
                         'flex flex-col gap-6 pb-2 flex-1 min-h-0 overflow-visible',
                         step === 'participants' && 'flex-1 min-h-0'
                     )}
                 >
                 {step === 'audience' && useCreateWizard && (
-                    <motion.div
-                        className="grid grid-cols-2 gap-3"
-                        variants={staggerContainerVariants}
-                        initial="enter"
-                        animate="center"
-                    >
+                    <div className="grid grid-cols-2 gap-3">
                         <AudienceCard
                             icon="person"
                             label={isAdmin ? 'Um membro' : 'Eu'}
@@ -564,7 +616,7 @@ export function OrderFormSheet({
                         />
                         <AudienceCard icon="group" label="Vários" onClick={() => selectAudience('several')} />
                         <AudienceCard icon="groups" label="Todos" onClick={() => selectAudience('all')} className="col-span-2" />
-                    </motion.div>
+                    </div>
                 )}
                 {step === 'participants' && useCreateWizard && (
                     <OrderParticipantsPicker
@@ -625,7 +677,13 @@ export function OrderFormSheet({
 
                 {/* Items List */}
                 {items.map((item, i) => (
-                    <div key={i} className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition-all">
+                    <div
+                        key={i}
+                        ref={(el) => {
+                            itemCardRefs.current[i] = el;
+                        }}
+                        className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition-all"
+                    >
                         {mode === 'multi' && items.length > 1 && (
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">

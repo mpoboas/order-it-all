@@ -222,7 +222,10 @@ export default function GroupTripDetailPage() {
             name: i.name,
             quantity: i.quantity,
             unit_price: i.unit_price || i.price / i.quantity || 0,
-            brand: (i.brand as 'Official' | 'Off-brand' | '') || 'Official',
+            brand:
+                i.brand === 'Official' || i.brand === 'Off-brand'
+                    ? (i.brand as 'Official' | 'Off-brand')
+                    : '',
             notes: i.notes || '',
             image_url: i.image_url || '',
         })));

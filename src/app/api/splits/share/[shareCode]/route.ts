@@ -6,11 +6,17 @@ import {
 import {
   toPublicSplitPayload,
   toggleItemParticipant,
+  type PublicSplitPayload,
 } from '@/lib/splitShare';
 import { reconcileSplitItems } from '@/lib/splitItems';
 import { isSplitClosed } from '@/lib/splitStatus';
+import { withLock } from '@/lib/serverMutex';
 
 const SHARE_CODE_RE = /^[A-Za-z0-9]{6,12}$/;
+
+type PatchOutcome =
+  | { status: 200; body: PublicSplitPayload }
+  | { status: 400 | 403 | 404; body: { error: string } };
 
 export async function GET(
   _request: Request,
@@ -58,46 +64,55 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    const split = await getActiveSplitByShareCode(shareCode);
-    if (!split) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
+    // Serialize concurrent toggles for the same split. Inside the lock we always
+    // re-read the latest state from PocketBase, apply the mutation, and write
+    // back — eliminating the lost-update window between independent requests.
+    const outcome = await withLock<PatchOutcome>(
+      `split-share:${shareCode}`,
+      async () => {
+        const split = await getActiveSplitByShareCode(shareCode);
+        if (!split) {
+          return { status: 404, body: { error: 'Not found' } };
+        }
 
-    if (!split.participants.includes(participantName)) {
-      return NextResponse.json({ error: 'Invalid participant' }, { status: 400 });
-    }
+        if (!split.participants.includes(participantName)) {
+          return { status: 400, body: { error: 'Invalid participant' } };
+        }
 
-    if (isSplitClosed(split)) {
-      return NextResponse.json(
-        { error: 'Divisão fechada — já não é possível alterar' },
-        { status: 403 }
-      );
-    }
+        if (isSplitClosed(split)) {
+          return {
+            status: 403,
+            body: { error: 'Divisão fechada — já não é possível alterar' },
+          };
+        }
 
-    if (itemIndex >= split.items.length) {
-      return NextResponse.json({ error: 'Invalid item' }, { status: 400 });
-    }
+        if (itemIndex >= split.items.length) {
+          return { status: 400, body: { error: 'Invalid item' } };
+        }
 
-    const toggleResult = toggleItemParticipant(
-      split.items,
-      itemIndex,
-      participantName,
-      include
-    );
-    if (!toggleResult.ok) {
-      if (toggleResult.reason === 'locked') {
-        return NextResponse.json(
-          { error: 'Item bloqueado — não podes remover-te desta divisão' },
-          { status: 403 }
+        const toggleResult = toggleItemParticipant(
+          split.items,
+          itemIndex,
+          participantName,
+          include
         );
+        if (!toggleResult.ok) {
+          if (toggleResult.reason === 'locked') {
+            return {
+              status: 403,
+              body: { error: 'Item bloqueado — não podes remover-te desta divisão' },
+            };
+          }
+          return { status: 400, body: { error: 'Invalid item' } };
+        }
+
+        const items = reconcileSplitItems(toggleResult.items, split.participants);
+        const updated = await updateSplitItems(split.id, items);
+        return { status: 200, body: toPublicSplitPayload(updated) };
       }
-      return NextResponse.json({ error: 'Invalid item' }, { status: 400 });
-    }
+    );
 
-    const items = reconcileSplitItems(toggleResult.items, split.participants);
-
-    const updated = await updateSplitItems(split.id, items);
-    return NextResponse.json(toPublicSplitPayload(updated));
+    return NextResponse.json(outcome.body, { status: outcome.status });
   } catch (error) {
     console.error('Split share PATCH error:', error);
     if ((error as Error).message === 'Server misconfiguration') {

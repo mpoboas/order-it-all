@@ -10,15 +10,18 @@ export function ToastContainer() {
     if (toasts.length === 0) return null;
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        <div
+            className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top,0px))] z-[110] flex w-full max-w-md -translate-x-1/2 flex-col items-center gap-2 px-4 pointer-events-none"
+            aria-live="polite"
+        >
             {toasts.map((toast) => (
                 <div
                     key={toast.id}
                     className={cn(
-                        'flex items-center justify-between gap-4 px-5 py-4 rounded-2xl shadow-lg border animate-in slide-in-from-right-5 duration-300 max-w-sm',
-                        toast.type === 'success' && 'bg-green-50 text-green-800 border-green-200',
-                        toast.type === 'error' && 'bg-red-50 text-red-800 border-red-200',
-                        toast.type === 'info' && 'bg-blue-50 text-blue-800 border-blue-200'
+                        'pointer-events-auto flex w-full items-center justify-between gap-4 px-5 py-4 rounded-2xl shadow-lg border animate-in slide-in-from-top-2 duration-300',
+                        toast.type === 'success' && 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950/90 dark:text-green-100 dark:border-green-800',
+                        toast.type === 'error' && 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/90 dark:text-red-100 dark:border-red-800',
+                        toast.type === 'info' && 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/90 dark:text-blue-100 dark:border-blue-800'
                     )}
                 >
                     <span className="text-sm font-medium">{toast.message}</span>
