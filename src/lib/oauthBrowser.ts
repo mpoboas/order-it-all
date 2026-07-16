@@ -31,23 +31,37 @@ export function isDisallowedOAuthBrowser(): boolean {
     return true;
   }
 
-  const isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(ua);
-
-  // Installed PWA on mobile — Google OAuth must run in the system browser,
+  // Installed PWA (mobile or desktop) — Google OAuth must run in the system browser,
   // not inside the standalone app shell (Error 403: disallowed_useragent).
-  if (isMobile && isStandaloneDisplayMode()) return true;
+  if (isStandaloneDisplayMode()) return true;
 
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  if (!isIOS) return false;
 
-  // iOS Chrome/Firefox/Edge are full browsers Google allows.
-  if (/CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua)) return false;
+  if (isIOS) {
+    // iOS Chrome/Firefox/Edge are full browsers Google allows.
+    if (/CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua)) return false;
 
-  const isSafari = /Safari/i.test(ua);
-  if (isSafari) return false;
+    const isSafari = /Safari/i.test(ua);
+    if (isSafari) return false;
 
-  // Other embedded iOS browsers (non-Safari, non-standalone handled above).
-  return true;
+    // Other embedded iOS browsers (non-Safari, non-standalone handled above).
+    return true;
+  }
+
+  // For desktop / other platforms:
+  // If it's desktop and doesn't look like a standard full browser (Chrome, Safari, Firefox, Edge, Opera),
+  // it might be an embedded WebView (e.g. Electron, WKWebView macOS, WebView2 Windows).
+  const isDesktop = !isMobile && !isIOS;
+  if (isDesktop) {
+    const isStandardBrowser = /Chrome|Safari|Firefox|Edg|OPR/i.test(ua);
+    const isElectron = /Electron/i.test(ua);
+    if (!isStandardBrowser || isElectron) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function getOAuthBrowserPlatform(): OAuthBrowserPlatform {
@@ -86,6 +100,7 @@ export function getInAppBrowserMessage(): string {
     if (platform === 'android') {
       return 'O Google exige o Chrome. A abrir o login no browser do sistema…';
     }
+    return 'O Google não permite login dentro da app instalada. A abrir o login no browser do sistema…';
   }
   if (platform === 'ios') {
     return 'O Google exige um browser seguro. Abre esta página no Safari (menu ⋯ → Abrir no Safari) e tenta outra vez.';

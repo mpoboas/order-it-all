@@ -13,6 +13,13 @@ import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
+import {
+    collectGroupMembers,
+    collectGroupParticipantNames,
+    participantDisplayName,
+} from '@/lib/splitShare';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
+import { Avatar } from '@/components/ui/Avatar';
 
 export default function GroupSplitsPage() {
     const [splits, setSplits] = useState<Split[]>([]);
@@ -20,6 +27,7 @@ export default function GroupSplitsPage() {
     const [showCreate, setShowCreate] = useState(false);
     const [newName, setNewName] = useState('');
     const [newDesc, setNewDesc] = useState('');
+    const [includeAllMembers, setIncludeAllMembers] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [editingSplit, setEditingSplit] = useState<Split | null>(null);
     const [editName, setEditName] = useState('');
@@ -65,25 +73,42 @@ export default function GroupSplitsPage() {
         return () => subscriptions.unsubscribeAll();
     }, [loadSplits]);
 
+    const groupMemberCount = collectGroupParticipantNames(currentGroup).length;
+    const groupMembers = collectGroupMembers(currentGroup);
+
+    const closeCreate = () => {
+        setShowCreate(false);
+        setNewName('');
+        setNewDesc('');
+        setIncludeAllMembers(true);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newName.trim()) return;
 
         setSubmitting(true);
         try {
-            const userName = user?.name || user?.email || 'User';
+            const creatorName = user?.name || user?.email || 'User';
+            const groupParticipants = collectGroupParticipantNames(currentGroup);
+            let participants = includeAllMembers && groupParticipants.length > 0
+                ? groupParticipants
+                : [creatorName];
+
+            if (!participants.some((p) => p.toLowerCase() === creatorName.toLowerCase())) {
+                participants = [creatorName, ...participants];
+            }
+
             const newSplit = await splitsApi.create({
                 name: newName.trim(),
                 description: newDesc.trim(),
                 group_id: groupId,
                 created_by: user!.id,
-                participants: [userName], // Initial participant is creator
+                participants,
                 items: [],
             });
             showToast('Divisão criada!', 'success');
-            setShowCreate(false);
-            setNewName('');
-            setNewDesc('');
+            closeCreate();
             router.push(`/groups/${groupId}/splits/${newSplit.id}`);
         } catch (error) {
             console.error('Error creating split:', error);
@@ -268,7 +293,7 @@ export default function GroupSplitsPage() {
             {/* Create Split Sheet */}
             <Sheet
                 isOpen={showCreate}
-                onClose={() => setShowCreate(false)}
+                onClose={closeCreate}
                 size="medium"
                 title="Nova Divisão"
                 footer={
@@ -304,6 +329,44 @@ export default function GroupSplitsPage() {
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
                         />
                     </div>
+                    <label className="flex items-start gap-3 cursor-pointer rounded-xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-3">
+                        <input
+                            type="checkbox"
+                            checked={includeAllMembers}
+                            onChange={e => setIncludeAllMembers(e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                        />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-bold text-gray-900 dark:text-gray-100">
+                                Incluir todos os membros do grupo
+                            </span>
+                            <span className="block text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                                {groupMemberCount > 0
+                                    ? `Adiciona ${groupMemberCount} participante${groupMemberCount === 1 ? '' : 's'} à divisão.`
+                                    : 'Só ficas tu como participante (membros do grupo ainda não carregados).'}
+                            </span>
+                        </span>
+                    </label>
+                    {includeAllMembers && groupMembers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {groupMembers.map((member) => {
+                                const name = participantDisplayName(member);
+                                return (
+                                    <span
+                                        key={member.id}
+                                        className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-slate-800 px-2 py-1 text-xs font-medium text-gray-800 dark:text-gray-200"
+                                    >
+                                        <Avatar
+                                            name={name}
+                                            src={getUserAvatarUrl(member.id, member.avatar)}
+                                            size="xs"
+                                        />
+                                        {name}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </Sheet>
         </div>

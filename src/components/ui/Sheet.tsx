@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { sheetEase, sheetSpring, fadeUpTransition, footerVariants } from '@/lib/motion';
@@ -62,9 +63,14 @@ export function Sheet({
     discardConfirmMessage = DEFAULT_DISCARD_MESSAGE,
     minimizedAboveBottomNav = true,
 }: SheetProps) {
+    const [mounted, setMounted] = useState(false);
     const reduceMotion = useReducedMotion();
     const shouldMinimize = minimizable && draftActive;
     const isExpanded = isOpen && (!shouldMinimize || !minimized);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleDismiss = useCallback(() => {
         if (shouldMinimize) {
@@ -118,7 +124,7 @@ export function Sheet({
 
     const headerDismiss = handleDismiss;
 
-    return (
+    const sheetTree = (
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -270,4 +276,8 @@ export function Sheet({
             )}
         </AnimatePresence>
     );
+
+    if (!mounted) return null;
+
+    return createPortal(sheetTree, document.body);
 }

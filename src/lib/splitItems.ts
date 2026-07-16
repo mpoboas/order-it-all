@@ -45,6 +45,7 @@ export function cloneSplitItem(item: SplitItem): SplitItem {
     ...item,
     participants: [...item.participants],
     locked: item.locked === true,
+    allocations: item.allocations ? { ...item.allocations } : undefined,
   };
 }
 

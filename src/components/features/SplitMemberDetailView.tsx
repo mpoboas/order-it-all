@@ -3,14 +3,18 @@
 import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { SplitParticipantItemsView } from '@/components/features/SplitParticipantItemsView';
+import { SplitMemberItemAllocationSheet } from '@/components/features/SplitMemberItemAllocationSheet';
+import { useGroup } from '@/context/GroupContext';
+import { getAllowedMemberModes, getSplitItemMode } from '@/lib/splitItemAllocation';
 import {
   findSuggestedParticipant,
+  getParticipantAvatarUrl,
   toggleItemParticipant,
 } from '@/lib/splitShare';
 import { reconcileSplitItems } from '@/lib/splitItems';
 import { canMembersEditSplit } from '@/lib/splitStatus';
 import { splitsApi } from '@/lib/pocketbase';
-import type { Split, User } from '@/lib/types';
+import type { Split, SplitItem, User } from '@/lib/types';
 import { useToast } from '@/context/ToastContext';
 
 interface SplitMemberDetailViewProps {
@@ -27,7 +31,16 @@ export function SplitMemberDetailView({
   onSplitUpdate,
 }: SplitMemberDetailViewProps) {
   const { showToast } = useToast();
+  const { currentGroup } = useGroup();
   const [togglingIdx, setTogglingIdx] = useState<number | null>(null);
+  const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(
+    null
+  );
+
+  const participantAvatar = useMemo(
+    () => (name: string) => getParticipantAvatarUrl(name, currentGroup),
+    [currentGroup]
+  );
 
   const myName = useMemo(
     () => findSuggestedParticipant(split.participants, user),
@@ -60,6 +73,10 @@ export function SplitMemberDetailView({
       showToast('Esta divisão está fechada', 'error');
       return;
     }
+    if (getSplitItemMode(split.items[itemIndex]) !== 'equal') {
+      setAllocationSheetIdx(itemIndex);
+      return;
+    }
     const result = toggleItemParticipant(
       split.items,
       itemIndex,
@@ -73,6 +90,14 @@ export function SplitMemberDetailView({
       return;
     }
     await saveItems(result.items, split, itemIndex);
+  };
+
+  const handleConfirmAllocation = async (updatedItem: SplitItem) => {
+    if (!myName || allocationSheetIdx === null) return;
+    const items = split.items.map((item, index) =>
+      index === allocationSheetIdx ? updatedItem : item
+    );
+    await saveItems(items, split, allocationSheetIdx);
   };
 
   if (!myName) {
@@ -130,11 +155,30 @@ export function SplitMemberDetailView({
           participantName={myName}
           togglingIdx={togglingIdx}
           onToggle={handleToggle}
+          onOpenAllocationSheet={setAllocationSheetIdx}
           readOnly={!membersCanEdit}
           showFooter
           footerOffset="safe"
+          participantAvatarUrl={participantAvatar}
         />
       </main>
+
+      <SplitMemberItemAllocationSheet
+        isOpen={allocationSheetIdx !== null}
+        onClose={() => setAllocationSheetIdx(null)}
+        itemIndex={allocationSheetIdx}
+        item={
+          allocationSheetIdx !== null
+            ? (split.items[allocationSheetIdx] ?? null)
+            : null
+        }
+        allParticipants={split.participants}
+        myName={myName}
+        group={currentGroup}
+        readOnly={!membersCanEdit}
+        allowedModes={getAllowedMemberModes(split)}
+        onConfirm={(item) => void handleConfirmAllocation(item)}
+      />
     </div>
   );
 }

@@ -13,10 +13,13 @@ import {
   type PublicSplitPayload,
 } from '@/lib/splitShare';
 import { canMembersEditSplit, normalizeSplitStatus } from '@/lib/splitStatus';
-import { formatCurrency, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { SplitParticipantItemsView } from '@/components/features/SplitParticipantItemsView';
+import { SplitMemberItemAllocationSheet } from '@/components/features/SplitMemberItemAllocationSheet';
+import { getAllowedMemberModes, getSplitItemMode } from '@/lib/splitItemAllocation';
+import type { SplitItem, SplitItemMode } from '@/lib/types';
 
 const POLL_MS = 4000;
 
@@ -52,6 +55,50 @@ async function patchParticipantToggle(
   return res.json();
 }
 
+async function patchMemberAllocation(
+  shareCode: string,
+  participantName: string,
+  itemIndex: number,
+  updatedItem: SplitItem
+): Promise<PublicSplitPayload> {
+  const mode = getSplitItemMode(updatedItem);
+  const equalParticipating = updatedItem.participants.includes(participantName);
+  const myValue = updatedItem.allocations?.[participantName] ?? 0;
+  // Exact-amount and share-count splits let a member set everyone's value,
+  // so send the full map.
+  const allocations =
+    mode === 'unequal' || mode === 'shares'
+      ? updatedItem.allocations ?? {}
+      : undefined;
+  // Equal splits let a member toggle anyone's participation, so send the
+  // full desired participant list rather than just the caller's own flag.
+  const participants = mode === 'equal' ? updatedItem.participants : undefined;
+
+  const res = await fetch(
+    `/api/splits/share/${encodeURIComponent(shareCode)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        participantName,
+        itemIndex,
+        memberAllocation: {
+          mode: mode as SplitItemMode,
+          equalParticipating,
+          myValue,
+          allocations,
+          participants,
+        },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'patch_failed');
+  }
+  return res.json();
+}
+
 export default function PublicSplitPage() {
   const params = useParams();
   const shareCode = params.shareCode as string;
@@ -64,6 +111,9 @@ export default function PublicSplitPage() {
   const [step, setStep] = useState<Step>('identity');
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [togglingIdx, setTogglingIdx] = useState<number | null>(null);
+  const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(
+    null
+  );
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -144,6 +194,10 @@ export default function PublicSplitPage() {
       showToast('Esta divisão está fechada', 'error');
       return;
     }
+    if (getSplitItemMode(split.items[itemIndex]) !== 'equal') {
+      setAllocationSheetIdx(itemIndex);
+      return;
+    }
     const item = split.items[itemIndex];
     if (!include && item?.locked) {
       showToast('Este item está bloqueado — não podes remover-te', 'error');
@@ -173,6 +227,37 @@ export default function PublicSplitPage() {
         selectedName,
         itemIndex,
         include
+      );
+      setSplit(updated);
+    } catch (err) {
+      setSplit(prev);
+      const message = err instanceof Error ? err.message : '';
+      if (
+        message.includes('fechada') ||
+        message.includes('Fechada') ||
+        message.includes('alterar')
+      ) {
+        showToast('Esta divisão está fechada', 'error');
+      } else if (message.includes('bloqueado') || message.includes('locked')) {
+        showToast('Este item está bloqueado — não podes remover-te', 'error');
+      } else {
+        showToast('Erro ao guardar', 'error');
+      }
+    } finally {
+      setTogglingIdx(null);
+    }
+  };
+
+  const handleConfirmAllocation = async (updatedItem: SplitItem) => {
+    if (!split || !selectedName || allocationSheetIdx === null) return;
+    setTogglingIdx(allocationSheetIdx);
+    const prev = split;
+    try {
+      const updated = await patchMemberAllocation(
+        shareCode,
+        selectedName,
+        allocationSheetIdx,
+        updatedItem
       );
       setSplit(updated);
     } catch (err) {
@@ -371,11 +456,31 @@ export default function PublicSplitPage() {
             participantName={selectedName}
             togglingIdx={togglingIdx}
             onToggle={handleToggle}
+            onOpenAllocationSheet={setAllocationSheetIdx}
             readOnly={!canMembersEditSplit(split)}
             footerOffset="safe"
           />
         )}
       </main>
+
+      {selectedName && (
+        <SplitMemberItemAllocationSheet
+          isOpen={allocationSheetIdx !== null}
+          onClose={() => setAllocationSheetIdx(null)}
+          itemIndex={allocationSheetIdx}
+          item={
+            allocationSheetIdx !== null
+              ? (split.items[allocationSheetIdx] ?? null)
+              : null
+          }
+          allParticipants={split.participants}
+          myName={selectedName}
+          group={null}
+          readOnly={!canMembersEditSplit(split)}
+          allowedModes={getAllowedMemberModes(split)}
+          onConfirm={(item) => void handleConfirmAllocation(item)}
+        />
+      )}
     </div>
   );
 }

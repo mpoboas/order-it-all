@@ -116,6 +116,8 @@ export interface Split {
   items: SplitItem[];
   share_code?: string;
   share_active?: boolean;
+  /** Which split-item modes members are allowed to pick. Empty/undefined = all allowed. */
+  allowed_modes?: SplitItemMode[];
   splitwise_participant_map?: Record<string, number>;
   splitwise_exported_at?: string;
   splitwise_expense_id?: number;
@@ -128,12 +130,18 @@ export interface Split {
   updated: string;
 }
 
+export type SplitItemMode = 'equal' | 'unequal' | 'percentage' | 'shares';
+
 export interface SplitItem {
   name: string;
   price: number;
   participants: string[];
   /** When true, non-admins cannot remove themselves from this item. */
   locked?: boolean;
+  /** How this item is split among participants. Defaults to equal. */
+  split_mode?: SplitItemMode;
+  /** Per-participant values: euros (unequal), percent (percentage), or shares (shares). */
+  allocations?: Record<string, number>;
 }
 
 // Form types

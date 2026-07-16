@@ -1,20 +1,40 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { splitsApi, subscriptions } from '@/lib/pocketbase';
-import type { Split } from '@/lib/types';
+import type { Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
 const SplitShareSheet = dynamic(
     () => import('@/components/features/SplitShareSheet').then((m) => m.SplitShareSheet),
     { ssr: false }
 );
+const SplitAllowedModesSheet = dynamic(
+    () => import('@/components/features/SplitAllowedModesSheet').then((m) => m.SplitAllowedModesSheet),
+    { ssr: false }
+);
 import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
-import { calculateSplitTotals } from '@/lib/splitShare';
+import { SplitParticipantNameInput } from '@/components/features/SplitParticipantNameInput';
+import { SplitItemAllocationSheet } from '@/components/features/SplitItemAllocationSheet';
+import {
+    computeParticipantAmount,
+    getActiveParticipants,
+    getItemModeShortLabel,
+    getSplitItemMode,
+    removeParticipantFromItem,
+    renameParticipantInItem,
+} from '@/lib/splitItemAllocation';
+import {
+    calculateSplitTotals,
+    getParticipantAvatarUrl,
+    getStoredParticipantsExpanded,
+    listGroupMembersNotInParticipants,
+    setStoredParticipantsExpanded,
+} from '@/lib/splitShare';
 import {
     cloneSplitItems,
     getRemoveItemConfirmMessage,
@@ -83,10 +103,12 @@ export default function GroupSplitDetailPage() {
     const splitId = params.splitId as string;
     const router = useRouter();
     const { user, isLoggedIn } = useUser();
-    const { isAdmin } = useGroup();
+    const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
     const shareRef = useRef<HTMLDivElement>(null);
+    const participantInputDesktopRef = useRef<HTMLInputElement>(null);
+    const participantInputMobileRef = useRef<HTMLInputElement>(null);
 
     const [split, setSplit] = useState<Split | null>(null);
     const [loading, setLoading] = useState(true);
@@ -99,12 +121,36 @@ export default function GroupSplitDetailPage() {
     const [totalsExpanded, setTotalsExpanded] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [showInviteSheet, setShowInviteSheet] = useState(false);
+    const [showAllowedModesSheet, setShowAllowedModesSheet] = useState(false);
     const [showSplitwiseExport, setShowSplitwiseExport] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(null);
+
+    const participantAvatar = useCallback(
+        (name: string) => getParticipantAvatarUrl(name, currentGroup),
+        [currentGroup]
+    );
+
+    const groupMembersToAdd = useMemo(
+        () => listGroupMembersNotInParticipants(currentGroup, split?.participants ?? []),
+        [currentGroup, split?.participants]
+    );
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
+
+    useEffect(() => {
+        setParticipantsExpanded(getStoredParticipantsExpanded(true));
+    }, []);
+
+    const toggleParticipantsExpanded = () => {
+        setParticipantsExpanded((prev) => {
+            const next = !prev;
+            setStoredParticipantsExpanded(next);
+            return next;
+        });
+    };
 
     const loadSplit = useCallback(async () => {
         try {
@@ -149,24 +195,34 @@ export default function GroupSplitDetailPage() {
         }
     };
 
-    const addParticipant = async () => {
-        if (!split || !newParticipant.trim()) return;
-        if (split.participants.includes(newParticipant.trim())) {
+    const addParticipantByName = async (name: string) => {
+        if (!split) return;
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        if (split.participants.includes(trimmed)) {
             showToast('Já existe', 'error');
             return;
         }
-        await saveSplit({ participants: [...split.participants, newParticipant.trim()] });
+        await saveSplit({ participants: [...split.participants, trimmed] });
         setNewParticipant('');
+    };
+
+    const focusParticipantInput = () => {
+        const el =
+            typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+                ? participantInputDesktopRef.current
+                : participantInputMobileRef.current;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        el?.focus();
     };
 
     const removeParticipant = async (name: string) => {
         if (!split || split.participants.length <= 1) return;
         if (!confirm(`Remover ${name}?`)) return;
 
-        const updatedItems = split.items.map(item => ({
-            ...item,
-            participants: item.participants.filter(p => p !== name),
-        }));
+        const updatedItems = split.items.map((item) =>
+            removeParticipantFromItem(item, name)
+        );
 
         await saveSplit({
             participants: split.participants.filter(p => p !== name),
@@ -181,10 +237,9 @@ export default function GroupSplitDetailPage() {
             return;
         }
         const updatedParticipants = split.participants.map(p => p === oldName ? newName.trim() : p);
-        const updatedItems = split.items.map(item => ({
-            ...item,
-            participants: item.participants.map(p => p === oldName ? newName.trim() : p),
-        }));
+        const updatedItems = split.items.map((item) =>
+            renameParticipantInItem(item, oldName, newName.trim())
+        );
         await saveSplit({ participants: updatedParticipants, items: updatedItems });
     };
 
@@ -212,21 +267,46 @@ export default function GroupSplitDetailPage() {
         const item = items[itemIdx];
         if (!item) return;
 
+        if (getSplitItemMode(item) !== 'equal') {
+            setAllocationSheetIdx(itemIdx);
+            return;
+        }
+
         if (item.participants.includes(participant)) {
             item.participants = item.participants.filter(p => p !== participant);
         } else {
             item.participants = [...item.participants, participant];
         }
-        items[itemIdx] = reconcileItemLock(item, split.participants);
+        items[itemIdx] = reconcileItemLock(
+            { ...item, split_mode: 'equal', allocations: undefined },
+            split.participants
+        );
 
         await saveSplit({ items });
+    };
+
+    const handleSaveItemAllocation = async (updatedItem: SplitItem) => {
+        if (!split || allocationSheetIdx === null) return;
+        const items = cloneSplitItems(split.items);
+        items[allocationSheetIdx] = reconcileItemLock(updatedItem, split.participants);
+        await saveSplit({ items });
+        setAllocationSheetIdx(null);
     };
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
         if (!split) return;
         const items = cloneSplitItems(split.items);
-        items[itemIdx].participants = checked ? [...split.participants] : [];
-        items[itemIdx] = reconcileItemLock(items[itemIdx], split.participants);
+        const item = items[itemIdx];
+        if (!item) return;
+        items[itemIdx] = reconcileItemLock(
+            {
+                ...item,
+                participants: checked ? [...split.participants] : [],
+                split_mode: 'equal',
+                allocations: undefined,
+            },
+            split.participants
+        );
         await saveSplit({ items });
     };
 
@@ -332,7 +412,9 @@ export default function GroupSplitDetailPage() {
         );
     }
 
-    if (!isAdmin) {
+    const canManageSplit = isAdmin || split.created_by === user?.id;
+
+    if (!canManageSplit) {
         return (
             <SplitMemberDetailView
                 split={split}
@@ -421,19 +503,32 @@ export default function GroupSplitDetailPage() {
                                 type="button"
                                 onClick={() => setShowInviteSheet(true)}
                                 disabled={splitClosed}
-                                className="btn bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60 px-4 py-2 flex items-center gap-2 disabled:opacity-50"
+                                className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2 disabled:opacity-50"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                 </svg>
                                 Convidar a marcar
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAllowedModesSheet(true)}
+                                className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2"
+                            >
+                                <span className="material-icons text-lg" aria-hidden>
+                                    tune
+                                </span>
+                                Definições
+                            </button>
                             {isAdmin && (
                                 <button
                                     type="button"
                                     onClick={() => setShowSplitwiseExport(true)}
-                                    className="btn bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-900/60 px-4 py-2 flex items-center gap-2"
+                                    className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2"
                                 >
+                                    <span className="material-icons text-lg" aria-hidden>
+                                        cloud_upload
+                                    </span>
                                     Enviar para Splitwise
                                 </button>
                             )}
@@ -444,6 +539,16 @@ export default function GroupSplitDetailPage() {
                                 🗑️ Eliminar
                             </button>
                         </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <SplitParticipantNameInput
+                            value={newParticipant}
+                            onChange={setNewParticipant}
+                            onAdd={(name) => void addParticipantByName(name)}
+                            candidates={groupMembersToAdd}
+                            inputRef={participantInputDesktopRef}
+                        />
                     </div>
 
                     {/* Desktop Table Container */}
@@ -465,7 +570,7 @@ export default function GroupSplitDetailPage() {
                                         {split.participants.map((p, idx) => (
                                             <th key={idx} className="px-3 py-3 text-center font-semibold min-w-[100px] relative group">
                                                 <div className="flex flex-col items-center">
-                                                    <Avatar name={p} size="sm" className="mb-1" />
+                                                    <Avatar name={p} src={participantAvatar(p)} size="sm" className="mb-1" />
                                                     <EditableInput
                                                         type="text"
                                                         value={p}
@@ -480,14 +585,12 @@ export default function GroupSplitDetailPage() {
                                             </th>
                                         ))}
                                         <th className="px-3 py-3 text-center min-w-[80px]">
-                                            <button onClick={() => {
-                                                const name = prompt('Nome do participante:');
-                                                if (name) {
-                                                    if (!split.participants.includes(name.trim())) {
-                                                        saveSplit({ participants: [...split.participants, name.trim()] });
-                                                    }
-                                                }
-                                            }} className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors">
+                                            <button
+                                                type="button"
+                                                onClick={focusParticipantInput}
+                                                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors"
+                                                title="Adicionar participante"
+                                            >
                                                 <span className="text-lg">+</span>
                                             </button>
                                         </th>
@@ -503,8 +606,16 @@ export default function GroupSplitDetailPage() {
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border)]">
                                     {split.items.map((item, idx) => {
-                                        const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
-                                        const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                                        const itemMode = getSplitItemMode(item);
+                                        const activeParticipants = getActiveParticipants(item);
+                                        const perPerson =
+                                            itemMode === 'equal' && activeParticipants.length > 0
+                                                ? item.price / activeParticipants.length
+                                                : 0;
+                                        const allSelected =
+                                            itemMode === 'equal' &&
+                                            item.participants.length === split.participants.length &&
+                                            split.participants.length > 0;
                                         const locked = isItemLocked(item);
                                         return (
                                             <tr key={idx} className="hover:bg-[var(--bg-tertiary)] transition-colors">
@@ -516,6 +627,13 @@ export default function GroupSplitDetailPage() {
                                                         placeholder="Nome do item"
                                                         className="w-full px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-violet-500 rounded-lg bg-transparent focus:bg-white transition-all"
                                                     />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAllocationSheetIdx(idx)}
+                                                        className="mt-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                                                    >
+                                                        {getItemModeShortLabel(item)}
+                                                    </button>
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
                                                     <div className="flex items-center justify-end gap-1">
@@ -541,12 +659,24 @@ export default function GroupSplitDetailPage() {
                                                 </td>
                                                 {split.participants.map(p => (
                                                     <td key={p} className="px-3 py-3 text-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={item.participants.includes(p)}
-                                                            onChange={() => toggleParticipant(idx, p)}
-                                                            className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
-                                                        />
+                                                        {itemMode === 'equal' ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={item.participants.includes(p)}
+                                                                onChange={() => toggleParticipant(idx, p)}
+                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                                            />
+                                                        ) : activeParticipants.includes(p) ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setAllocationSheetIdx(idx)}
+                                                                className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                                                            >
+                                                                {formatCurrency(computeParticipantAmount(item, p))}
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[var(--text-muted)]">—</span>
+                                                        )}
                                                     </td>
                                                 ))}
                                                 <td className="px-3 py-3 text-center">
@@ -558,7 +688,9 @@ export default function GroupSplitDetailPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-violet-600">
-                                                    {formatCurrency(perPerson)}
+                                                    {itemMode === 'equal'
+                                                        ? formatCurrency(perPerson)
+                                                        : getItemModeShortLabel(item)}
                                                 </td>
                                             </tr>
                                         );
@@ -595,11 +727,11 @@ export default function GroupSplitDetailPage() {
             {/* Mobile Layout */}
             <main className="lg:hidden container mx-auto px-4 py-4 max-w-2xl">
                 {/* Participantes */}
-                <section className="card overflow-hidden">
+                <section className="card">
                     <div className="flex items-center gap-2 p-3 border-b border-[var(--border)]">
                         <button
                             type="button"
-                            onClick={() => setParticipantsExpanded(!participantsExpanded)}
+                            onClick={toggleParticipantsExpanded}
                             className="flex-1 flex items-center justify-between min-w-0"
                         >
                             <div className="flex items-center gap-2 min-w-0">
@@ -630,7 +762,7 @@ export default function GroupSplitDetailPage() {
                                         title={p}
                                         className="inline-flex max-w-full items-center gap-1.5 bg-[var(--bg-tertiary)] rounded-full pl-1 pr-1 py-1 text-sm"
                                     >
-                                        <Avatar name={p} size="xs" className="shrink-0" />
+                                        <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
                                         <span className="font-medium text-[var(--text-primary)] break-words leading-tight max-w-[9.5rem]">
                                             {p}
                                         </span>
@@ -645,25 +777,13 @@ export default function GroupSplitDetailPage() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <input
-                                    type="text"
-                                    value={newParticipant}
-                                    onChange={e => setNewParticipant(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && addParticipant()}
-                                    placeholder="Novo nome"
-                                    className="flex-1 min-w-0 h-10 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={addParticipant}
-                                    disabled={!newParticipant.trim()}
-                                    className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-violet-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition-all"
-                                    aria-label="Adicionar participante"
-                                >
-                                    +
-                                </button>
-                            </div>
+                            <SplitParticipantNameInput
+                                value={newParticipant}
+                                onChange={setNewParticipant}
+                                onAdd={(name) => void addParticipantByName(name)}
+                                candidates={groupMembersToAdd}
+                                inputRef={participantInputMobileRef}
+                            />
                         </div>
                     )}
                 </section>
@@ -674,14 +794,7 @@ export default function GroupSplitDetailPage() {
                         <span className="font-semibold text-[var(--text-primary)]">Itens</span>
                         <span className="text-sm text-[var(--text-muted)]">{split.items.length}</span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => setShowSplitwiseExport(true)}
-                            className="text-xs font-semibold text-teal-700 dark:text-teal-400 px-2.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/30"
-                        >
-                            Splitwise
-                        </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <button
                             type="button"
                             onClick={() => setSplitStatus(!splitClosed)}
@@ -698,20 +811,50 @@ export default function GroupSplitDetailPage() {
                             type="button"
                             onClick={() => setShowInviteSheet(true)}
                             disabled={splitClosed}
-                            className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 disabled:opacity-50"
+                            title="Convidar a marcar"
+                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] disabled:opacity-50"
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                             </svg>
-                            Convidar
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowAllowedModesSheet(true)}
+                            title="Definições"
+                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+                        >
+                            <span className="material-icons text-[18px]" aria-hidden>
+                                tune
+                            </span>
+                        </button>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setShowSplitwiseExport(true)}
+                                title="Enviar para Splitwise"
+                                className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+                            >
+                                <span className="material-icons text-[18px]" aria-hidden>
+                                    cloud_upload
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 <div className="space-y-3">
                     {split.items.map((item, idx) => {
-                        const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
-                        const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                        const itemMode = getSplitItemMode(item);
+                        const activeParticipants = getActiveParticipants(item);
+                        const perPerson =
+                            itemMode === 'equal' && activeParticipants.length > 0
+                                ? item.price / activeParticipants.length
+                                : 0;
+                        const allSelected =
+                            itemMode === 'equal' &&
+                            item.participants.length === split.participants.length &&
+                            split.participants.length > 0;
                         const locked = isItemLocked(item);
                         return (
                             <div key={idx} className="card p-3 space-y-3 shadow-sm border border-[var(--border)]">
@@ -761,41 +904,72 @@ export default function GroupSplitDetailPage() {
                                                     lock
                                                 </span>
                                             )}
+                                            {itemMode === 'equal' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleAllParticipants(idx, !allSelected)}
+                                                    className="text-[10px] font-bold text-violet-600 hover:underline bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md"
+                                                >
+                                                    {allSelected ? 'Ninguém' : 'Todos'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {itemMode === 'equal' && activeParticipants.length > 0 && (
+                                                <div className="text-right flex items-center gap-1.5">
+                                                    <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{formatCurrency(perPerson)}</span>
+                                                    <span className="text-[10px] font-medium text-[var(--text-muted)]">/pessoa</span>
+                                                </div>
+                                            )}
                                             <button
-                                                onClick={() => toggleAllParticipants(idx, !allSelected)}
-                                                className="text-[10px] font-bold text-violet-600 hover:underline bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md"
+                                                type="button"
+                                                onClick={() => setAllocationSheetIdx(idx)}
+                                                className="text-xs font-semibold text-violet-600 dark:text-violet-400 px-2.5 py-1 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30"
                                             >
-                                                {allSelected ? 'Ninguém' : 'Todos'}
+                                                {getItemModeShortLabel(item)}
                                             </button>
                                         </div>
-                                        {item.participants.length > 0 && (
-                                            <div className="text-right flex items-center gap-1.5">
-                                                <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{formatCurrency(perPerson)}</span>
-                                                <span className="text-[10px] font-medium text-[var(--text-muted)]">/pessoa</span>
-                                            </div>
-                                        )}
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
-                                        {split.participants.map(p => {
-                                            const isSelected = item.participants.includes(p);
-                                            return (
-                                                <button
+                                    {itemMode === 'equal' ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {split.participants.map(p => {
+                                                const isSelected = item.participants.includes(p);
+                                                return (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        onClick={() => toggleParticipant(idx, p)}
+                                                        className={cn(
+                                                            'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border shadow-sm',
+                                                            isSelected
+                                                                ? 'bg-violet-500 border-violet-500 text-white shadow-violet-500/20'
+                                                                : 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                                                        )}
+                                                    >
+                                                        {isSelected && <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                        <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
+                                                        {p}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {activeParticipants.map(p => (
+                                                <div
                                                     key={p}
-                                                    onClick={() => toggleParticipant(idx, p)}
-                                                    className={cn(
-                                                        'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border shadow-sm',
-                                                        isSelected
-                                                            ? 'bg-violet-500 border-violet-500 text-white shadow-violet-500/20'
-                                                            : 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
-                                                    )}
+                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-[var(--border)] bg-[var(--bg-primary)]"
                                                 >
-                                                    {isSelected && <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                                    {p}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                                    <Avatar name={p} src={participantAvatar(p)} size="xs" />
+                                                    <span className="text-[var(--text-primary)]">{p}</span>
+                                                    <span className="font-bold text-violet-600 dark:text-violet-400">
+                                                        {formatCurrency(computeParticipantAmount(item, p))}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -899,20 +1073,21 @@ export default function GroupSplitDetailPage() {
                                             {split.participants.map((p, idx) => (
                                                 <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[100px]">
                                                     <div className="flex flex-col items-center">
-                                                        <Avatar name={p} size="sm" className="mb-1" />
+                                                        <Avatar name={p} src={participantAvatar(p)} size="sm" className="mb-1" />
                                                         <span className="text-xs font-medium truncate max-w-[90px]">{p}</span>
                                                     </div>
                                                 </th>
                                             ))}
                                             <th className="px-2 py-2 text-center min-w-[60px]">
-                                                <button onClick={() => {
-                                                    const name = prompt('Nome do participante:');
-                                                    if (name) {
-                                                        if (!split.participants.includes(name.trim())) {
-                                                            saveSplit({ participants: [...split.participants, name.trim()] });
-                                                        }
-                                                    }
-                                                }} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsFullscreen(false);
+                                                        window.setTimeout(() => focusParticipantInput(), 150);
+                                                    }}
+                                                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center mx-auto transition-colors"
+                                                    title="Adicionar participante"
+                                                >
                                                     <span className="text-lg">+</span>
                                                 </button>
                                             </th>
@@ -921,8 +1096,16 @@ export default function GroupSplitDetailPage() {
                                     </thead>
                                     <tbody className="divide-y divide-[var(--border)] bg-white dark:bg-slate-900">
                                         {split.items.map((item, idx) => {
-                                            const perPerson = item.participants.length > 0 ? item.price / item.participants.length : 0;
-                                            const allSelected = item.participants.length === split.participants.length && split.participants.length > 0;
+                                            const itemMode = getSplitItemMode(item);
+                                            const activeParticipants = getActiveParticipants(item);
+                                            const perPerson =
+                                                itemMode === 'equal' && activeParticipants.length > 0
+                                                    ? item.price / activeParticipants.length
+                                                    : 0;
+                                            const allSelected =
+                                                itemMode === 'equal' &&
+                                                item.participants.length === split.participants.length &&
+                                                split.participants.length > 0;
                                             const locked = isItemLocked(item);
                                             return (
                                                 <tr key={idx} className="hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
@@ -934,6 +1117,16 @@ export default function GroupSplitDetailPage() {
                                                             placeholder="Nome do item"
                                                             className="w-full px-2 py-1 border border-transparent hover:border-violet-200 focus:border-violet-500 rounded bg-transparent focus:bg-white dark:focus:bg-slate-800 font-medium"
                                                         />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setIsFullscreen(false);
+                                                                setAllocationSheetIdx(idx);
+                                                            }}
+                                                            className="mt-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                                                        >
+                                                            {getItemModeShortLabel(item)}
+                                                        </button>
                                                     </td>
                                                     <td className="px-3 py-2 text-right">
                                                         <div className="flex items-center justify-end gap-1">
@@ -959,12 +1152,27 @@ export default function GroupSplitDetailPage() {
                                                     </td>
                                                     {split.participants.map(p => (
                                                         <td key={p} className="px-2 py-2 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={item.participants.includes(p)}
-                                                                onChange={() => toggleParticipant(idx, p)}
-                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
-                                                            />
+                                                            {itemMode === 'equal' ? (
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={item.participants.includes(p)}
+                                                                    onChange={() => toggleParticipant(idx, p)}
+                                                                    className="w-5 h-5 rounded border-2 border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                                                />
+                                                            ) : activeParticipants.includes(p) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setIsFullscreen(false);
+                                                                        setAllocationSheetIdx(idx);
+                                                                    }}
+                                                                    className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                                                                >
+                                                                    {formatCurrency(computeParticipantAmount(item, p))}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[var(--text-muted)]">—</span>
+                                                            )}
                                                         </td>
                                                     ))}
                                                     <td className="px-2 py-2 text-center">
@@ -976,7 +1184,9 @@ export default function GroupSplitDetailPage() {
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-bold text-violet-600 text-base">
-                                                        {formatCurrency(perPerson)}
+                                                        {itemMode === 'equal'
+                                                            ? formatCurrency(perPerson)
+                                                            : getItemModeShortLabel(item)}
                                                     </td>
                                                 </tr>
                                             );
@@ -1010,9 +1220,26 @@ export default function GroupSplitDetailPage() {
                 </div>
             )}
 
+            <SplitItemAllocationSheet
+                isOpen={allocationSheetIdx !== null}
+                onClose={() => setAllocationSheetIdx(null)}
+                itemIndex={allocationSheetIdx}
+                item={allocationSheetIdx !== null ? split.items[allocationSheetIdx] ?? null : null}
+                allParticipants={split.participants}
+                group={currentGroup}
+                onSave={(item) => void handleSaveItemAllocation(item)}
+            />
+
             <SplitShareSheet
                 isOpen={showInviteSheet}
                 onClose={() => setShowInviteSheet(false)}
+                split={split}
+                onSplitUpdate={setSplit}
+            />
+
+            <SplitAllowedModesSheet
+                isOpen={showAllowedModesSheet}
+                onClose={() => setShowAllowedModesSheet(false)}
                 split={split}
                 onSplitUpdate={setSplit}
             />
