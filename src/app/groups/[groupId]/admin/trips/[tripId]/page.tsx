@@ -6,7 +6,7 @@ import { useToast } from '@/context/ToastContext';
 import { tripsApi, ordersApi, itemsApi, groupsApi, subscriptions } from '@/lib/pocketbase';
 import { useUser } from '@/context/UserContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
-import { getInitials, formatCurrency, getProductEmoji, cn, getRelativeTime } from '@/lib/utils';
+import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
 import {
     getOtherParticipants,
     deriveOrderUserName,
@@ -28,10 +28,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormSheet';
-import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
+import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
-import { RemoteImage } from '@/components/ui/RemoteImage';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -106,6 +105,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const { user, updateProfile } = useUser();
 
     const [showScanSheet, setShowScanSheet] = useState(false);
+    const [compactView, setCompactView] = useState(false);
 
     // Modals
     const [showEditItemModal, setShowEditItemModal] = useState(false);
@@ -376,10 +376,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         }
     };
 
-    const handleSaveOrderParticipants = async (participantIds: string[]) => {
+    const handleSaveOrderParticipants = async (participantIds: string[], creatorUserId?: string) => {
         if (!participantsSheetOrder) return;
 
-        const perspectiveId = user?.id || participantsSheetOrder.creatorUserId || participantIds[0] || '';
+        const perspectiveId = creatorUserId || participantsSheetOrder.creatorUserId || participantIds[0] || '';
         const audienceType = inferAudienceType(participantIds, members, perspectiveId);
         const userName = deriveOrderUserName(participantIds, members, audienceType);
 
@@ -389,11 +389,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 participants: participantIds,
                 user_name: userName,
             };
-            if (!participantsSheetOrder.creatorUserId && user?.id) {
+            if (creatorUserId && creatorUserId !== participantsSheetOrder.creatorUserId) {
+                updatePayload.user = creatorUserId;
+            } else if (!participantsSheetOrder.creatorUserId && !creatorUserId && user?.id) {
                 updatePayload.user = user.id;
             }
             await ordersApi.update(participantsSheetOrder.orderId, updatePayload);
-            showToast('Participantes atualizados', 'success');
+            showToast('Pedido atualizado', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
             loadShoppingItems();
@@ -679,12 +681,27 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     </div>
                     <div className="flex gap-2">
                         <Button
+                            onClick={() => setCompactView(v => !v)}
+                            variant="secondary"
+                            className={cn(
+                                "!h-10 !w-10 !p-0 rounded-full flex items-center justify-center shadow-sm transition-colors",
+                                compactView
+                                    ? "bg-violet-600 text-white hover:bg-violet-700"
+                                    : "bg-white dark:bg-slate-800 border border-[var(--border)] text-[var(--text-muted)] hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700"
+                            )}
+                            title={compactView ? "Ver detalhado" : "Ver resumo"}
+                        >
+                            <span className="material-icons text-xl">{compactView ? 'view_agenda' : 'checklist'}</span>
+                        </Button>
+                        <Button
                             onClick={() => setShowScanSheet(true)}
                             variant="secondary"
-                            className="h-10 w-10 p-0 rounded-full flex items-center justify-center bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-colors"
+                            className="!h-10 !w-10 !p-0 rounded-full flex items-center justify-center bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-colors"
                             title="Scan da fatura (Gemini)"
                         >
-                            <span className="material-icons text-xl">receipt_long</span>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11H15M9 7H13M9 15H15M5 6.2V21L7.5 19L10 21L12 19L14 21L16.5 19L19 21V6.2C19 5.0799 19 4.51984 18.782 4.09202C18.5903 3.71569 18.2843 3.40973 17.908 3.21799C17.4802 3 16.9201 3 15.8 3H8.2C7.0799 3 6.51984 3 6.09202 3.21799C5.71569 3.40973 5.40973 3.71569 5.21799 4.09202C5 4.51984 5 5.0799 5 6.2Z" />
+                            </svg>
                         </Button>
                         <Button
                             onClick={openNewOrder}
@@ -692,12 +709,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         >
                             + Novo Pedido
                         </Button>
-                        <button
-                            onClick={() => loadShoppingItems()}
-                            className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700 transition-all shadow-sm"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        </button>
                     </div>
                 </div>
 
@@ -784,138 +795,77 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                 </div>
                                             )}
                                             {/* Order header */}
-                                            <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <Avatar
-                                                        name={orderCard.creatorName}
-                                                        src={orderCard.creatorAvatar}
-                                                        size="md"
-                                                    />
-                                                    <div className="min-w-0">
-                                                        <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
-                                                            Pedido {orderNumber}
-                                                        </h3>
-                                                        <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                            Por {orderCard.creatorName} • {filteredItems.length}{' '}
-                                                            {filteredItems.length === 1 ? 'item' : 'itens'}
-                                                            {statusFilter !== 'all' && ' visíveis'} •{' '}
-                                                            {getRelativeTime(orderCard.orderCreated)}
-                                                        </p>
-                                                        <OrderParticipantsRow
-                                                            participantIds={orderCard.participantIds}
-                                                            members={members}
-                                                            perspectiveUserId={
-                                                                orderCard.creatorUserId ||
-                                                                orderCard.participantIds[0] ||
-                                                                ''
-                                                            }
-                                                            currentUserId={user?.id || ''}
-                                                            expandedParticipants={orderCard.participantUsers}
-                                                            namedPerspective
-                                                            alwaysClickable
-                                                            onClick={() =>
-                                                                openParticipantsSheet(orderCard.orderId)
-                                                            }
+                                            {compactView ? (
+                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <Avatar
+                                                            name={orderCard.creatorName}
+                                                            src={orderCard.creatorAvatar}
+                                                            size="sm"
                                                         />
+                                                        <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                                            Por {orderCard.creatorName}
+                                                        </p>
                                                     </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                                    <p className="text-sm font-black text-[var(--text-primary)]">
+                                                    <p className="text-sm font-black text-[var(--text-primary)] shrink-0">
                                                         {formatCurrency(filteredItems.reduce((acc, item) => acc + (item.price || 0), 0))}
                                                     </p>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <Avatar
+                                                            name={orderCard.creatorName}
+                                                            src={orderCard.creatorAvatar}
+                                                            size="md"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                                Pedido {orderNumber}
+                                                            </h3>
+                                                            <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                                Por {orderCard.creatorName} • {filteredItems.length}{' '}
+                                                                {filteredItems.length === 1 ? 'item' : 'itens'}
+                                                                {statusFilter !== 'all' && ' visíveis'} •{' '}
+                                                                {getRelativeTime(orderCard.orderCreated)}
+                                                            </p>
+                                                            <OrderParticipantsRow
+                                                                participantIds={orderCard.participantIds}
+                                                                members={members}
+                                                                perspectiveUserId={
+                                                                    orderCard.creatorUserId ||
+                                                                    orderCard.participantIds[0] ||
+                                                                    ''
+                                                                }
+                                                                currentUserId={user?.id || ''}
+                                                                expandedParticipants={orderCard.participantUsers}
+                                                                namedPerspective
+                                                                alwaysClickable
+                                                                onClick={() =>
+                                                                    openParticipantsSheet(orderCard.orderId)
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                        <p className="text-sm font-black text-[var(--text-primary)]">
+                                                            {formatCurrency(filteredItems.reduce((acc, item) => acc + (item.price || 0), 0))}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Items List */}
                                             <div className="bg-gray-50 dark:bg-slate-900/30 p-2 gap-2 flex flex-col">
                                                 {filteredItems.map((item) => (
-                                                    <div
+                                                    <AdminShoppingItemCard
                                                         key={item.id}
-                                                        className={cn(
-                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
-                                                            item.found_status === 'found' ? "bg-emerald-50/30 dark:bg-emerald-900/10" :
-                                                                item.found_status === 'not_available' ? "bg-red-50/30 dark:bg-red-900/10" : "bg-white dark:bg-slate-800"
-                                                        )}
-                                                    >
-                                                        <div className="flex gap-4 items-start p-4 pb-4">
-                                                            {/* Image Placeholder or Icon */}
-                                                            <div
-                                                                onClick={() => openEditItemModal(item)}
-                                                                className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 cursor-pointer overflow-hidden border border-gray-100 dark:border-slate-700", item.image_url ? "bg-white" : "bg-[var(--bg-primary)]")}
-                                                            >
-                                                                {item.image_url ? (
-                                                                    <RemoteImage
-                                                                        src={item.image_url}
-                                                                        alt={item.name}
-                                                                        width={48}
-                                                                        height={48}
-                                                                        className="w-full h-full object-contain mix-blend-multiply p-1"
-                                                                    />
-                                                                ) : (
-                                                                    <span>{getProductEmoji(item.name)}</span>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={() => openEditItemModal(item)}>
-                                                                <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
-                                                                    <h4 className={cn(
-                                                                        "font-bold text-[var(--text-primary)] text-base leading-tight",
-                                                                        item.found_status !== 'pending' && "opacity-50"
-                                                                    )}>
-                                                                        {item.name}
-                                                                    </h4>
-                                                                    <div className="text-right flex flex-col items-end">
-                                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                            {item.price > 0 ? formatCurrency(item.price) : formatCurrency(0)}
-                                                                        </span>
-                                                                        {item.price > 0 && item.quantity > 1 && (
-                                                                            <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
-                                                                                p./uni {formatCurrency(item.price / item.quantity)}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-
-                                                                <ShoppingItemMeta quantity={item.quantity} brand={item.brand} />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Notes - Full Width, glued to status bar */}
-                                                        {item.notes && (
-                                                            <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 text-sm py-2 px-4 border-l-4 border-yellow-400 dark:border-yellow-600 flex items-start gap-2 w-full">
-                                                                <span className="font-bold shrink-0">Notas:</span>
-                                                                <span className="italic">{item.notes}</span>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Status Bar / Cycle Button */}
-                                                        <div
-                                                            onClick={(e) => cycleStatus(item, e)}
-                                                            className={cn(
-                                                                "w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none",
-                                                                item.found_status === 'pending' ? "bg-amber-500 text-amber-700 hover:bg-amber-600" :
-                                                                    item.found_status === 'found' ? "bg-emerald-500" : "bg-red-500"
-                                                            )}
-                                                        >
-                                                            {item.found_status === 'pending' ? (
-                                                                <span className="flex items-center gap-1">
-                                                                    <span className="material-icons text-sm">hourglass_empty</span>
-                                                                    Por comprar
-                                                                </span>
-                                                            ) : item.found_status === 'found' ? (
-                                                                <>
-                                                                    <span className="material-icons text-sm">check</span>
-                                                                    Comprado
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="material-icons text-sm">close</span>
-                                                                    Não tinha
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                                        item={item}
+                                                        compact={compactView}
+                                                        onOpenEdit={() => openEditItemModal(item)}
+                                                        onCycleStatus={(e) => cycleStatus(item, e)}
+                                                    />
                                                 ))}
                                             </div>
                                         </div>
@@ -1010,6 +960,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 title="Quem participa?"
                 groupMembers={members}
                 participantIds={participantsSheetOrder?.participantIds ?? []}
+                allowCreatorChange
+                creatorUserId={participantsSheetOrder?.creatorUserId ?? ''}
                 onSave={handleSaveOrderParticipants}
                 submitting={submitting}
                 minimized={participantsSheetSession === 'minimized'}

@@ -170,6 +170,15 @@ body {
   background: var(--primary-400);
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ===== ANIMATIONS ===== */
 @keyframes fadeIn {
   from {

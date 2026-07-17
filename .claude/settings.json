@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kill 13543 13552 13596)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s \"http://localhost:3000/groups/x/admin/trips/y\")",
+      "Bash(npx playwright *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/__icon_test)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/icontestxyz)",
+      "Bash(npm install *)",
+      "Bash(node /private/tmp/claude-501/-Users-povoas-Documents-Repos-order-it-all/b8686a79-8fdf-4e6f-842b-3b7f4ea8f2ce/scratchpad/inspect.js)",
+      "Bash(node /Users/povoas/Documents/Repos/order-it-all/__inspect_tmp.js)"
+    ]
+  }
+}
