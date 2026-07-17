@@ -210,6 +210,18 @@ export function getUserGeminiApiKey(
   return trimmed || undefined;
 }
 
+/** Shared across every Gemini-vision scan feature (trip invoice scan, split invoice scan, ...) */
+export const DAILY_SCAN_LIMIT = 20;
+
+/** How many Gemini scans this user has already used today, across all scan features */
+export function getDailyScanCount(
+  user: { daily_requests_count?: number; last_request_date?: string } | null | undefined
+): number {
+  if (!user) return 0;
+  const today = getPacificDateString();
+  return user.last_request_date === today ? user.daily_requests_count || 0 : 0;
+}
+
 /** Read a File as raw base64 (no data: URL prefix) — safe for Next.js server actions */
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

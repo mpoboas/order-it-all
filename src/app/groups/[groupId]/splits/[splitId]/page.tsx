@@ -16,6 +16,10 @@ const SplitAllowedModesSheet = dynamic(
     () => import('@/components/features/SplitAllowedModesSheet').then((m) => m.SplitAllowedModesSheet),
     { ssr: false }
 );
+const SplitInvoiceScanSheet = dynamic(
+    () => import('@/components/features/SplitInvoiceScanSheet').then((m) => m.SplitInvoiceScanSheet),
+    { ssr: false }
+);
 import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
 import { SplitParticipantNameInput } from '@/components/features/SplitParticipantNameInput';
@@ -102,7 +106,7 @@ export default function GroupSplitDetailPage() {
     const groupId = params.groupId as string;
     const splitId = params.splitId as string;
     const router = useRouter();
-    const { user, isLoggedIn } = useUser();
+    const { user, isLoggedIn, updateProfile } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
@@ -114,14 +118,12 @@ export default function GroupSplitDetailPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [newParticipant, setNewParticipant] = useState('');
-    const [newItemName, setNewItemName] = useState('');
-    const [newItemPrice, setNewItemPrice] = useState('');
-    const [showAddItem, setShowAddItem] = useState(false);
     const [participantsExpanded, setParticipantsExpanded] = useState(true);
     const [totalsExpanded, setTotalsExpanded] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [showInviteSheet, setShowInviteSheet] = useState(false);
     const [showAllowedModesSheet, setShowAllowedModesSheet] = useState(false);
+    const [showScanSheet, setShowScanSheet] = useState(false);
     const [showSplitwiseExport, setShowSplitwiseExport] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(null);
@@ -258,6 +260,11 @@ export default function GroupSplitDetailPage() {
         }
         const newItems = split.items.filter((_, i) => i !== idx);
         await saveSplit({ items: newItems });
+    };
+
+    const handleScanConfirm = async (newItems: SplitItem[]) => {
+        if (!split) return;
+        await saveSplit({ items: [...split.items, ...newItems] });
     };
 
     const toggleParticipant = async (itemIdx: number, participant: string) => {
@@ -698,9 +705,14 @@ export default function GroupSplitDetailPage() {
                                     {/* Add item row */}
                                     <tr className="bg-[var(--bg-tertiary)]">
                                         <td colSpan={5 + split.participants.length} className="px-4 py-3">
-                                            <button onClick={addItem} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
-                                                <span className="text-lg">+</span> Adicionar Item
-                                            </button>
+                                            <div className="flex items-center gap-4">
+                                                <button onClick={addItem} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
+                                                    <span className="text-lg">+</span> Adicionar Item
+                                                </button>
+                                                <button onClick={() => setShowScanSheet(true)} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
+                                                    <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -974,9 +986,14 @@ export default function GroupSplitDetailPage() {
                             </div>
                         );
                     })}
-                    <button onClick={addItem} className="w-full p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition-all flex items-center justify-center gap-2">
-                        + Adicionar Item
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition-all flex items-center justify-center gap-2">
+                            + Adicionar Item
+                        </button>
+                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition-all flex items-center justify-center gap-2">
+                            <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                        </button>
+                    </div>
                 </div>
             </main>
 
@@ -1193,9 +1210,14 @@ export default function GroupSplitDetailPage() {
                                         })}
                                         <tr className="bg-[var(--bg-tertiary)]">
                                             <td colSpan={5 + split.participants.length} className="px-3 py-2">
-                                                <button onClick={addItem} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
-                                                    <span className="text-lg">+</span> Adicionar Item
-                                                </button>
+                                                <div className="flex items-center gap-4">
+                                                    <button onClick={addItem} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
+                                                        <span className="text-lg">+</span> Adicionar Item
+                                                    </button>
+                                                    <button onClick={() => setShowScanSheet(true)} className="flex items-center gap-2 text-violet-600 hover:underline font-medium">
+                                                        <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -1242,6 +1264,14 @@ export default function GroupSplitDetailPage() {
                 onClose={() => setShowAllowedModesSheet(false)}
                 split={split}
                 onSplitUpdate={setSplit}
+            />
+
+            <SplitInvoiceScanSheet
+                isOpen={showScanSheet}
+                onClose={() => setShowScanSheet(false)}
+                user={user}
+                updateProfile={updateProfile}
+                onConfirm={handleScanConfirm}
             />
 
             {isAdmin && (

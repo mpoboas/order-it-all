@@ -11,13 +11,13 @@ import {
   getPacificDateString,
   fileToBase64,
   getUserGeminiApiKey,
+  DAILY_SCAN_LIMIT,
+  getDailyScanCount,
 } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { useToast } from '@/context/ToastContext';
-
-const DAILY_SCAN_LIMIT = 20;
 
 export interface InvoiceScanItem {
   id: string;
@@ -55,12 +55,6 @@ interface InvoiceScanSheetProps {
   user: User | null;
   updateProfile: (data: Partial<User>) => Promise<void>;
   onApplied: () => void;
-}
-
-function getDailyScanCount(u: User | null): number {
-  if (!u) return 0;
-  const today = getPacificDateString();
-  return u.last_request_date === today ? u.daily_requests_count || 0 : 0;
 }
 
 export function InvoiceScanSheet({

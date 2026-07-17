@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group } from './types';
+import type { Trip, Order, Item, Split, Group, SplitItemMode } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase('https://pb-orderit.povoas.top/');
@@ -252,6 +252,7 @@ export const splitsApi = {
     created_by: string;
     participants?: string[];
     items?: Split['items'];
+    allowed_modes?: SplitItemMode[];
   }): Promise<Split> => {
     return await pb.collection('splits').create<Split>({
       name: data.name,
@@ -261,6 +262,7 @@ export const splitsApi = {
       created_by: data.created_by,
       participants: data.participants || [data.created_by],
       items: data.items || [],
+      allowed_modes: data.allowed_modes || [],
     });
   },
 
@@ -443,6 +445,12 @@ export const groupsApi = {
   toggleInvite: async (groupId: string, active: boolean): Promise<Group> => {
     return await pb.collection('groups').update<Group>(groupId, {
       invite_active: active,
+    });
+  },
+
+  toggleShowAllOrders: async (groupId: string, active: boolean): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(groupId, {
+      show_all_orders: active,
     });
   },
 

@@ -212,3 +212,127 @@ Use numbers for price, quantity, and unit_price. Skip lines you cannot read conf
   }
   throw new Error('Falha na análise da fatura com Gemini');
 }
+
+export interface ReceiptLineItem {
+  name: string;
+  price: number;
+}
+
+export interface ReceiptExtractionResult {
+  items: ReceiptLineItem[];
+}
+
+function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
+  let jsonStr = text.trim();
+
+  const fenced = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    jsonStr = fenced[1].trim();
+  } else {
+    const start = jsonStr.indexOf('{');
+    const end = jsonStr.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      jsonStr = jsonStr.slice(start, end + 1);
+    }
+  }
+
+  const parsed = JSON.parse(jsonStr) as { items?: unknown };
+
+  const items = Array.isArray(parsed.items)
+    ? (parsed.items as Partial<ReceiptLineItem>[])
+        .filter(
+          (i): i is ReceiptLineItem =>
+            Boolean(i) &&
+            typeof i.name === 'string' &&
+            i.name.trim().length > 0 &&
+            typeof i.price === 'number'
+        )
+        .map((i) => ({ name: i.name.trim(), price: i.price }))
+    : [];
+
+  return { items };
+}
+
+/**
+ * Extracts a flat list of {name, price} from a receipt image — no
+ * reconciliation against an existing list (splits have nothing to match
+ * against, unlike trip shopping lists).
+ */
+export async function extractReceiptLineItems(
+  imageBase64: string,
+  mimeType: string,
+  apiKey: string
+): Promise<ReceiptExtractionResult> {
+  if (!apiKey?.trim()) throw new Error('API Key em falta');
+  if (!imageBase64?.trim()) throw new Error('Imagem da fatura em falta');
+
+  const normalizedMime =
+    mimeType && mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+
+  const prompt = `
+Act as a smart accountant reading a supermarket/restaurant receipt (Portuguese, English, Spanish, etc.) from an image.
+
+Extract every purchased line item with its name and price.
+
+Rules:
+1. Ignore headers, NIF, dates, payment method, and store address/totals/subtotals lines.
+2. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
+3. If a line shows a quantity greater than 1 (e.g. "2x Cerveja"), return ONE item with the LINE'S TOTAL price (not the unit price) — do not split it into multiple items and do not report quantity separately.
+4. Skip lines you cannot read confidently.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "items": [
+    { "name": "NAME ON RECEIPT", "price": 12.34 }
+  ]
+}
+
+Use a number for price.
+`;
+
+  let lastError: unknown;
+
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const result = await generateWithModel(
+        apiKey.trim(),
+        modelName,
+        prompt,
+        imageBase64,
+        normalizedMime
+      );
+      const response = await result.response;
+      const text = response.text();
+      if (!text?.trim()) {
+        throw new Error('Resposta vazia do Gemini');
+      }
+      return parseReceiptItemsResponse(text);
+    } catch (error) {
+      lastError = error;
+      const message =
+        error instanceof Error ? error.message : String(error);
+      const retryable =
+        /not found|404|429|503|overload|quota|rate|JSON|Unexpected token/i.test(
+          message
+        );
+      if (!retryable) {
+        break;
+      }
+      console.warn(`Gemini model ${modelName} failed:`, message);
+    }
+  }
+
+  console.error('Gemini Vision Error:', lastError);
+  if (lastError instanceof Error) {
+    if (/API key|API_KEY|invalid/i.test(lastError.message)) {
+      throw new Error('Chave Gemini inválida. Verifica em aistudio.google.com');
+    }
+    if (/JSON|Unexpected token/i.test(lastError.message)) {
+      throw new Error(
+        'Não consegui ler a estrutura da fatura. Tenta outra foto mais nítida.'
+      );
+    }
+    throw new Error(lastError.message);
+  }
+  throw new Error('Falha na análise da fatura com Gemini');
+}

@@ -26,6 +26,59 @@ const MODE_DESCRIPTIONS: Record<SplitItemMode, string> = {
   percentage: '',
 };
 
+interface SplitAllowedModesToggleListProps {
+  enabledModes: Set<SplitItemMode>;
+  onToggle: (mode: SplitItemMode) => void;
+  disabled?: boolean;
+}
+
+/** Presentational toggle-switch list shared by the settings sheet and the create wizard. */
+export function SplitAllowedModesToggleList({
+  enabledModes,
+  onToggle,
+  disabled = false,
+}: SplitAllowedModesToggleListProps) {
+  return (
+    <div className="space-y-3 px-1">
+      {MEMBER_ALLOCATION_MODES.map((mode) => {
+        const isEnabled = enabledModes.has(mode);
+        return (
+          <div
+            key={mode}
+            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="font-medium text-[var(--text-primary)]">
+                {SPLIT_ITEM_MODE_LABELS[mode]}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                {MODE_DESCRIPTIONS[mode]}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onToggle(mode)}
+              className={cn(
+                'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
+                isEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+              )}
+              aria-pressed={isEnabled}
+            >
+              <span
+                className={cn(
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ml-1',
+                  isEnabled && 'translate-x-5'
+                )}
+              />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SplitAllowedModesSheet({
   isOpen,
   onClose,
@@ -79,43 +132,11 @@ export function SplitAllowedModesSheet({
       subtitle="Escolhe que modos de divisão os participantes podem usar"
       size="medium"
     >
-      <div className="space-y-3 px-1">
-        {MEMBER_ALLOCATION_MODES.map((mode) => {
-          const isEnabled = enabled.has(mode);
-          return (
-            <div
-              key={mode}
-              className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-[var(--text-primary)]">
-                  {SPLIT_ITEM_MODE_LABELS[mode]}
-                </p>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  {MODE_DESCRIPTIONS[mode]}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void toggleMode(mode)}
-                className={cn(
-                  'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-                  isEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
-                )}
-                aria-pressed={isEnabled}
-              >
-                <span
-                  className={cn(
-                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ml-1',
-                    isEnabled && 'translate-x-5'
-                  )}
-                />
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <SplitAllowedModesToggleList
+        enabledModes={enabled}
+        onToggle={(mode) => void toggleMode(mode)}
+        disabled={saving}
+      />
     </Sheet>
   );
 }

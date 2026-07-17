@@ -147,6 +147,16 @@ export function GroupSettingsTab({
     }
   };
 
+  const handleToggleShowAllOrders = async (active: boolean) => {
+    try {
+      await groupsApi.toggleShowAllOrders(groupId, active);
+      showToast(active ? 'Pedidos de todos visíveis' : 'Pedidos de todos ocultados', 'success');
+      onGroupUpdated();
+    } catch {
+      showToast('Erro ao alterar estado', 'error');
+    }
+  };
+
   const handleRegenerateInvite = async () => {
     if (!confirm('Gerar novo código? O anterior deixará de funcionar.')) return;
     try {
@@ -446,6 +456,39 @@ export function GroupSettingsTab({
             Convites desativados — ativa para partilhar o link.
           </p>
         )}
+      </section>
+
+      {/* Order visibility */}
+      <section className="card p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <span className="material-icons text-violet-600 text-xl" aria-hidden>
+                visibility
+              </span>
+              Pedidos de todos
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Permite que os membros vejam os pedidos uns dos outros nas viagens
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggleShowAllOrders(!group.show_all_orders)}
+            className={cn(
+              'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
+              group.show_all_orders ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+            )}
+            aria-pressed={group.show_all_orders}
+          >
+            <span
+              className={cn(
+                'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ml-1',
+                group.show_all_orders && 'translate-x-5'
+              )}
+            />
+          </button>
+        </div>
       </section>
 
       {/* Delete — owner only */}

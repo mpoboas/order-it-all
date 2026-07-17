@@ -45,6 +45,7 @@ export default function GroupTripDetailPage() {
 
     const [trip, setTrip] = useState<Trip | null>(null);
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
+    const [otherOrders, setOtherOrders] = useState<OrderWithItems[]>([]);
     const [loading, setLoading] = useState(true);
     const [orderSheetSession, setOrderSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
@@ -55,7 +56,7 @@ export default function GroupTripDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
     const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
-    const [ordersTab, setOrdersTab] = useState<'mine' | 'participating'>('mine');
+    const [ordersTab, setOrdersTab] = useState<'mine' | 'participating' | 'others'>('mine');
 
     const groupMembers: User[] = currentGroup?.expand?.members ?? [];
     const currentUserId = user?.id || '';
@@ -71,6 +72,8 @@ export default function GroupTripDetailPage() {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
 
+    const showAllOrders = Boolean(currentGroup?.show_all_orders);
+
     const loadData = useCallback(async () => {
         try {
             const [tripData, ordersData] = await Promise.all([
@@ -82,8 +85,15 @@ export default function GroupTripDetailPage() {
             const userOrders = ordersData
                 .filter(order => orderVisibleToUser(order, currentUserId, userName))
                 .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+            const othersRaw = showAllOrders
+                ? ordersData
+                    .filter(order => !orderVisibleToUser(order, currentUserId, userName))
+                    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+                : [];
 
-            const allItems = await itemsApi.getByOrderIds(userOrders.map((order) => order.id));
+            const allItems = await itemsApi.getByOrderIds(
+                [...userOrders, ...othersRaw].map((order) => order.id)
+            );
             const itemsByOrder = new Map<string, Item[]>();
             for (const item of allItems) {
                 const list = itemsByOrder.get(item.order_id) ?? [];
@@ -96,13 +106,19 @@ export default function GroupTripDetailPage() {
                 items: itemsByOrder.get(order.id) ?? [],
             }));
             setOrders(ordersWithItems);
+
+            const othersWithItems = othersRaw.map((order) => ({
+                ...order,
+                items: itemsByOrder.get(order.id) ?? [],
+            }));
+            setOtherOrders(othersWithItems);
         } catch (error) {
             console.error('Error loading trip:', error);
             showToast('Erro ao carregar viagem', 'error');
         } finally {
             setLoading(false);
         }
-    }, [tripId, userName, currentUserId, showToast]);
+    }, [tripId, userName, currentUserId, showToast, showAllOrders]);
 
     useEffect(() => {
         loadData();
@@ -116,7 +132,8 @@ export default function GroupTripDetailPage() {
         [orders, currentUserId]
     );
 
-    const displayedOrders = ordersTab === 'mine' ? myOrders : participatingOrders;
+    const displayedOrders =
+        ordersTab === 'mine' ? myOrders : ordersTab === 'participating' ? participatingOrders : otherOrders;
 
     // Stats (all orders visible to this user)
     const totalItems = orders.reduce((sum, order) => sum + order.items.length, 0);
@@ -429,6 +446,23 @@ export default function GroupTripDetailPage() {
                                 <span className="ml-1.5 text-xs opacity-80">({participatingOrders.length})</span>
                             )}
                         </button>
+                        {showAllOrders && (
+                            <button
+                                type="button"
+                                onClick={() => setOrdersTab('others')}
+                                className={cn(
+                                    'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
+                                    ordersTab === 'others'
+                                        ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                )}
+                            >
+                                Pedidos de outros
+                                {otherOrders.length > 0 && (
+                                    <span className="ml-1.5 text-xs opacity-80">({otherOrders.length})</span>
+                                )}
+                            </button>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -443,7 +477,7 @@ export default function GroupTripDetailPage() {
                 </div>
 
                 {/* Orders */}
-                {orders.length === 0 ? (
+                {orders.length === 0 && otherOrders.length === 0 ? (
                     <div className="text-center py-16 animate-fade-in-up">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/40 dark:to-purple-900/40 flex items-center justify-center">
                             <span className="text-4xl">📝</span>
@@ -456,7 +490,9 @@ export default function GroupTripDetailPage() {
                         <p className="text-[var(--text-secondary)] text-sm">
                             {ordersTab === 'mine'
                                 ? 'Ainda não criaste pedidos nesta viagem.'
-                                : 'Não estás incluído em pedidos de outros membros.'}
+                                : ordersTab === 'participating'
+                                    ? 'Não estás incluído em pedidos de outros membros.'
+                                    : 'Ainda não há pedidos de outros membros.'}
                         </p>
                     </div>
                 ) : (

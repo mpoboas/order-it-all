@@ -46,6 +46,8 @@ export interface Group {
   members: string[]; // User IDs (all members including admins)
   invite_code: string;
   invite_active: boolean;
+  /** Admin setting: when true, members can see every order in the group's trips, not just their own. */
+  show_all_orders?: boolean;
   expand?: {
     creator?: User;
     admins?: User[];

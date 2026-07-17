@@ -9,7 +9,10 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/icontestxyz)",
       "Bash(npm install *)",
       "Bash(node /private/tmp/claude-501/-Users-povoas-Documents-Repos-order-it-all/b8686a79-8fdf-4e6f-842b-3b7f4ea8f2ce/scratchpad/inspect.js)",
-      "Bash(node /Users/povoas/Documents/Repos/order-it-all/__inspect_tmp.js)"
+      "Bash(node /Users/povoas/Documents/Repos/order-it-all/__inspect_tmp.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/splittestxyz)",
+      "Bash(set -e)",
+      "Bash(npm uninstall *)"
     ]
   }
 }
