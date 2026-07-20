@@ -119,22 +119,24 @@ async function generateWithModel(
 }
 
 export async function reconcileWithGeminiImage(
-  imageBase64: string,
-  mimeType: string,
+  imageFile: File,
   tripItems: RawItem[],
   apiKey: string
 ): Promise<ReconciliationResult> {
   if (!apiKey?.trim()) throw new Error('API Key em falta');
-  if (!imageBase64?.trim()) throw new Error('Imagem da fatura em falta');
+  if (!imageFile) throw new Error('Imagem da fatura em falta');
 
+  const imageBase64 = Buffer.from(await imageFile.arrayBuffer()).toString('base64');
   const normalizedMime =
-    mimeType && mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+    imageFile.type === 'application/pdf' || imageFile.type?.startsWith('image/')
+      ? imageFile.type
+      : 'image/jpeg';
 
   const prompt = `
 Act as a smart accountant for a shopping app.
-I have an image of a supermarket receipt (Portuguese, English, Spanish, etc.) and a list of requested items from my app.
+I have an image or PDF of a supermarket receipt (Portuguese, English, Spanish, etc.) and a list of requested items from my app.
 
-Reconcile the receipt with the request list using ONLY what you see in the image.
+Reconcile the receipt with the request list using ONLY what you see in the file.
 
 Request list (items we wanted to buy):
 ${JSON.stringify(
@@ -259,18 +261,20 @@ function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
  * against, unlike trip shopping lists).
  */
 export async function extractReceiptLineItems(
-  imageBase64: string,
-  mimeType: string,
+  imageFile: File,
   apiKey: string
 ): Promise<ReceiptExtractionResult> {
   if (!apiKey?.trim()) throw new Error('API Key em falta');
-  if (!imageBase64?.trim()) throw new Error('Imagem da fatura em falta');
+  if (!imageFile) throw new Error('Imagem da fatura em falta');
 
+  const imageBase64 = Buffer.from(await imageFile.arrayBuffer()).toString('base64');
   const normalizedMime =
-    mimeType && mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+    imageFile.type === 'application/pdf' || imageFile.type?.startsWith('image/')
+      ? imageFile.type
+      : 'image/jpeg';
 
   const prompt = `
-Act as a smart accountant reading a supermarket/restaurant receipt (Portuguese, English, Spanish, etc.) from an image.
+Act as a smart accountant reading a supermarket/restaurant receipt (Portuguese, English, Spanish, etc.) from an image or PDF.
 
 Extract every purchased line item with its name and price.
 

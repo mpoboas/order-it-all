@@ -9,7 +9,6 @@ import {
   formatCurrency,
   cn,
   getPacificDateString,
-  fileToBase64,
   getUserGeminiApiKey,
   DAILY_SCAN_LIMIT,
   getDailyScanCount,
@@ -214,10 +213,8 @@ export function InvoiceScanSheet({
     );
 
     try {
-      const base64 = await fileToBase64(invoiceFile);
       const result = await reconcileWithGeminiImage(
-        base64,
-        invoiceFile.type || 'image/jpeg',
+        invoiceFile,
         tripItems,
         geminiApiKey
       );
@@ -611,11 +608,18 @@ export function InvoiceScanSheet({
         <div className="space-y-4">
           {invoicePreview ? (
             <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-[20px] overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
-              <img
-                src={invoicePreview}
-                alt="Pré-visualização da fatura"
-                className="w-full h-full object-cover"
-              />
+              {invoiceFile?.type === 'application/pdf' ? (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-4">
+                  <span className="material-icons text-5xl">picture_as_pdf</span>
+                  <span className="text-xs font-medium text-center truncate max-w-full">{invoiceFile.name}</span>
+                </div>
+              ) : (
+                <img
+                  src={invoicePreview}
+                  alt="Pré-visualização da fatura"
+                  className="w-full h-full object-cover"
+                />
+              )}
               <button
                 type="button"
                 onClick={handleRetake}
@@ -668,8 +672,7 @@ export function InvoiceScanSheet({
                 <input
                   type="file"
                   className="hidden"
-                  accept="image/*"
-                  capture="environment"
+                  accept="image/*,application/pdf"
                   onChange={handleFileChange}
                 />
               </label>

@@ -222,24 +222,6 @@ export function getDailyScanCount(
   return user.last_request_date === today ? user.daily_requests_count || 0 : 0;
 }
 
-/** Read a File as raw base64 (no data: URL prefix) — safe for Next.js server actions */
-export function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== 'string') {
-        reject(new Error('Falha ao ler imagem'));
-        return;
-      }
-      const base64 = result.includes(',') ? result.split(',')[1] : result;
-      resolve(base64);
-    };
-    reader.onerror = () => reject(new Error('Falha ao ler imagem'));
-    reader.readAsDataURL(file);
-  });
-}
-
 /**
  * Convert an emoji to an image Blob with a white background
  */
