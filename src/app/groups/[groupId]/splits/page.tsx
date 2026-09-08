@@ -15,6 +15,7 @@ import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { collectGroupMembers } from '@/lib/splitShare';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupSplitsPage() {
     const [splits, setSplits] = useState<Split[]>([]);
@@ -63,6 +64,8 @@ export default function GroupSplitsPage() {
         subscriptions.subscribeToSplits(() => loadSplits());
         return () => subscriptions.unsubscribeAll();
     }, [loadSplits]);
+
+    useRefreshHandler(loadSplits);
 
     const groupMembers = collectGroupMembers(currentGroup);
 

@@ -22,7 +22,7 @@ export default function WelcomePage() {
   }, [isLoggedIn, router]);
 
   return (
-    <div className="min-h-screen gradient-mesh flex flex-col">
+    <div className="min-h-screen gradient-mesh flex flex-col safe-screen">
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />

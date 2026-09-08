@@ -20,6 +20,7 @@ import { SplitParticipantItemsView } from '@/components/features/SplitParticipan
 import { SplitMemberItemAllocationSheet } from '@/components/features/SplitMemberItemAllocationSheet';
 import { getAllowedMemberModes, getSplitItemMode } from '@/lib/splitItemAllocation';
 import type { SplitItem, SplitItemMode } from '@/lib/types';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 const POLL_MS = 4000;
 
@@ -140,6 +141,8 @@ export default function PublicSplitPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useRefreshHandler(load);
 
   const suggested = split
     ? findSuggestedParticipant(split.participants, user)
@@ -329,7 +332,7 @@ export default function PublicSplitPage() {
   if (step === 'identity') {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
-        <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-6">
+        <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-6 safe-top">
           <h1 className="text-xl font-bold text-white">{split.name}</h1>
           {split.description && (
             <p className="text-sm text-white/80 mt-1">{split.description}</p>
@@ -420,7 +423,7 @@ export default function PublicSplitPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
-      <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-5">
+      <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-5 safe-top">
         <h1 className="text-lg font-bold text-white break-words">{split.name}</h1>
         <p className="text-sm text-white/90 mt-1">
           A marcar como: <strong>{selectedName}</strong>

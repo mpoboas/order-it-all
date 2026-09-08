@@ -64,7 +64,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
     return (
         <header
             className={cn(
-                'sticky top-0 z-40 transition-all duration-300',
+                'sticky top-0 z-40 transition-all duration-300 safe-top',
                 transparent
                     ? 'bg-transparent'
                     : 'bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800'

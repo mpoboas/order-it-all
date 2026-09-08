@@ -14,6 +14,7 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupsPage() {
     const [groups, setGroups] = useState<Group[]>([]);
@@ -58,6 +59,8 @@ export default function GroupsPage() {
             loadGroups();
         }
     }, [user?.id]);
+
+    useRefreshHandler(loadGroups);
 
     const handleCreateGroup = async () => {
         if (!newGroupName.trim()) {

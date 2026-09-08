@@ -87,7 +87,10 @@ export function BottomNav({ groupId }: BottomNavProps) {
                                 tryNavigate(() => router.push(item.href));
                             }}
                             className={cn(
-                                'flex flex-col items-center justify-center flex-1 h-full transition-all duration-200',
+                                // `relative`: o ponto de ativo e `absolute`. Sem isto ancorava no
+                                // <nav> e so saltava para o sitio certo quando o active:scale-95
+                                // criava um transform no botao.
+                                'relative flex flex-col items-center justify-center flex-1 h-full transition-all duration-200',
                                 'active:scale-95',
                                 active ? 'text-primary-600' : 'text-gray-600 dark:text-gray-400'
                             )}
@@ -105,7 +108,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                                 {item.label}
                             </span>
                             {active && (
-                                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary-600" />
+                                <div className="absolute bottom-0.5 w-1 h-1 rounded-full bg-primary-600" />
                             )}
                         </button>
                     );

@@ -63,7 +63,7 @@ export default function OAuthCallbackPage() {
   }, [searchParams, router, showToast]);
 
   return (
-    <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 safe-screen">
       <LoadingSpinner size="lg" />
       <p className="mt-4 text-white/90 text-sm">A concluir login com Google...</p>
     </div>

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { groupsApi } from '@/lib/pocketbase';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupLayout({
     children,
@@ -16,45 +17,52 @@ export default function GroupLayout({
 }) {
     const params = useParams();
     const router = useRouter();
+    const pathname = usePathname();
     const groupId = params.groupId as string;
     const { user, isLoggedIn } = useUser();
     const { currentGroup, setCurrentGroup, isAdmin } = useGroup();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const loadGroup = useCallback(async () => {
+        if (!groupId || !user?.id) return;
+
+        try {
+            const group = await groupsApi.getById(groupId);
+
+            // Check if user is a member
+            if (!group.members.includes(user.id)) {
+                setError('Não tens acesso a este grupo');
+                return;
+            }
+
+            setError(null);
+            setCurrentGroup(group);
+        } catch (err) {
+            console.error('Error loading group:', err);
+            setError('Grupo não encontrado');
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId, user?.id, setCurrentGroup]);
+
+    // Este layout nao remonta ao navegar entre viagens/divisor/admin do mesmo
+    // grupo, por isso o pathname esta nas dependencias: cada ecra que abre volta
+    // a pedir o grupo (membros e admins podem ter mudado entretanto).
     useEffect(() => {
         if (!isLoggedIn) {
             router.push('/');
             return;
         }
 
-        const loadGroup = async () => {
-            try {
-                const group = await groupsApi.getById(groupId);
-
-                // Check if user is a member
-                if (!group.members.includes(user?.id || '')) {
-                    setError('Não tens acesso a este grupo');
-                    return;
-                }
-
-                setCurrentGroup(group);
-            } catch (err) {
-                console.error('Error loading group:', err);
-                setError('Grupo não encontrado');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (groupId && user?.id) {
-            loadGroup();
-        }
+        loadGroup();
 
         return () => {
             // Don't clear group on unmount to prevent flicker during navigation
         };
-    }, [groupId, user?.id, isLoggedIn, router, setCurrentGroup]);
+    }, [isLoggedIn, router, loadGroup, pathname]);
+
+    useRefreshHandler(loadGroup);
 
     if (!isLoggedIn) return null;
 
