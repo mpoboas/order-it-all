@@ -29,6 +29,7 @@
   --border: #e2e8f0;
 
   /* Spacing */
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --header-height: 64px;
   /* h-16 bar + .safe-bottom padding on nav (see BottomNav.tsx) */
@@ -132,6 +133,10 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Sem rubber-band: o overscroll nativo expunha o fundo do documento (que nao e
+     o do ecra atual) em faixas no topo e no fundo. O pull-to-refresh que isto
+     desliga esta reimplementado em PullToRefresh.tsx. */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -140,11 +145,26 @@ body {
   font-family: var(--font-sans);
   min-height: 100dvh;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
 }
 
 /* iOS safe area padding */
 .safe-bottom {
   padding-bottom: calc(var(--safe-bottom) + 16px);
+}
+
+/* Safe area de topo (status bar / notch): para os elementos que ficam no topo
+   do viewport pintarem por baixo dela com a sua propria cor, em vez de deixarem
+   uma faixa com o fundo do body. */
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+/* Ecras full-screen sem Header: mantem o conteudo fora das duas barras
+   enquanto o fundo do proprio ecra sangra para dentro delas. */
+.safe-screen {
+  padding-top: max(var(--safe-top), 1rem);
+  padding-bottom: max(var(--safe-bottom), 1rem);
 }
 
 .has-bottom-nav {

@@ -203,7 +203,13 @@ export function Sheet({
                                 </div>
 
                                 <div className="flex flex-1 flex-col min-h-0 min-w-0">
-                                    <div className="flex flex-1 flex-col min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
+                                    <div
+                                        className={cn(
+                                            'flex flex-1 flex-col min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-6 sm:py-6',
+                                            // Sem footer, o fim do conteudo encosta ao home indicator.
+                                            !footer && 'pb-[calc(1rem+var(--safe-bottom))] sm:pb-[calc(1.5rem+var(--safe-bottom))]'
+                                        )}
+                                    >
                                         {children}
                                     </div>
                                 </div>

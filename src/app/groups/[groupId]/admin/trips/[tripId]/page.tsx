@@ -31,6 +31,7 @@ import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormShe
 import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
+import { useRefreshHandler } from '@/context/RefreshContext';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -240,6 +241,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             subscriptions.unsubscribeAll();
         };
     }, [loadTrip, loadShoppingItems, tripId]);
+
+    const refreshTrip = useCallback(async () => {
+        await Promise.all([loadTrip(), loadShoppingItems()]);
+    }, [loadTrip, loadShoppingItems]);
+
+    useRefreshHandler(refreshTrip);
 
     // Load members separately when group_id is available
     useEffect(() => {

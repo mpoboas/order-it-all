@@ -12,6 +12,7 @@ import { Header } from '@/components/layout/Header';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { Badge } from '@/components/ui/Badge';
 import { TripCard } from '@/components/features/TripCard';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupTripsPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
@@ -45,6 +46,8 @@ export default function GroupTripsPage() {
         subscriptions.subscribeToTrips(() => loadTrips());
         return () => subscriptions.unsubscribeAll();
     }, [loadTrips]);
+
+    useRefreshHandler(loadTrips);
 
     if (!isLoggedIn) return null;
 

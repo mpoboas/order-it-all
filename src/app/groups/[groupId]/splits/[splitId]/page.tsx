@@ -100,6 +100,7 @@ function EditableInput({ value: initialValue, onSave, className, ...props }: Edi
 
 import { useGroup } from '@/context/GroupContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
+import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupSplitDetailPage() {
     const params = useParams();
@@ -171,6 +172,8 @@ export default function GroupSplitDetailPage() {
         subscriptions.subscribeToSplits(() => loadSplit());
         return () => subscriptions.unsubscribeAll();
     }, [loadSplit]);
+
+    useRefreshHandler(loadSplit);
 
     const saveSplit = async (updatedFields: Partial<Split>) => {
         if (!split) return;

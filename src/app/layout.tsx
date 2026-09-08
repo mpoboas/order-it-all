@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
@@ -6,6 +6,7 @@ import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
 
 const inter = Inter({
@@ -36,11 +37,28 @@ export const metadata: Metadata = {
     ]
   },
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Order It All!',
+    // Deixa o conteudo passar por baixo da status bar para que as faixas de
+    // topo/fundo fiquem com o fundo do ecra atual em vez do fundo do body.
+    statusBarStyle: 'black-translucent',
+  },
   openGraph: {
     title: "Order It All! - A aplicação #1 de compras de Celorico de Basto!",
     description: "Com esta aplicação vais acabar com todas as discussões e lutas sobre quem vai pagar as minis!",
     images: ["/gui.jpg"],
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  // Necessario para que env(safe-area-inset-*) devolva valores reais e para
+  // que a app pinte por baixo da status bar / home indicator.
+  viewportFit: 'cover',
+  // Cor da status bar no Android: igual ao topo dos ecras (Header / gradient-mesh).
+  themeColor: '#2563eb',
 };
 
 export default function RootLayout({
@@ -51,6 +69,9 @@ export default function RootLayout({
   return (
     <html lang="pt-PT" className={inter.variable}>
       <head>
+        {/* Next emite mobile-web-app-capable; o iOS < 16.4 ainda precisa do legado
+            para entrar em standalone e respeitar o status bar translucido. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -63,9 +84,11 @@ export default function RootLayout({
           <GroupProvider>
             <ToastProvider>
               <ThemeProvider>
-                {children}
-                <ToastContainer />
-                <LazyPushNotificationManager />
+                <RefreshProvider>
+                  {children}
+                  <ToastContainer />
+                  <LazyPushNotificationManager />
+                </RefreshProvider>
               </ThemeProvider>
             </ToastProvider>
           </GroupProvider>

@@ -83,7 +83,7 @@ export default function InvitePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen gradient-mesh flex items-center justify-center">
+            <div className="min-h-screen gradient-mesh flex items-center justify-center safe-screen">
                 {/* Use a white spinner or custom one since we are on colored bg */}
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
             </div >
@@ -92,7 +92,7 @@ export default function InvitePage() {
 
     if (error || !group) {
         return (
-            <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 text-center">
+            <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 text-center safe-screen">
                 <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/30 text-4xl">
                     😰
                 </div>
@@ -111,7 +111,7 @@ export default function InvitePage() {
 
 
     return (
-        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
             {/* Decorative elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />

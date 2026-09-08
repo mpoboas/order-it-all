@@ -148,7 +148,7 @@ export default function ProfilePage() {
                                         : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"
                                 )}
                             >
-                                {isSaving ? '...' : 'Salvar'}
+                                {isSaving ? '...' : 'Guardar'}
                             </button>
                         </div>
                     </div>
