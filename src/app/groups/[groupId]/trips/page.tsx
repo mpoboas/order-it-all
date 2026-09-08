@@ -49,7 +49,13 @@ export default function GroupTripsPage() {
 
     useRefreshHandler(loadTrips);
 
+    // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
+    useEffect(() => {
+        if (isAdmin) router.replace(`/groups/${groupId}/admin`);
+    }, [isAdmin, groupId, router]);
+
     if (!isLoggedIn) return null;
+    if (isAdmin) return null;
 
     const userName = user?.name || user?.email || '??';
 

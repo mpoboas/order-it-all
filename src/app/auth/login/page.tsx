@@ -71,7 +71,7 @@ export default function LoginPage() {
                         Ou{' '}
                         <button
                             onClick={() => router.push(redirect ? `/auth/register?redirect=${encodeURIComponent(redirect)}` : '/auth/register')}
-                            className="font-bold text-white hover:underline focus:outline-none"
+                            className="font-bold text-white underline focus:outline-none"
                         >
                             criar uma nova conta
                         </button>

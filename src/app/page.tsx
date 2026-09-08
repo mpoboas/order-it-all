@@ -72,7 +72,7 @@ export default function WelcomePage() {
               Já tens conta?
               <button
                 onClick={() => { trigger(); router.push('/auth/login'); }}
-                className="ml-2 text-white font-bold hover:underline focus:outline-none"
+                className="ml-2 text-white font-bold underline focus:outline-none"
               >
                 Entrar aqui
               </button>

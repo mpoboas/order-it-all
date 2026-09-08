@@ -99,7 +99,8 @@ export default function GroupsPage() {
 
     const handleSelectGroup = (group: Group) => {
         setCurrentGroup(group);
-        router.push(`/groups/${group.id}/trips`);
+        const isGroupAdmin = !!user?.id && group.admins?.includes(user.id);
+        router.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`);
     };
 
     if (!isLoggedIn) return null;

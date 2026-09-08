@@ -72,7 +72,7 @@ export default function RegisterPage() {
                         Ou{' '}
                         <button
                             onClick={() => router.push(redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : '/auth/login')}
-                            className="font-bold text-white hover:underline focus:outline-none"
+                            className="font-bold text-white underline focus:outline-none"
                         >
                             entrar na tua conta existente
                         </button>

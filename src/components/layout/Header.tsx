@@ -145,14 +145,11 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         {/* Desktop nav links - only for admins in group */}
                         {isAdmin && groupId && (
                             <nav className="hidden md:flex items-center gap-1 mr-4">
-                                <NavLink href={`/groups/${groupId}/trips`} current={isInTrips}>
-                                    Viagens
+                                <NavLink href={`/groups/${groupId}/admin`} current={isInAdmin}>
+                                    Admin
                                 </NavLink>
                                 <NavLink href={`/groups/${groupId}/splits`} current={isInSplits}>
                                     Divisor
-                                </NavLink>
-                                <NavLink href={`/groups/${groupId}/admin`} current={isInAdmin}>
-                                    Admin
                                 </NavLink>
                             </nav>
                         )}
