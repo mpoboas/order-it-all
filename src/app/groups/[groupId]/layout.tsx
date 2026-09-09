@@ -7,7 +7,6 @@ import { useGroup } from '@/context/GroupContext';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
-import { useRefreshHandler } from '@/context/RefreshContext';
 import { useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
@@ -54,8 +53,6 @@ export default function GroupLayout({
     useEffect(() => {
         if (isMember && group) setCurrentGroup(group);
     }, [isMember, group, setCurrentGroup]);
-
-    useRefreshHandler(catchUp);
 
     if (!isLoggedIn) return null;
 

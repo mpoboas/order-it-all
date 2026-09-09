@@ -14,7 +14,6 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
@@ -46,8 +45,6 @@ export default function GroupsPage() {
     useEffect(() => {
         setCurrentGroup(null);
     }, [setCurrentGroup]);
-
-    useRefreshHandler(catchUp);
 
     const handleCreateGroup = async () => {
         if (!newGroupName.trim()) {

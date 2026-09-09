@@ -33,7 +33,6 @@ import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
-import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -110,8 +109,6 @@ export default function GroupTripDetailPage() {
             : [];
         return { orders: mine, otherOrders: others };
     }, [allOrders, allItems, currentUserId, userName, showAllOrders]);
-
-    useRefreshHandler(catchUp);
 
     const { mine: myOrders, participating: participatingOrders } = useMemo(
         () => partitionOrdersForUser(orders, currentUserId),

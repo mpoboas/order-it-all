@@ -28,7 +28,6 @@ import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
-import { useRefreshHandler } from '@/context/RefreshContext';
 
 function AdminDashboardContent() {
     const params = useParams();
@@ -73,8 +72,6 @@ function AdminDashboardContent() {
             router.push(`/groups/${groupId}/trips`);
         }
     }, [isAdmin, groupId, router]);
-
-    useRefreshHandler(catchUp);
 
     const handleCreateTrip = async (e: React.FormEvent) => {
         e.preventDefault();

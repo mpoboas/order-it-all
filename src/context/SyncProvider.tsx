@@ -9,7 +9,13 @@ import React, {
 } from 'react';
 import { useUser } from '@/context/UserContext';
 import { db, clearAllData, metaGet } from '@/lib/db/schema';
-import { catchUp, hydrateAll, startRealtime, stopRealtime } from '@/lib/db/sync';
+import {
+  backfillUsersFromCache,
+  catchUp,
+  hydrateAll,
+  startRealtime,
+  stopRealtime,
+} from '@/lib/db/sync';
 
 interface SyncStatus {
   /** Primeira hidratação a decorrer com a cache ainda vazia (cold start real). */
@@ -35,7 +41,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     if (!userId) {
       stopRealtime();
-      setStatus({ hydrating: false, ready: false });
+      // Reset fora do corpo síncrono do efeito (regra react-hooks/set-state-in-effect).
+      Promise.resolve().then(() => {
+        if (!cancelled()) setStatus({ hydrating: false, ready: false });
+      });
       return;
     }
 
@@ -54,6 +63,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           setStatus({ hydrating: true, ready: false });
           await hydrateAll(userId);
         } else {
+          // Garante que a tabela `users` reflete pelo menos o `expand` em cache
+          // (cobre clientes migrados de v1). Barato e idempotente.
+          await backfillUsersFromCache();
           // Revisita: mostra já o que está em cache e apanha o atraso em fundo.
           void catchUp();
         }
@@ -73,20 +85,33 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [userId]);
 
-  // Apanha o atraso quando a app volta ao primeiro plano ou recupera rede.
+  // Sinais que disparam catch-up:
+  //  - voltar ao primeiro plano: incremental leve (a ligação pode estar viva).
+  //  - recuperar rede: incremental + reconciliação (equivale a uma reconexão).
+  //  - heartbeat lento em foreground: apanha hard-deletes.
+  //  (A reconexão do realtime em si é tratada pelo `PB_CONNECT` em startRealtime.)
   useEffect(() => {
     if (!userId) return;
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void catchUp();
     };
-    const onOnline = () => void catchUp();
+    const onOnline = () =>
+      void catchUp({ reconcileDeletes: true, refreshUsers: true });
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onOnline);
+
+    const heartbeat = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void catchUp({ reconcileDeletes: true });
+      }
+    }, 5 * 60 * 1000);
+
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('online', onOnline);
+      clearInterval(heartbeat);
     };
   }, [userId]);
 

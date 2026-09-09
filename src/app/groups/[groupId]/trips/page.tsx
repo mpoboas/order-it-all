@@ -7,7 +7,6 @@ import { useGroup } from '@/context/GroupContext';
 import { Header } from '@/components/layout/Header';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { TripCard } from '@/components/features/TripCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
 import { useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
@@ -24,8 +23,6 @@ export default function GroupTripsPage() {
     const trips = tripsQuery ?? [];
     const { hydrating } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && hydrating);
-
-    useRefreshHandler(catchUp);
 
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {

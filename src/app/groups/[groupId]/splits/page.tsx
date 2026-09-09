@@ -14,7 +14,6 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
 import { collectGroupMembers } from '@/lib/splitShare';
-import { useRefreshHandler } from '@/context/RefreshContext';
 import { useSplits } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
@@ -50,8 +49,6 @@ export default function GroupSplitsPage() {
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
-
-    useRefreshHandler(catchUp);
 
     const groupMembers = collectGroupMembers(currentGroup);
 

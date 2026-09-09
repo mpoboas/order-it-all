@@ -35,7 +35,6 @@ import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormShe
 import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -207,8 +206,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     }, [sortedOrderCards]);
     const { showToast } = useToast();
     const router = useRouter();
-
-    useRefreshHandler(catchUp);
 
     const cycleStatus = async (item: ShoppingItem, e: React.MouseEvent) => {
         e.stopPropagation();
