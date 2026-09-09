@@ -1,9 +1,11 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
 
 interface NavItem {
     href: string;
@@ -18,7 +20,7 @@ interface BottomNavProps {
 
 export function BottomNav({ groupId }: BottomNavProps) {
     const pathname = usePathname();
-    const router = useRouter();
+    const router = useTransitionRouter();
     const tryNavigate = useTryNavigate();
     const { trigger } = useWebHaptics();
 
@@ -56,12 +58,16 @@ export function BottomNav({ groupId }: BottomNavProps) {
         },
     ];
 
+    // As duas rotas do fundo são fixas — pré-carrega ambas para a troca ser
+    // instantânea.
+    usePrefetchRoutes([`${basePath}/admin`, `${basePath}/splits`, `${basePath}/trips`]);
+
     const isActive = (href: string) => {
         return pathname.startsWith(href);
     };
 
     return (
-        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 z-50 md:hidden safe-bottom">
+        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 z-50 md:hidden safe-bottom">
             <div className="flex items-center justify-around h-16">
                 {navItems.map((item) => {
                     const active = isActive(item.href);
@@ -76,7 +82,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                                 // `relative`: o ponto de ativo e `absolute`. Sem isto ancorava no
                                 // <nav> e so saltava para o sitio certo quando o active:scale-95
                                 // criava um transform no botao.
-                                'relative flex flex-col items-center justify-center flex-1 h-full transition-all duration-200',
+                                'relative flex flex-col items-center justify-center flex-1 h-full transition duration-200',
                                 'active:scale-95',
                                 active ? 'text-primary-600' : 'text-gray-600 dark:text-gray-400'
                             )}

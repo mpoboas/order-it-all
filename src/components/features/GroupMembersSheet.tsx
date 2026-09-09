@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { Avatar } from '@/components/ui/Avatar';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
@@ -12,15 +13,17 @@ interface GroupMembersSheetProps {
 }
 
 export function GroupMembersSheet({ isOpen, onClose, group }: GroupMembersSheetProps) {
-    const members: User[] = group.expand?.members ?? [];
-    const admins = group.admins ?? [];
+    const members: User[] = useMemo(() => group.expand?.members ?? [], [group.expand?.members]);
+    const admins = useMemo(() => group.admins ?? [], [group.admins]);
 
     // Creator first, then admins, then everyone else — each group alphabetical.
-    const sorted = [...members].sort((a, b) => {
+    const sorted = useMemo(() => {
         const rank = (m: User) =>
             m.id === group.creator ? 0 : admins.includes(m.id) ? 1 : 2;
-        return rank(a) - rank(b) || a.name.localeCompare(b.name);
-    });
+        return [...members].sort(
+            (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name),
+        );
+    }, [members, admins, group.creator]);
 
     return (
         <Sheet

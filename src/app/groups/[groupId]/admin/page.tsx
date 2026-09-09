@@ -1,10 +1,22 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { tripsApi, subscriptions, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
+import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
 import type { Trip, Group } from '@/lib/types';
+import { useTrips } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { db } from '@/lib/db/schema';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
@@ -25,14 +37,15 @@ import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
-import { useRefreshHandler } from '@/context/RefreshContext';
 
 function AdminDashboardContent() {
     const params = useParams();
     const groupId = params.groupId as string;
     const { currentGroup, isAdmin, refreshGroup } = useGroup();
     const { user } = useUser();
+    const online = useOnline();
     const router = useRouter();
+    const nav = useAppNavigate();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
 
@@ -43,9 +56,12 @@ function AdminDashboardContent() {
         }
     }, [searchParams]);
 
-    // Data
-    const [trips, setTrips] = useState<Trip[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Data (local-first: cache do Dexie via SyncProvider)
+    const tripsQuery = useTrips(groupId);
+    const trips = tripsQuery ?? [];
+    usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/admin/trips/${t.id}`));
+    const { groupSyncing } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
     // Create New Trip State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,35 +85,12 @@ function AdminDashboardContent() {
         }
     }, [isAdmin, groupId, router]);
 
-    const loadTrips = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            // Admins see all trips
-            const allTrips = await tripsApi.getAllByGroup(groupId);
-            setTrips(allTrips);
-        } catch (error) {
-            console.error('Error loading trips:', error);
-            showToast('Falha ao carregar viagens', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
-
-    useEffect(() => {
-        loadTrips();
-        const unsub = subscriptions.subscribeToTrips(() => loadTrips());
-        return () => {
-            subscriptions.unsubscribeAll();
-        };
-    }, [loadTrips]);
-
-    useRefreshHandler(loadTrips);
-
     const handleCreateTrip = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTripName.trim()) return;
         setCreating(true);
         try {
+            assertOnline();
             await tripsApi.create({
                 name: newTripName.trim(),
                 description: newTripDescription.trim(),
@@ -107,7 +100,7 @@ function AdminDashboardContent() {
             setNewTripName('');
             setNewTripDescription('');
             setShowCreateModal(false);
-            loadTrips();
+            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -122,7 +115,7 @@ function AdminDashboardContent() {
 
         } catch (error) {
             console.error('Error creating trip:', error);
-            showToast('Falha ao criar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao criar viagem'), 'error');
         } finally {
             setCreating(false);
         }
@@ -177,18 +170,23 @@ function AdminDashboardContent() {
             if (!canClose) return;
         }
 
+        const patch = {
+            name: editTripName.trim(),
+            description: editTripDescription.trim(),
+            status: editTripStatus,
+        };
         try {
-            await tripsApi.update(editTripId, {
-                name: editTripName.trim(),
-                description: editTripDescription.trim(),
-                status: editTripStatus,
+            await optimisticEdit({
+                table: db.trips,
+                id: editTripId,
+                patch,
+                commit: () => tripsApi.update(editTripId, patch),
             });
             showToast('Viagem atualizada com sucesso!', 'success');
             setShowEditModal(false);
-            loadTrips();
         } catch (error) {
             console.error('Error updating trip:', error);
-            showToast('Falha ao atualizar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao atualizar viagem'), 'error');
         }
     };
 
@@ -197,11 +195,14 @@ function AdminDashboardContent() {
         e.stopPropagation();
         if (!confirm('Tem a certeza de que quer eliminar esta viagem? Esta acção não pode ser desfeita e irá eliminar todos os pedidos e produtos associados.')) return;
         try {
-            await tripsApi.delete(id);
+            await optimisticDelete({
+                table: db.trips,
+                id,
+                commit: () => tripsApi.delete(id),
+            });
             showToast('Viagem eliminada com sucesso!', 'success');
-            loadTrips();
         } catch (error) {
-            showToast('Falha ao eliminar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao eliminar viagem'), 'error');
         }
     };
 
@@ -214,11 +215,15 @@ function AdminDashboardContent() {
 
         if (!confirm('Tem a certeza de que quer terminar esta viagem? Esta acção não pode ser desfeita.')) return;
         try {
-            await tripsApi.close(id);
+            await optimisticEdit({
+                table: db.trips,
+                id,
+                patch: { status: 'closed' },
+                commit: () => tripsApi.close(id),
+            });
             showToast('Viagem terminada com sucesso!', 'success');
-            loadTrips();
         } catch (error) {
-            showToast('Falha ao terminar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao terminar viagem'), 'error');
         }
     };
 
@@ -229,6 +234,7 @@ function AdminDashboardContent() {
         if (!confirm('Gerar uma divisão de contas a partir desta viagem?')) return;
 
         try {
+            assertOnline();
             showToast('A gerar divisão...', 'info');
 
             // 1. Fetch Orders and Items
@@ -322,46 +328,65 @@ function AdminDashboardContent() {
             });
 
             showToast('Divisão gerada com sucesso!', 'success');
-            router.push(`/groups/${groupId}/splits/${split.id}`);
+            nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false });
 
         } catch (error) {
             console.error('Error generating split:', error);
-            showToast('Erro ao gerar divisão', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao gerar divisão'), 'error');
         }
     };
 
-    // Member Management
+    // Member Management — patch optimista no grupo em cache; `refreshGroup`
+    // confirma com o servidor.
+    const editGroupMembers = async (
+        patch: Partial<Group>,
+        commit: () => Promise<unknown>,
+        okMsg: string,
+        errMsg: string,
+    ) => {
+        try {
+            await optimisticEdit({ table: db.groups, id: groupId, patch, commit });
+            showToast(okMsg, 'success');
+            refreshGroup();
+        } catch (error) {
+            showToast(mutationErrorMessage(error, errMsg), 'error');
+        }
+    };
+
     const handleRemoveMember = async (memberId: string) => {
         if (!confirm('Remover este membro do grupo?')) return;
-        try {
-            await groupsApi.removeMember(groupId, memberId);
-            showToast('Membro removido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao remover membro', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            {
+                members: currentGroup.members.filter((id) => id !== memberId),
+                admins: currentGroup.admins.filter((id) => id !== memberId),
+            },
+            () => groupsApi.removeMember(groupId, memberId),
+            'Membro removido',
+            'Erro ao remover membro',
+        );
     };
 
     const handlePromoteMember = async (memberId: string) => {
         if (!confirm('Promover a administrador?')) return;
-        try {
-            await groupsApi.promoteToAdmin(groupId, memberId);
-            showToast('Membro promovido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao promover', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            { admins: [...currentGroup.admins, memberId] },
+            () => groupsApi.promoteToAdmin(groupId, memberId),
+            'Membro promovido',
+            'Erro ao promover',
+        );
     };
 
     const handleDemoteMember = async (memberId: string) => {
         if (!confirm('Remover privilégios de administrador?')) return;
-        try {
-            await groupsApi.demoteFromAdmin(groupId, memberId);
-            showToast('Administrador despromovido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao despromover', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            { admins: currentGroup.admins.filter((id) => id !== memberId) },
+            () => groupsApi.demoteFromAdmin(groupId, memberId),
+            'Administrador despromovido',
+            'Erro ao despromover',
+        );
     };
 
     if (loading || !currentGroup) {
@@ -435,7 +460,8 @@ function AdminDashboardContent() {
                                     <TripCard
                                         key={trip.id}
                                         trip={trip}
-                                        onClick={() => router.push(`/groups/${groupId}/admin/trips/${trip.id}`)}
+                                        href={`/groups/${groupId}/admin/trips/${trip.id}`}
+                                        onClick={() => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
                                         isAdmin={true}
                                         onEdit={handleOpenEditModal}
                                         onClose={handleCloseTrip}
@@ -534,13 +560,20 @@ function AdminDashboardContent() {
                 size="medium"
                 title="Nova Viagem"
                 footer={
-                    <button
-                        onClick={handleCreateTrip}
-                        disabled={creating || !newTripName.trim()}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
-                    >
-                        {creating ? 'A criar...' : 'Criar Viagem'}
-                    </button>
+                    <div>
+                        <button
+                            onClick={handleCreateTrip}
+                            disabled={creating || !newTripName.trim() || !online}
+                            className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
+                        >
+                            {creating ? 'A criar...' : 'Criar Viagem'}
+                        </button>
+                        {!online && (
+                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                                Sem ligação — precisas de rede para criar uma viagem.
+                            </p>
+                        )}
+                    </div>
                 }
             >
                 <div className="space-y-6 pb-4">
@@ -610,7 +643,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('open')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'open'
                                         ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
@@ -622,7 +655,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('in_progress')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'in_progress'
                                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
@@ -634,7 +667,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('closed')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'closed'
                                         ? "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"

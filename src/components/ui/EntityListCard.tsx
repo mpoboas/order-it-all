@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 
 export const entityListCardClassName =
-  'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition-all hover:shadow-md';
+  'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
 
 export function EntityCardDivider() {
   return <div className="h-px w-full bg-gray-100 dark:bg-slate-700/60" />;
@@ -35,8 +35,7 @@ export type EntityStatusPillVariant =
   | 'closed'
   | 'in_progress'
   | 'creator'
-  | 'admin'
-  | 'splitwise';
+  | 'admin';
 
 const STATUS_PILL_STYLES: Record<
   EntityStatusPillVariant,
@@ -64,12 +63,6 @@ const STATUS_PILL_STYLES: Record<
     className:
       'bg-violet-50 text-violet-700 dark:bg-violet-900/35 dark:text-violet-300',
     icon: 'admin_panel_settings',
-  },
-  splitwise: {
-    className:
-      'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-    icon: 'check_circle',
-    compact: true,
   },
 };
 
@@ -167,6 +160,11 @@ export function EntityCardActionIcon({
           onActivate(e);
         }
       }}
+      // Não deixar o toque/hover subir ao card — senão dispara o
+      // `usePrefetchOnIntent` do card (RSC completo) ao carregar num ícone.
+      onPointerEnter={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onFocus={(e) => e.stopPropagation()}
       className={cn(
         'p-2 rounded-lg transition-colors text-[var(--text-muted)]',
         className

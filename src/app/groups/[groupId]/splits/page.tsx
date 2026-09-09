@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { useToast } from '@/context/ToastContext';
-import { splitsApi, subscriptions } from '@/lib/pocketbase';
+import { splitsApi } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
@@ -13,13 +13,15 @@ import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
-import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { collectGroupMembers } from '@/lib/splitShare';
-import { useRefreshHandler } from '@/context/RefreshContext';
+import { useSplits } from '@/lib/db/hooks';
+import { db } from '@/lib/db/schema';
+import { optimisticEdit, optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupSplitsPage() {
-    const [splits, setSplits] = useState<Split[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [editingSplit, setEditingSplit] = useState<Split | null>(null);
     const [editName, setEditName] = useState('');
@@ -33,39 +35,25 @@ export default function GroupSplitsPage() {
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
     const router = useRouter();
+    const nav = useAppNavigate();
 
     const userName = user?.name || user?.email || '';
+
+    const splitsQuery = useSplits(groupId);
+    const splits = splitsQuery ?? [];
+    const { groupSyncing } = useSyncStatus();
+    const loading = splitsQuery === undefined || (splits.length === 0 && groupSyncing);
 
     const displayedSplits = splits.filter(split =>
         isAdmin ||
         split.created_by === user?.id ||
         split.participants.includes(userName)
     );
+    usePrefetchRoutes(displayedSplits.map((s) => `/groups/${groupId}/splits/${s.id}`));
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
-
-    const loadSplits = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            const data = await splitsApi.getByGroup(groupId);
-            setSplits(data.map(normalizeSplitRecord));
-        } catch (error) {
-            console.error('Error loading splits:', error);
-            showToast('Erro ao carregar divisões', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
-
-    useEffect(() => {
-        loadSplits();
-        subscriptions.subscribeToSplits(() => loadSplits());
-        return () => subscriptions.unsubscribeAll();
-    }, [loadSplits]);
-
-    useRefreshHandler(loadSplits);
 
     const groupMembers = collectGroupMembers(currentGroup);
 
@@ -89,17 +77,19 @@ export default function GroupSplitsPage() {
         if (!editingSplit || !editName.trim()) return;
 
         setEditSubmitting(true);
+        const patch = { name: editName.trim(), description: editDesc.trim() };
         try {
-            await splitsApi.update(editingSplit.id, {
-                name: editName.trim(),
-                description: editDesc.trim(),
+            await optimisticEdit({
+                table: db.splits,
+                id: editingSplit.id,
+                patch,
+                commit: () => splitsApi.update(editingSplit.id, patch),
             });
             showToast('Divisão atualizada!', 'success');
             closeEdit();
-            loadSplits();
         } catch (error) {
             console.error('Error updating split:', error);
-            showToast('Erro ao guardar divisão', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar divisão'), 'error');
         } finally {
             setEditSubmitting(false);
         }
@@ -109,12 +99,15 @@ export default function GroupSplitsPage() {
         e.stopPropagation();
         if (!confirm('Eliminar esta divisão?')) return;
         try {
-            await splitsApi.delete(id);
+            await optimisticDelete({
+                table: db.splits,
+                id,
+                commit: () => splitsApi.delete(id),
+            });
             showToast('Divisão eliminada!', 'success');
-            loadSplits();
         } catch (error) {
             console.error('Error deleting split:', error);
-            showToast('Erro ao eliminar', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao eliminar'), 'error');
         }
     };
 
@@ -176,8 +169,8 @@ export default function GroupSplitsPage() {
                                 total={getTotalAmount(split)}
                                 canEdit={canManageSplit(split)}
                                 canDelete={canManageSplit(split)}
-                                showSplitwise={isAdmin}
-                                onOpen={() => router.push(`/groups/${groupId}/splits/${split.id}`)}
+                                href={`/groups/${groupId}/splits/${split.id}`}
+                                onOpen={() => nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false })}
                                 onEdit={(e) => openEdit(split, e)}
                                 onDelete={(e) => handleDelete(split.id, e)}
                                 style={{ animationDelay: `${idx * 0.05}s` }}
@@ -247,7 +240,7 @@ export default function GroupSplitsPage() {
                 onClose={() => setShowCreate(false)}
                 onCreated={(newSplit) => {
                     setShowCreate(false);
-                    router.push(`/groups/${groupId}/splits/${newSplit.id}`);
+                    nav.push(`/groups/${groupId}/splits/${newSplit.id}`, { haptic: false });
                 }}
                 groupId={groupId}
                 groupMembers={groupMembers}

@@ -35,25 +35,39 @@ async function fetchPublicSplit(
   return res.json();
 }
 
+/**
+ * PATCH à rota partilhada. O servidor já reserializa e repete em conflito de
+ * versão; se mesmo assim vier 409 (contenção pesada) repetimos aqui algumas
+ * vezes antes de desistir.
+ */
+async function patchSplitShare(
+  shareCode: string,
+  body: Record<string, unknown>,
+  attempt = 0
+): Promise<PublicSplitPayload> {
+  const res = await fetch(`/api/splits/share/${encodeURIComponent(shareCode)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 409 && attempt < 3) {
+    await new Promise((r) => setTimeout(r, 150 * (attempt + 1) + Math.random() * 120));
+    return patchSplitShare(shareCode, body, attempt + 1);
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'patch_failed');
+  }
+  return res.json();
+}
+
 async function patchParticipantToggle(
   shareCode: string,
   participantName: string,
   itemIndex: number,
   include: boolean
 ): Promise<PublicSplitPayload> {
-  const res = await fetch(
-    `/api/splits/share/${encodeURIComponent(shareCode)}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ participantName, itemIndex, include }),
-    }
-  );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'patch_failed');
-  }
-  return res.json();
+  return patchSplitShare(shareCode, { participantName, itemIndex, include });
 }
 
 async function patchMemberAllocation(
@@ -75,29 +89,17 @@ async function patchMemberAllocation(
   // full desired participant list rather than just the caller's own flag.
   const participants = mode === 'equal' ? updatedItem.participants : undefined;
 
-  const res = await fetch(
-    `/api/splits/share/${encodeURIComponent(shareCode)}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        participantName,
-        itemIndex,
-        memberAllocation: {
-          mode: mode as SplitItemMode,
-          equalParticipating,
-          myValue,
-          allocations,
-          participants,
-        },
-      }),
-    }
-  );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'patch_failed');
-  }
-  return res.json();
+  return patchSplitShare(shareCode, {
+    participantName,
+    itemIndex,
+    memberAllocation: {
+      mode: mode as SplitItemMode,
+      equalParticipating,
+      myValue,
+      allocations,
+      participants,
+    },
+  });
 }
 
 export default function PublicSplitPage() {
@@ -375,7 +377,7 @@ export default function PublicSplitPage() {
                     type="button"
                     onClick={() => setSelectedName(name)}
                     className={cn(
-                      'w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left',
+                      'w-full flex items-center gap-3 p-4 rounded-xl border transition text-left',
                       selectedName === name
                         ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 ring-2 ring-violet-500/30'
                         : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-violet-300'

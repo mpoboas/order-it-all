@@ -9,8 +9,8 @@ self.addEventListener('push', function (event) {
 
     const options = {
         body,
-        icon: icon || '/icon-192x192.png',
-        badge: '/badge-72x72.png',
+        icon: icon || '/android-chrome-192x192.png',
+        badge: '/favicon-48x48.png',
         vibrate: [100, 50, 100],
         data: {
             url: url || '/',

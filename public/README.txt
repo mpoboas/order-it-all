@@ -19,8 +19,7 @@ Apple Icons:
 Other Formats:
 - favicon.ico (Traditional ICO format containing multiple sizes. Note that browsers/OS may choose smaller sizes due to caching. Use professional ICO viewers to verify.)
  - favicon.svg (Vectorized from your uploaded image using ImageTracer)
- - safari-pinned-tab.svg (Vectorized from your uploaded image)
-- site.webmanifest (PWA manifest file)
+ - safari-pinned-tab.svg (Vectorized from your uploaded image)
 
 Usage:
 Place all files in your website's root directory, then add the following link tags to your HTML's <head> section.

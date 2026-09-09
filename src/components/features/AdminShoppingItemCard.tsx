@@ -114,7 +114,7 @@ export function AdminShoppingItemCard({
   return (
     <div
       className={cn(
-        'relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm',
+        'relative group transition duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm',
         statusBgClass
       )}
     >
@@ -178,7 +178,7 @@ export function AdminShoppingItemCard({
       <div
         onClick={onCycleStatus}
         className={cn(
-          'w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition-all select-none',
+          'w-full py-2 flex items-center justify-center gap-1.5 text-xs font-bold text-white cursor-pointer active:brightness-90 transition select-none',
           item.found_status === 'pending'
             ? 'bg-amber-500 text-amber-700 hover:bg-amber-600'
             : item.found_status === 'found'

@@ -1,19 +1,32 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
+import { SyncProvider } from "@/context/SyncProvider";
 import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
+import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
+import { ViewTransitions } from "next-view-transitions";
 
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-inter",
+});
+
+// Self-hosted (era um <link> render-blocking para fonts.googleapis.com).
+const materialIcons = localFont({
+  src: "./fonts/material-icons.woff2",
+  weight: "400",
+  style: "normal",
+  display: "block",
+  variable: "--font-material-icons",
 });
 
 export const metadata: Metadata = {
@@ -67,32 +80,42 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-PT" className={inter.variable}>
+    <html
+      lang="pt-PT"
+      className={`${inter.variable} ${materialIcons.variable}`}
+      suppressHydrationWarning
+    >
       <head>
+        {/* Aplica o tema guardado antes do primeiro paint — sem flash de tema errado.
+            O ThemeContext apenas reafirma o que este script ja poe no <html>. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark';var c=document.documentElement.classList;c.toggle('dark',d);c.toggle('light',!d);}catch(e){}})();`,
+          }}
+        />
         {/* Next emite mobile-web-app-capable; o iOS < 16.4 ainda precisa do legado
             para entrar em standalone e respeitar o status bar translucido. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className={inter.className}>
-        <UserProvider>
-          <GroupProvider>
-            <ToastProvider>
-              <ThemeProvider>
-                <RefreshProvider>
-                  {children}
-                  <ToastContainer />
-                  <LazyPushNotificationManager />
-                </RefreshProvider>
-              </ThemeProvider>
-            </ToastProvider>
-          </GroupProvider>
-        </UserProvider>
+        <ViewTransitions>
+          <UserProvider>
+            <SyncProvider>
+              <GroupProvider>
+                <ToastProvider>
+                  <ThemeProvider>
+                    <RefreshProvider>
+                      {children}
+                      <NavHistoryTracker />
+                      <ToastContainer />
+                      <LazyPushNotificationManager />
+                    </RefreshProvider>
+                  </ThemeProvider>
+                </ToastProvider>
+              </GroupProvider>
+            </SyncProvider>
+          </UserProvider>
+        </ViewTransitions>
       </body>
     </html>
   );

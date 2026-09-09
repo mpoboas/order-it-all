@@ -210,16 +210,62 @@ export function getUserGeminiApiKey(
   return trimmed || undefined;
 }
 
-/** Shared across every Gemini-vision scan feature (trip invoice scan, split invoice scan, ...) */
-export const DAILY_SCAN_LIMIT = 20;
+/**
+ * Não há forma de saber a quota real do Gemini (a Google não a expõe, e varia
+ * por conta). Em vez de um limite fixo inventado, deixamos scanear à vontade e,
+ * quando o Gemini responder "quota diária esgotada", marcamos aqui e bloqueamos
+ * até ao dia seguinte (o reset da quota do Gemini é à meia-noite Pacific — daí
+ * `getPacificDateString`).
+ *
+ * O bloqueio grava-se nos campos que já existem no user do PocketBase:
+ * `last_request_date = hoje` + `daily_requests_count = SCAN_BLOCKED_MARKER`
+ * (sentinela absurda — nenhum uso normal lá chega).
+ */
+export const SCAN_BLOCKED_MARKER = 999_999;
 
-/** How many Gemini scans this user has already used today, across all scan features */
-export function getDailyScanCount(
-  user: { daily_requests_count?: number; last_request_date?: string } | null | undefined
-): number {
+type ScanUser =
+  | { daily_requests_count?: number; last_request_date?: string }
+  | null
+  | undefined;
+
+/** Nº de leituras já feitas hoje (informativo — não há teto a mostrar). */
+export function getDailyScanCount(user: ScanUser): number {
   if (!user) return 0;
-  const today = getPacificDateString();
-  return user.last_request_date === today ? user.daily_requests_count || 0 : 0;
+  const count = user.last_request_date === getPacificDateString()
+    ? user.daily_requests_count || 0
+    : 0;
+  return count >= SCAN_BLOCKED_MARKER ? 0 : count;
+}
+
+/** O Gemini já disse "quota diária esgotada" hoje? */
+export function isInvoiceScanBlockedToday(user: ScanUser): boolean {
+  if (!user) return false;
+  return (
+    user.last_request_date === getPacificDateString() &&
+    (user.daily_requests_count || 0) >= SCAN_BLOCKED_MARKER
+  );
+}
+
+/** Payload para `updateProfile` que marca o bloqueio até amanhã. */
+export function blockInvoiceScanPayload(): {
+  daily_requests_count: number;
+  last_request_date: string;
+} {
+  return {
+    daily_requests_count: SCAN_BLOCKED_MARKER,
+    last_request_date: getPacificDateString(),
+  };
+}
+
+/** Payload para incrementar a contagem de leituras do dia. */
+export function bumpDailyScanPayload(user: ScanUser): {
+  daily_requests_count: number;
+  last_request_date: string;
+} {
+  return {
+    daily_requests_count: getDailyScanCount(user) + 1,
+    last_request_date: getPacificDateString(),
+  };
 }
 
 /**

@@ -1,12 +1,24 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
-import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
-import type { Trip, Item, OrderWithItems, User } from '@/lib/types';
+import { ordersApi, itemsApi } from '@/lib/pocketbase';
+import type { Item, OrderWithItems, User } from '@/lib/types';
+import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { db } from '@/lib/db/schema';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
 import {
     orderVisibleToUser,
     deriveOrderUserName,
@@ -30,24 +42,20 @@ import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
-import { useRefreshHandler } from '@/context/RefreshContext';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
     const groupId = params.groupId as string;
     const tripId = params.tripId as string;
-    const router = useRouter();
+    const router = useTransitionRouter();
     const { user, isLoggedIn } = useUser();
     const { isAdmin, currentGroup } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
+    const online = useOnline();
 
     const userName = user?.name || user?.email || 'Anónimo';
 
-    const [trip, setTrip] = useState<Trip | null>(null);
-    const [orders, setOrders] = useState<OrderWithItems[]>([]);
-    const [otherOrders, setOtherOrders] = useState<OrderWithItems[]>([]);
-    const [loading, setLoading] = useState(true);
     const [orderSheetSession, setOrderSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
     const [orderSheetDraftActive, setOrderSheetDraftActive] = useState(false);
@@ -75,60 +83,42 @@ export default function GroupTripDetailPage() {
 
     const showAllOrders = Boolean(currentGroup?.show_all_orders);
 
-    const loadData = useCallback(async () => {
-        try {
-            const [tripData, ordersData] = await Promise.all([
-                tripsApi.getById(tripId),
-                ordersApi.getByTrip(tripId),
-            ]);
+    const tripQuery = useTrip(tripId);
+    const trip = tripQuery ?? null;
+    const allOrders = useOrders(tripId);
+    const orderIds = useMemo(() => (allOrders ?? []).map((o) => o.id), [allOrders]);
+    const allItems = useItems(orderIds);
+    const { groupSyncing } = useSyncStatus();
 
-            setTrip(tripData);
-            const userOrders = ordersData
-                .filter(order => orderVisibleToUser(order, currentUserId, userName))
-                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
-            const othersRaw = showAllOrders
-                ? ordersData
-                    .filter(order => !orderVisibleToUser(order, currentUserId, userName))
-                    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
-                : [];
+    const loading = tripQuery === undefined || (trip === null && groupSyncing);
 
-            const allItems = await itemsApi.getByOrderIds(
-                [...userOrders, ...othersRaw].map((order) => order.id)
-            );
-            const itemsByOrder = new Map<string, Item[]>();
-            for (const item of allItems) {
-                const list = itemsByOrder.get(item.order_id) ?? [];
-                list.push(item);
-                itemsByOrder.set(item.order_id, list);
-            }
-
-            const ordersWithItems = userOrders.map((order) => ({
-                ...order,
-                items: itemsByOrder.get(order.id) ?? [],
-            }));
-            setOrders(ordersWithItems);
-
-            const othersWithItems = othersRaw.map((order) => ({
-                ...order,
-                items: itemsByOrder.get(order.id) ?? [],
-            }));
-            setOtherOrders(othersWithItems);
-        } catch (error) {
-            console.error('Error loading trip:', error);
-            showToast('Erro ao carregar viagem', 'error');
-        } finally {
-            setLoading(false);
+    const { orders, otherOrders } = useMemo(() => {
+        const ordersData = allOrders ?? [];
+        const items = allItems ?? [];
+        const itemsByOrder = new Map<string, Item[]>();
+        for (const item of items) {
+            const list = itemsByOrder.get(item.order_id) ?? [];
+            list.push(item);
+            itemsByOrder.set(item.order_id, list);
         }
-    }, [tripId, userName, currentUserId, showToast, showAllOrders]);
+        const attach = (list: typeof ordersData): OrderWithItems[] =>
+            list
+                .slice()
+                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+                .map((order) => ({ ...order, items: itemsByOrder.get(order.id) ?? [] }));
 
-    useEffect(() => {
-        loadData();
-        subscriptions.subscribeToOrders(tripId, () => loadData());
-        subscriptions.subscribeToItems(() => loadData());
-        return () => subscriptions.unsubscribeAll();
-    }, [tripId, loadData]);
-
-    useRefreshHandler(loadData);
+        const mine = attach(
+            ordersData.filter((order) => orderVisibleToUser(order, currentUserId, userName)),
+        );
+        const others = showAllOrders
+            ? attach(
+                  ordersData.filter(
+                      (order) => !orderVisibleToUser(order, currentUserId, userName),
+                  ),
+              )
+            : [];
+        return { orders: mine, otherOrders: others };
+    }, [allOrders, allItems, currentUserId, userName, showAllOrders]);
 
     const { mine: myOrders, participating: participatingOrders } = useMemo(
         () => partitionOrdersForUser(orders, currentUserId),
@@ -150,6 +140,10 @@ export default function GroupTripDetailPage() {
     const openNewOrder = () => {
         if (orderSheetSession === 'minimized') {
             setOrderSheetSession('expanded');
+            return;
+        }
+        if (!online) {
+            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
             return;
         }
         setEditingOrderId(null);
@@ -174,29 +168,36 @@ export default function GroupTripDetailPage() {
     }) => {
         setSubmitting(true);
         try {
+            assertOnline();
             if (editingOrderId) {
                 const existing = orders.find(o => o.id === editingOrderId);
                 const validItems = data.items.filter(i => i.name.trim());
 
                 if (validItems.length === 0) {
                     if (existing) {
-                        for (const item of existing.items) await itemsApi.delete(item.id);
+                        await Promise.all(existing.items.map(item => itemsApi.delete(item.id)));
                     }
                     await ordersApi.delete(editingOrderId);
+                    await db.orders.delete(editingOrderId);
+                    await db.items.where('order_id').equals(editingOrderId).delete();
                     showToast('Pedido eliminado (sem produtos)', 'success');
                 } else if (existing) {
-                    for (const item of existing.items) await itemsApi.delete(item.id);
-                    for (const item of validItems) {
-                        await itemsApi.create({
-                            order_id: editingOrderId,
-                            name: item.name,
-                            quantity: item.quantity,
-                            brand: item.brand,
-                            notes: item.notes,
-                            price: item.quantity * item.unit_price,
-                            image_url: item.image_url,
-                        });
-                    }
+                    await Promise.all(existing.items.map(item => itemsApi.delete(item.id)));
+                    const createdItems = await Promise.all(
+                        validItems.map(item =>
+                            itemsApi.create({
+                                order_id: editingOrderId,
+                                name: item.name,
+                                quantity: item.quantity,
+                                brand: item.brand,
+                                notes: item.notes,
+                                price: item.quantity * item.unit_price,
+                                image_url: item.image_url,
+                            }),
+                        ),
+                    );
+                    await db.items.where('order_id').equals(editingOrderId).delete();
+                    await db.items.bulkPut(createdItems);
                     showToast('Pedido atualizado!', 'success');
                 }
             } else {
@@ -213,25 +214,29 @@ export default function GroupTripDetailPage() {
                 });
                 const order = await ordersApi.create(createPayload);
                 startTimer(order.id, order.can_edit_until);
-                for (const item of data.items) {
-                    await itemsApi.create({
-                        order_id: order.id,
-                        name: item.name,
-                        quantity: item.quantity,
-                        brand: item.brand,
-                        notes: item.notes,
-                        price: item.quantity * item.unit_price,
-                        image_url: item.image_url,
-                    });
-                }
+                const createdItems = await Promise.all(
+                    data.items.map(item =>
+                        itemsApi.create({
+                            order_id: order.id,
+                            name: item.name,
+                            quantity: item.quantity,
+                            brand: item.brand,
+                            notes: item.notes,
+                            price: item.quantity * item.unit_price,
+                            image_url: item.image_url,
+                        }),
+                    ),
+                );
+                // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
+                await db.orders.put(order);
+                if (createdItems.length) await db.items.bulkPut(createdItems);
                 showToast('Pedido criado!', 'success');
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
-            loadData();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar pedido', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar pedido'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -297,14 +302,18 @@ export default function GroupTripDetailPage() {
             if (!creatorId && currentUserId) {
                 updatePayload.user = currentUserId;
             }
-            await ordersApi.update(participantsSheetOrder.id, updatePayload);
+            await optimisticEdit({
+                table: db.orders,
+                id: participantsSheetOrder.id,
+                patch: updatePayload,
+                commit: () => ordersApi.update(participantsSheetOrder.id, updatePayload),
+            });
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            loadData();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar participantes', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar participantes'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -319,19 +328,19 @@ export default function GroupTripDetailPage() {
         }
         if (!confirm('Eliminar este pedido?')) return;
 
-        // Optimistic Update
-        const previousOrders = [...orders];
-        setOrders(current => current.filter(o => o.id !== orderId));
-
         try {
-            // Delete items first manually as per current logic
-            for (const item of order.items) await itemsApi.delete(item.id);
-            await ordersApi.delete(orderId);
-
+            await optimisticDelete({
+                table: db.orders,
+                id: orderId,
+                cascade: order.items.map((item) => ({ table: db.items, id: item.id })),
+                commit: async () => {
+                    for (const item of order.items) await itemsApi.delete(item.id);
+                    await ordersApi.delete(orderId);
+                },
+            });
             showToast('Pedido eliminado', 'success');
-        } catch {
-            showToast('Erro ao eliminar', 'error');
-            setOrders(previousOrders); // Revert on failure
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao eliminar'), 'error');
         }
     };
 
@@ -469,7 +478,7 @@ export default function GroupTripDetailPage() {
                     </div>
                     <button
                         type="button"
-                        onClick={loadData}
+                        onClick={() => void catchUp()}
                         className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors shrink-0"
                         aria-label="Atualizar pedidos"
                     >
@@ -534,7 +543,7 @@ export default function GroupTripDetailPage() {
                                             </div>
                                         )}
                                         {/* Order Header */}
-                                        <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                        <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-white dark:ring-slate-700">
                                                     🛒
@@ -605,7 +614,7 @@ export default function GroupTripDetailPage() {
                                                     <div
                                                         key={item.id}
                                                         className={cn(
-                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
+                                                            "relative group transition duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
                                                             item.found_status === 'found' ? "bg-emerald-50/30 dark:bg-emerald-900/10" :
                                                                 item.found_status === 'not_available' ? "bg-red-50/30 dark:bg-red-900/10" : "bg-white dark:bg-slate-800"
                                                         )}
@@ -684,7 +693,8 @@ export default function GroupTripDetailPage() {
                     <button
                         onClick={openNewOrder}
                         className={cn(
-                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition-all duration-300'
+                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
+                            !online && 'opacity-50'
                         )}
                         style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
                         aria-label="Novo pedido"

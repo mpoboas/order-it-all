@@ -10,33 +10,6 @@ export interface User {
   last_request_date?: string;
 }
 
-export interface SplitwiseMemberCache {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  displayName: string;
-}
-
-/** 1:1 Splitwise config per Order It All group (collection `group_splitwise`) */
-export interface GroupSplitwise {
-  id: string;
-  group_id: string;
-  access_token?: string;
-  connected_user_id?: number;
-  splitwise_group_id?: number;
-  splitwise_group_name?: string;
-  members_cache?: SplitwiseMemberCache[];
-  name_map?: Record<string, number>;
-  created: string;
-  updated: string;
-}
-
-/** Safe subset returned to the browser (no access_token) */
-export type GroupSplitwisePublic = Omit<GroupSplitwise, 'access_token'> & {
-  connected: boolean;
-};
-
 export interface Group {
   id: string;
   name: string;
@@ -120,9 +93,9 @@ export interface Split {
   share_active?: boolean;
   /** Which split-item modes members are allowed to pick. Empty/undefined = all allowed. */
   allowed_modes?: SplitItemMode[];
-  splitwise_participant_map?: Record<string, number>;
-  splitwise_exported_at?: string;
-  splitwise_expense_id?: number;
+  /** Monotónico — bumped a cada escrita de `items`. Controlo de concorrência
+   *  optimista para os toques concorrentes dos participantes (ver rota share). */
+  items_version?: number;
   created_by: string;
   expand?: {
     created_by?: User;

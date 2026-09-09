@@ -20,6 +20,7 @@ import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { Avatar } from '@/components/ui/Avatar';
 import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { useWebHaptics } from 'web-haptics/react';
+import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 
 const MAX_VISIBLE_AVATARS = 4;
 
@@ -52,6 +53,11 @@ export function GroupCard({
     userId && !isCreator && group.admins?.includes(userId)
   );
 
+  const isGroupAdmin = Boolean(userId && group.admins?.includes(userId));
+  const prefetch = usePrefetchOnIntent(
+    `/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`,
+  );
+
   const openMembers = () => {
     trigger();
     setShowMembers(true);
@@ -61,6 +67,7 @@ export function GroupCard({
     <>
       <button
         type="button"
+        {...prefetch}
         onClick={() => {
           trigger();
           onSelect();
@@ -115,8 +122,14 @@ export function GroupCard({
                 openMembers();
               }
             }}
+            // Não deixar o toque/hover chegar ao card — senão dispara o
+            // `router.prefetch({ kind: 'full' })` do card (RSC completo) no
+            // mesmo gesto de abrir o sheet, e este "laga".
+            onPointerEnter={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
             aria-label={`Ver ${memberCount} membros`}
-            className="flex items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-violet-900/20"
+            className="inline-flex self-start items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-violet-900/20"
           >
             <span className="flex items-center shrink-0">
               {visibleMembers.map((member, index) => (

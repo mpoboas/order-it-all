@@ -25,7 +25,7 @@ export function Button({
     };
     const baseStyles = `
     inline-flex items-center justify-center font-semibold
-    transition-all duration-200 ease-in-out
+    transition duration-200 ease-in-out
     disabled:opacity-50 disabled:cursor-not-allowed
     focus:outline-none focus:ring-2 focus:ring-offset-2
   `;

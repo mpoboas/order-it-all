@@ -99,11 +99,17 @@ export const ordersApi = {
       payload.user = creatorId;
     }
 
-    return await pb.collection('orders').create<Order>(payload);
+    // Pede o `expand` já na resposta — o card do pedido acabado de criar aparece
+    // completo no Dexie sem esperar o eco do realtime.
+    return await pb.collection('orders').create<Order>(payload, {
+      expand: 'user,participants',
+    });
   },
 
   update: async (id: string, data: Partial<Order>): Promise<Order> => {
-    return await pb.collection('orders').update<Order>(id, data);
+    return await pb.collection('orders').update<Order>(id, data, {
+      expand: 'user,participants',
+    });
   },
 
   delete: async (id: string): Promise<boolean> => {
@@ -268,6 +274,24 @@ export const splitsApi = {
 
   update: async (id: string, data: Partial<Split>): Promise<Split> => {
     return await pb.collection('splits').update<Split>(id, data);
+  },
+
+  /**
+   * Escrita que toca em `items` com controlo de concorrência optimista.
+   * `items_version` tem de ficar > ao guardado (regra de API do PB) — se outra
+   * pessoa (ex.: um participante no link) escreveu entretanto, o PB devolve
+   * 404/403 e o chamador relê + volta a tentar. `data` pode trazer outros
+   * campos (`participants`, `name`, …) que vão no mesmo update.
+   */
+  updateItems: async (
+    id: string,
+    data: Partial<Split> & { items: Split['items'] },
+    expectedVersion: number
+  ): Promise<Split> => {
+    return await pb.collection('splits').update<Split>(id, {
+      ...data,
+      items_version: (expectedVersion || 0) + 1,
+    });
   },
 
   delete: async (id: string): Promise<boolean> => {
@@ -461,33 +485,6 @@ export const groupsApi = {
   },
 };
 
-// Real-time subscriptions
-export const subscriptions = {
-  subscribeToGroups: (callback: (e: unknown) => void) => {
-    return pb.collection('groups').subscribe('*', callback);
-  },
-
-  subscribeToTrips: (callback: (e: unknown) => void) => {
-    return pb.collection('trips').subscribe('*', callback);
-  },
-
-  subscribeToOrders: (tripId: string, callback: (e: unknown) => void) => {
-    return pb.collection('orders').subscribe('*', callback);
-  },
-
-  subscribeToItems: (callback: (e: unknown) => void) => {
-    return pb.collection('items').subscribe('*', callback);
-  },
-
-  subscribeToSplits: (callback: (e: unknown) => void) => {
-    return pb.collection('splits').subscribe('*', callback);
-  },
-
-  unsubscribeAll: () => {
-    pb.collection('groups').unsubscribe();
-    pb.collection('trips').unsubscribe();
-    pb.collection('orders').unsubscribe();
-    pb.collection('items').unsubscribe();
-    pb.collection('splits').unsubscribe();
-  },
-};
+// As subscrições realtime por-página foram substituídas pela cache local-first:
+// há uma subscrição partilhada por coleção em src/lib/db/sync.ts que alimenta o
+// Dexie, e as páginas lêem via os hooks de src/lib/db/hooks.ts.

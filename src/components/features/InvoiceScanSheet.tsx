@@ -5,14 +5,21 @@ import { reconcileWithGeminiImage } from '@/app/actions/ai';
 import { ordersApi, itemsApi } from '@/lib/pocketbase';
 import { buildOrderCreatePayload } from '@/lib/orderParticipants';
 import type { User } from '@/lib/types';
+import { db } from '@/lib/db/schema';
+import {
+  assertOnline,
+  optimisticEdit,
+  mutationErrorMessage,
+} from '@/lib/db/mutations';
 import {
   formatCurrency,
   cn,
-  getPacificDateString,
   getUserGeminiApiKey,
-  DAILY_SCAN_LIMIT,
-  getDailyScanCount,
+  isInvoiceScanBlockedToday,
+  blockInvoiceScanPayload,
+  bumpDailyScanPayload,
 } from '@/lib/utils';
+import { invoiceScanFailureMessage } from '@/lib/scanFeedback';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -79,8 +86,7 @@ export function InvoiceScanSheet({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const allListItems = orderCards.flatMap((o) => o.items);
-  const dailyCount = getDailyScanCount(user);
-  const atDailyLimit = dailyCount >= DAILY_SCAN_LIMIT;
+  const scanBlocked = isInvoiceScanBlockedToday(user);
   const geminiApiKey = getUserGeminiApiKey(user);
   const hasApiKey = Boolean(geminiApiKey);
 
@@ -196,8 +202,8 @@ export function InvoiceScanSheet({
       showToast(!invoiceFile ? 'Seleciona uma fatura' : 'Configura a API Key', 'error');
       return;
     }
-    if (atDailyLimit) {
-      showToast('Limite diário de análises atingido', 'error');
+    if (scanBlocked) {
+      showToast(invoiceScanFailureMessage({ code: 'quota_daily' }), 'error');
       return;
     }
 
@@ -213,33 +219,34 @@ export function InvoiceScanSheet({
     );
 
     try {
-      const result = await reconcileWithGeminiImage(
+      const outcome = await reconcileWithGeminiImage(
         invoiceFile,
         tripItems,
         geminiApiKey
       );
 
-      const today = getPacificDateString();
-      const currentCount =
-        user.last_request_date === today ? user.daily_requests_count || 0 : 0;
-      updateProfile({
-        daily_requests_count: currentCount + 1,
-        last_request_date: today,
-      }).catch(console.error);
+      if (!outcome.ok) {
+        if (outcome.failure.code === 'quota_daily') {
+          updateProfile(blockInvoiceScanPayload()).catch(console.error);
+        }
+        showToast(invoiceScanFailureMessage(outcome.failure), 'error');
+        setScanStep('upload');
+        return;
+      }
+
+      updateProfile(bumpDailyScanPayload(user)).catch(console.error);
 
       setScanResult({
-        ...result,
-        extras: result.extras.map((e, idx) => ({
+        ...outcome.data,
+        extras: outcome.data.extras.map((e, idx) => ({
           ...e,
           id: `extra-${idx}`,
           selected: true,
         })),
       });
       setScanStep('review');
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Erro ao processar fatura';
-      showToast(message, 'error');
+    } catch {
+      showToast(invoiceScanFailureMessage({ code: 'error' }), 'error');
       setScanStep('upload');
     }
   };
@@ -249,56 +256,60 @@ export function InvoiceScanSheet({
     setSubmitting(true);
 
     try {
-      const updatePromises = scanResult.matches.map((m) => {
-        const qty = m.quantity > 0 ? m.quantity : 1;
-        const unitPrice = m.price / qty;
-        return itemsApi.update(m.itemId, {
-          price: m.price,
-          quantity: qty,
-          unit_price: unitPrice,
-          found_status: 'found',
-        });
-      });
+      assertOnline();
 
-      const selectedExtras = scanResult.extras.filter((e) => e.selected);
-      let extrasPromise = Promise.resolve();
-
-      if (selectedExtras.length > 0) {
-        extrasPromise = (async () => {
-          const participantIds = members.map((m) => m.id);
-          const createPayload = buildOrderCreatePayload({
-            tripId,
-            participantIds,
-            members,
-            audienceType: 'all',
-            createdByUserId: user?.id || '',
+      // 1. Correspondências — preço/qtd/estado optimista no Dexie + PATCH (em paralelo).
+      await Promise.all(
+        scanResult.matches.map((m) => {
+          const qty = m.quantity > 0 ? m.quantity : 1;
+          const patch = {
+            price: m.price,
+            quantity: qty,
+            unit_price: m.price / qty,
+            found_status: 'found' as const,
+          };
+          return optimisticEdit({
+            table: db.items,
+            id: m.itemId,
+            patch,
+            commit: () => itemsApi.update(m.itemId, patch),
           });
-          const order = await ordersApi.create(createPayload);
+        }),
+      );
 
-          for (const extra of selectedExtras) {
+      // 2. Extras — um pedido novo "para todos" + itens; persiste a resposta no Dexie.
+      const selectedExtras = scanResult.extras.filter((e) => e.selected);
+      if (selectedExtras.length > 0) {
+        const createPayload = buildOrderCreatePayload({
+          tripId,
+          participantIds: members.map((m) => m.id),
+          members,
+          audienceType: 'all',
+          createdByUserId: user?.id || '',
+        });
+        const order = await ordersApi.create(createPayload);
+        const createdItems = await Promise.all(
+          selectedExtras.map((extra) => {
             const qty = extra.quantity > 0 ? extra.quantity : 1;
-            const unitPrice =
-              extra.unit_price > 0 ? extra.unit_price : extra.price / qty;
-            await itemsApi.create({
+            return itemsApi.create({
               order_id: order.id,
               name: extra.name,
               quantity: qty,
               price: extra.price,
-              unit_price: unitPrice,
+              unit_price: extra.unit_price > 0 ? extra.unit_price : extra.price / qty,
               found_status: 'found',
             });
-          }
-        })();
+          }),
+        );
+        await db.orders.put(order);
+        if (createdItems.length) await db.items.bulkPut(createdItems);
       }
 
-      await Promise.all([...updatePromises, extrasPromise]);
-
-      showToast('Preços atualizados!', 'success');
+      showToast('Fatura aplicada!', 'success');
       onApplied();
       handleClose();
     } catch (error) {
-      console.error(error);
-      showToast('Erro ao aplicar alterações', 'error');
+      showToast(mutationErrorMessage(error, 'Erro ao aplicar a fatura'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -385,9 +396,9 @@ export function InvoiceScanSheet({
       <Button
         onClick={handleProcessInvoice}
         className="btn-primary w-full py-3.5"
-        disabled={atDailyLimit}
+        disabled={scanBlocked}
       >
-        {atDailyLimit ? 'Limite diário atingido' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -679,13 +690,9 @@ export function InvoiceScanSheet({
             </div>
           )}
 
-          {hasApiKey && (
+          {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-[var(--text-muted)] font-medium">
-              {atDailyLimit
-                ? `Limite diário (${DAILY_SCAN_LIMIT}) atingido`
-                : dailyCount > 0
-                  ? `${dailyCount}/${DAILY_SCAN_LIMIT} análises hoje`
-                  : `Até ${DAILY_SCAN_LIMIT} análises por dia`}
+              Limite diário do Gemini atingido — volta amanhã.
             </p>
           )}
         </div>

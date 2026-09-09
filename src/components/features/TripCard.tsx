@@ -12,10 +12,13 @@ import {
 } from '@/components/ui/EntityListCard';
 import { getRelativeTime, cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
+import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 
 interface TripCardProps {
   trip: Trip;
   onClick?: () => void;
+  /** Rota do detalhe — pré-carregada no primeiro toque/hover. */
+  href?: string;
   isAdmin?: boolean;
   onEdit?: (e: React.MouseEvent, trip: Trip) => void;
   onDelete?: (e: React.MouseEvent, tripId: string) => void;
@@ -38,6 +41,7 @@ function TripStatusPill({ status }: { status: Trip['status'] }) {
 export function TripCard({
   trip,
   onClick,
+  href,
   isAdmin = false,
   onEdit,
   onDelete,
@@ -47,6 +51,7 @@ export function TripCard({
   style,
 }: TripCardProps) {
   const { trigger } = useWebHaptics();
+  const prefetch = usePrefetchOnIntent(href);
   const description = trip.description?.trim();
 
   const adminActions = isAdmin ? (
@@ -102,6 +107,7 @@ export function TripCard({
   return (
     <button
       type="button"
+      {...prefetch}
       onClick={() => {
         trigger();
         onClick?.();

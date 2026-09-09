@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { Avatar } from '@/components/ui/Avatar';
@@ -9,6 +10,7 @@ import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 interface HeaderProps {
     title?: string;
@@ -22,10 +24,11 @@ interface HeaderProps {
 export function Header({ title, subtitle, showBack, transparent = false, groupId, icon }: HeaderProps) {
     const { user, logout, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
-    const router = useRouter();
+    const router = useTransitionRouter();
     const pathname = usePathname();
     const tryNavigate = useTryNavigate();
     const { trigger } = useWebHaptics();
+    const nav = useAppNavigate();
     const userName = user?.name || user?.email || '??';
 
     // Determine current section within a group
@@ -36,19 +39,6 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
     const displayTitle = title || currentGroup?.name || 'Order It All!';
     const displaySubtitle = subtitle || (isInAdmin ? 'Painel de administração' : 'Tu pedes, nós entregamos!');
-
-    const handleBack = () => {
-        if (isInGroup && groupId) {
-            // If on trips/splits list, go back to groups
-            if (pathname === `/groups/${groupId}/trips` || pathname === `/groups/${groupId}/splits`) {
-                router.push('/groups');
-            } else {
-                router.back();
-            }
-        } else {
-            router.back();
-        }
-    };
 
     // Toggle to the other section (trips <-> splits) for non-admin users
     const getToggleHref = () => {
@@ -64,7 +54,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
     return (
         <header
             className={cn(
-                'sticky top-0 z-40 transition-all duration-300 safe-top',
+                'sticky top-0 z-40 transition duration-300 safe-top',
                 transparent
                     ? 'bg-transparent'
                     : 'bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800'
@@ -78,10 +68,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                             <button
                                 type="button"
                                 aria-label="Voltar"
-                                onClick={() => {
-                                    trigger();
-                                    tryNavigate(() => handleBack());
-                                }}
+                                onClick={() => nav.up()}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 hover:bg-white/30 transition-colors active:scale-95"
                             >
                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,7 +155,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                     name={userName}
                                     src={user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined}
                                     size="md"
-                                    className="ring-2 ring-white/30 hover:ring-white/50 transition-all"
+                                    className="ring-2 ring-white/30 hover:ring-white/50 transition"
                                 />
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +172,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 }
 
 function NavLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
-    const router = useRouter();
+    const router = useTransitionRouter();
     const tryNavigate = useTryNavigate();
     const { trigger } = useWebHaptics();
 
@@ -196,7 +183,7 @@ function NavLink({ href, current, children }: { href: string; current: boolean; 
                 tryNavigate(() => router.push(href));
             }}
             className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                'px-4 py-2 rounded-lg text-sm font-medium transition',
                 current
                     ? 'bg-white/20 text-white'
                     : 'text-white/70 hover:text-white hover:bg-white/10'

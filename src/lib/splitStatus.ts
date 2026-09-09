@@ -1,15 +1,9 @@
 import type { Split, SplitStatus } from '@/lib/types';
 
 export function normalizeSplitStatus(
-  split: Pick<Split, 'status' | 'splitwise_exported_at'>
+  split: Pick<Split, 'status'>
 ): SplitStatus {
-  if (split.status === 'closed' || split.status === 'open') {
-    return split.status;
-  }
-  if (split.splitwise_exported_at) {
-    return 'closed';
-  }
-  return 'open';
+  return split.status === 'closed' ? 'closed' : 'open';
 }
 
 export function normalizeSplitRecord(split: Split): Split {
@@ -20,13 +14,13 @@ export function normalizeSplitRecord(split: Split): Split {
 }
 
 export function isSplitClosed(
-  split: Pick<Split, 'status' | 'splitwise_exported_at'>
+  split: Pick<Split, 'status'>
 ): boolean {
   return normalizeSplitStatus(split) === 'closed';
 }
 
 export function canMembersEditSplit(
-  split: Pick<Split, 'status' | 'splitwise_exported_at'>
+  split: Pick<Split, 'status'>
 ): boolean {
   return !isSplitClosed(split);
 }

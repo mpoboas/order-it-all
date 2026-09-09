@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
 import {
   getActiveSplitByShareCode,
-  updateSplitItems,
+  withSplitItemsOCC,
+  SplitVersionConflictError,
 } from '@/lib/splitShareAdmin';
-import {
-  toPublicSplitPayload,
-  toggleItemParticipant,
-  type PublicSplitPayload,
-} from '@/lib/splitShare';
+import { toPublicSplitPayload, toggleItemParticipant } from '@/lib/splitShare';
 import {
   canMemberSaveAllocation,
   getAllowedMemberModes,
@@ -20,14 +17,20 @@ import {
   isItemLocked,
 } from '@/lib/splitItems';
 import { isSplitClosed } from '@/lib/splitStatus';
-import type { SplitItemMode } from '@/lib/types';
+import type { Split, SplitItem, SplitItemMode } from '@/lib/types';
 import { withLock } from '@/lib/serverMutex';
 
 const SHARE_CODE_RE = /^[A-Za-z0-9]{6,12}$/;
 
-type PatchOutcome =
-  | { status: 200; body: PublicSplitPayload }
-  | { status: 400 | 403 | 404; body: { error: string } };
+/** Rejeição de negócio — não é conflito de versão, não se repete. */
+class PatchReject extends Error {
+  constructor(
+    public readonly httpStatus: 400 | 403 | 404,
+    public readonly reason: string
+  ) {
+    super(reason);
+  }
+}
 
 export async function GET(
   _request: Request,
@@ -93,180 +96,169 @@ export async function PATCH(
     if (!hasToggle && !hasMemberAllocation) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
-
     if (hasToggle && hasMemberAllocation) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    // Serialize concurrent toggles for the same split. Inside the lock we always
-    // re-read the latest state from PocketBase, apply the mutation, and write
-    // back — eliminating the lost-update window between independent requests.
-    const outcome = await withLock<PatchOutcome>(
-      `split-share:${shareCode}`,
-      async () => {
-        const split = await getActiveSplitByShareCode(shareCode);
-        if (!split) {
-          return { status: 404, body: { error: 'Not found' } };
-        }
-
-        if (!split.participants.includes(participantName)) {
-          return { status: 400, body: { error: 'Invalid participant' } };
-        }
-
-        if (isSplitClosed(split)) {
-          return {
-            status: 403,
-            body: { error: 'Divisão fechada — já não é possível alterar' },
-          };
-        }
-
-        if (itemIndex >= split.items.length) {
-          return { status: 400, body: { error: 'Invalid item' } };
-        }
-
-        const currentItem = split.items[itemIndex];
-        let items: typeof split.items;
-
-        if (hasMemberAllocation && memberAllocation) {
-          const mode = memberAllocation.mode as SplitItemMode;
-          const equalParticipating = memberAllocation.equalParticipating === true;
-          const myValue =
-            typeof memberAllocation.myValue === 'number'
-              ? memberAllocation.myValue
-              : Number(memberAllocation.myValue) || 0;
-          const locked = isItemLocked(currentItem);
-          const wasParticipating = currentItem.participants.includes(participantName);
-
-          // Members can't switch an item into a mode the split owner has
-          // disabled — but can keep editing one it's already using.
-          const allowedModes = getAllowedMemberModes(split);
-          if (mode !== getSplitItemMode(currentItem) && !allowedModes.includes(mode)) {
-            return {
-              status: 403,
-              body: { error: 'Modo de divisão não permitido' },
-            };
-          }
-
-          // Equal splits may carry the full desired participant list so any
-          // member can toggle anyone's inclusion in one request.
-          let equalParticipants: string[] | undefined;
-          let equalParticipantsChanged: boolean | undefined;
-          if (mode === 'equal' && Array.isArray(memberAllocation.participants)) {
-            const known = new Set(split.participants);
-            equalParticipants = memberAllocation.participants.filter(
-              (name) => typeof name === 'string' && known.has(name)
-            );
-            const before = new Set(currentItem.participants);
-            const after = new Set(equalParticipants);
-            equalParticipantsChanged =
-              before.size !== after.size ||
-              [...before].some((name) => !after.has(name));
-          }
-
-          // Exact-amount and share-count splits may carry values for every
-          // participant. Sanitize to known participants / numbers.
-          let allocations: Record<string, number> | undefined;
-          let totalIsValid: boolean | undefined;
-          if (
-            (mode === 'unequal' || mode === 'shares') &&
-            memberAllocation.allocations &&
-            typeof memberAllocation.allocations === 'object'
-          ) {
-            allocations = {};
-            for (const name of split.participants) {
-              const raw = memberAllocation.allocations[name];
-              const value = typeof raw === 'number' ? raw : Number(raw);
-              allocations[name] = Number.isFinite(value) && value > 0 ? value : 0;
-            }
-            if (mode === 'unequal') {
-              const assigned = Object.values(allocations).reduce(
-                (sum, value) => sum + value,
-                0
-              );
-              totalIsValid = Math.abs(currentItem.price - assigned) < 0.01;
-            }
-          }
-
-          const originalValue = currentItem.allocations?.[participantName] ?? 0;
-
-          if (
-            !canMemberSaveAllocation(mode, {
-              equalParticipating,
-              myValue,
-              locked,
-              wasParticipating,
-              originalValue,
-              totalIsValid,
-              participantsChanged: equalParticipantsChanged,
-            })
-          ) {
-            return {
-              status: 403,
-              body: {
-                error:
-                  mode === 'unequal' && totalIsValid === false
-                    ? 'O total dividido tem de corresponder ao preço do item'
-                    : 'Item bloqueado — não podes alterar esta divisão',
-              },
-            };
-          }
-
-          // Locked items are frozen for everyone, not just the caller — a
-          // single "unequal"/"shares" request can carry values for every participant.
-          if (locked && (mode === 'unequal' || mode === 'shares') && allocations) {
-            for (const name of split.participants) {
-              const before = currentItem.allocations?.[name] ?? 0;
-              const after = allocations[name] ?? 0;
-              if (Math.abs(before - after) >= 0.01) {
-                return {
-                  status: 403,
-                  body: { error: 'Item bloqueado — não podes alterar esta divisão' },
-                };
-              }
-            }
-          }
-
-          const updatedItem = mergeMemberItemAllocation(
-            currentItem,
-            split.participants,
-            participantName,
-            mode,
-            { equalParticipating, myValue, allocations, participants: equalParticipants }
-          );
-
-          items = split.items.map((item, index) =>
-            index === itemIndex
-              ? reconcileItemLock(updatedItem, split.participants)
-              : item
-          );
-        } else {
-          const toggleResult = toggleItemParticipant(
-            split.items,
-            itemIndex,
-            participantName,
-            include
-          );
-          if (!toggleResult.ok) {
-            if (toggleResult.reason === 'locked') {
-              return {
-                status: 403,
-                body: { error: 'Item bloqueado — não podes remover-te desta divisão' },
-              };
-            }
-            return { status: 400, body: { error: 'Invalid item' } };
-          }
-
-          items = toggleResult.items;
-        }
-
-        items = reconcileSplitItems(items, split.participants);
-        const updated = await updateSplitItems(split.id, items);
-        return { status: 200, body: toPublicSplitPayload(updated) };
+    /**
+     * Aplica a intenção do participante ao split fresco e devolve os `items` a
+     * gravar. Chamado dentro de `withSplitItemsOCC` — em cada tentativa recebe o
+     * split re-lido, por isso as alterações de outra pessoa entretanto já lá
+     * estão. As rejeições de negócio lançam `PatchReject` (não se repetem).
+     */
+    const applyIntent = (split: Split): SplitItem[] => {
+      if (!split.participants.includes(participantName)) {
+        throw new PatchReject(400, 'Invalid participant');
       }
+      if (isSplitClosed(split)) {
+        throw new PatchReject(403, 'Divisão fechada — já não é possível alterar');
+      }
+      if (itemIndex >= split.items.length) {
+        throw new PatchReject(400, 'Invalid item');
+      }
+
+      const currentItem = split.items[itemIndex];
+      let items: SplitItem[];
+
+      if (hasMemberAllocation && memberAllocation) {
+        const mode = memberAllocation.mode as SplitItemMode;
+        const equalParticipating = memberAllocation.equalParticipating === true;
+        const myValue =
+          typeof memberAllocation.myValue === 'number'
+            ? memberAllocation.myValue
+            : Number(memberAllocation.myValue) || 0;
+        const locked = isItemLocked(currentItem);
+        const wasParticipating = currentItem.participants.includes(participantName);
+
+        const allowedModes = getAllowedMemberModes(split);
+        if (mode !== getSplitItemMode(currentItem) && !allowedModes.includes(mode)) {
+          throw new PatchReject(403, 'Modo de divisão não permitido');
+        }
+
+        let equalParticipants: string[] | undefined;
+        let equalParticipantsChanged: boolean | undefined;
+        if (mode === 'equal' && Array.isArray(memberAllocation.participants)) {
+          const known = new Set(split.participants);
+          equalParticipants = memberAllocation.participants.filter(
+            (name) => typeof name === 'string' && known.has(name)
+          );
+          const before = new Set(currentItem.participants);
+          const after = new Set(equalParticipants);
+          equalParticipantsChanged =
+            before.size !== after.size ||
+            [...before].some((name) => !after.has(name));
+        }
+
+        let allocations: Record<string, number> | undefined;
+        let totalIsValid: boolean | undefined;
+        if (
+          (mode === 'unequal' || mode === 'shares') &&
+          memberAllocation.allocations &&
+          typeof memberAllocation.allocations === 'object'
+        ) {
+          allocations = {};
+          for (const name of split.participants) {
+            const raw = memberAllocation.allocations[name];
+            const value = typeof raw === 'number' ? raw : Number(raw);
+            allocations[name] = Number.isFinite(value) && value > 0 ? value : 0;
+          }
+          if (mode === 'unequal') {
+            const assigned = Object.values(allocations).reduce(
+              (sum, value) => sum + value,
+              0
+            );
+            totalIsValid = Math.abs(currentItem.price - assigned) < 0.01;
+          }
+        }
+
+        const originalValue = currentItem.allocations?.[participantName] ?? 0;
+
+        if (
+          !canMemberSaveAllocation(mode, {
+            equalParticipating,
+            myValue,
+            locked,
+            wasParticipating,
+            originalValue,
+            totalIsValid,
+            participantsChanged: equalParticipantsChanged,
+          })
+        ) {
+          throw new PatchReject(
+            403,
+            mode === 'unequal' && totalIsValid === false
+              ? 'O total dividido tem de corresponder ao preço do item'
+              : 'Item bloqueado — não podes alterar esta divisão'
+          );
+        }
+
+        if (locked && (mode === 'unequal' || mode === 'shares') && allocations) {
+          for (const name of split.participants) {
+            const before = currentItem.allocations?.[name] ?? 0;
+            const after = allocations[name] ?? 0;
+            if (Math.abs(before - after) >= 0.01) {
+              throw new PatchReject(
+                403,
+                'Item bloqueado — não podes alterar esta divisão'
+              );
+            }
+          }
+        }
+
+        const updatedItem = mergeMemberItemAllocation(
+          currentItem,
+          split.participants,
+          participantName,
+          mode,
+          { equalParticipating, myValue, allocations, participants: equalParticipants }
+        );
+
+        items = split.items.map((item, index) =>
+          index === itemIndex
+            ? reconcileItemLock(updatedItem, split.participants)
+            : item
+        );
+      } else {
+        const toggleResult = toggleItemParticipant(
+          split.items,
+          itemIndex,
+          participantName,
+          include
+        );
+        if (!toggleResult.ok) {
+          throw new PatchReject(
+            toggleResult.reason === 'locked' ? 403 : 400,
+            toggleResult.reason === 'locked'
+              ? 'Item bloqueado — não podes remover-te desta divisão'
+              : 'Invalid item'
+          );
+        }
+        items = toggleResult.items;
+      }
+
+      return reconcileSplitItems(items, split.participants);
+    };
+
+    // `withLock` serializa dentro do mesmo processo (fast-path, ~0 retries);
+    // `withSplitItemsOCC` cobre o multi-instância via `items_version`.
+    const updated = await withLock(`split-share:${shareCode}`, () =>
+      withSplitItemsOCC(shareCode, applyIntent)
     );
 
-    return NextResponse.json(outcome.body, { status: outcome.status });
+    return NextResponse.json(toPublicSplitPayload(updated), { status: 200 });
   } catch (error) {
+    if (error instanceof PatchReject) {
+      return NextResponse.json({ error: error.reason }, { status: error.httpStatus });
+    }
+    if ((error as Error).message === 'not_found') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (error instanceof SplitVersionConflictError) {
+      return NextResponse.json(
+        { error: 'Muita gente a mexer ao mesmo tempo — tenta outra vez.' },
+        { status: 409 }
+      );
+    }
     console.error('Split share PATCH error:', error);
     if ((error as Error).message === 'Server misconfiguration') {
       return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });

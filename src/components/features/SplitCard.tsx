@@ -6,6 +6,7 @@ import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { isSplitClosed } from '@/lib/splitStatus';
 import { formatCurrency, getRelativeTime, cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
+import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 import {
   entityListCardClassName,
   EntityCardDivider,
@@ -22,8 +23,9 @@ interface SplitCardProps {
   total: number;
   canEdit?: boolean;
   canDelete?: boolean;
-  showSplitwise?: boolean;
   onOpen: () => void;
+  /** Rota do detalhe — pré-carregada no primeiro toque/hover. */
+  href?: string;
   onEdit?: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;
   className?: string;
@@ -43,14 +45,15 @@ export function SplitCard({
   total,
   canEdit = false,
   canDelete = false,
-  showSplitwise = false,
   onOpen,
+  href,
   onEdit,
   onDelete,
   className,
   style,
 }: SplitCardProps) {
   const { trigger } = useWebHaptics();
+  const prefetch = usePrefetchOnIntent(href);
   const creator = split.expand?.created_by;
   const creatorName = creator?.name?.trim() || 'Membro';
   const itemCount = split.items?.length || 0;
@@ -90,6 +93,7 @@ export function SplitCard({
   return (
     <button
       type="button"
+      {...prefetch}
       onClick={() => {
         trigger();
         onOpen();
@@ -145,9 +149,6 @@ export function SplitCard({
               <EntityStatusPill variant="closed">Fechada</EntityStatusPill>
             ) : (
               <EntityStatusPill variant="open">Aberta</EntityStatusPill>
-            )}
-            {showSplitwise && split.splitwise_exported_at && (
-              <EntityStatusPill variant="splitwise">Splitwise</EntityStatusPill>
             )}
           </>
         }

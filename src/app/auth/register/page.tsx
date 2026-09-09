@@ -97,7 +97,7 @@ export default function RegisterPage() {
                             required
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
                             placeholder="teu@email.com"
                         />
                     </div>
@@ -113,7 +113,7 @@ export default function RegisterPage() {
                             required
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
                             placeholder="••••••••"
                         />
                     </div>
@@ -129,7 +129,7 @@ export default function RegisterPage() {
                             required
                             value={confirmPass}
                             onChange={e => setConfirmPass(e.target.value)}
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
+                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
                             placeholder="••••••••"
                         />
                     </div>
@@ -138,7 +138,7 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {loading ? 'A criar conta...' : 'Criar conta'}
                         </button>

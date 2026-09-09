@@ -49,6 +49,8 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
                 <img
                     src={imageSrc}
                     alt={displayName}
+                    loading="lazy"
+                    decoding="async"
                     onError={() => setImgFailed(true)}
                     className="h-full w-full object-cover"
                 />

@@ -1,14 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { groupsApi } from '@/lib/pocketbase';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
-import { useRefreshHandler } from '@/context/RefreshContext';
+import { useGroup as useGroupRecord } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
 
 export default function GroupLayout({
     children,
@@ -16,53 +18,49 @@ export default function GroupLayout({
     children: React.ReactNode;
 }) {
     const params = useParams();
-    const router = useRouter();
-    const pathname = usePathname();
+    const router = useTransitionRouter();
     const groupId = params.groupId as string;
     const { user, isLoggedIn } = useUser();
     const { currentGroup, setCurrentGroup, isAdmin } = useGroup();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
-    const loadGroup = useCallback(async () => {
-        if (!groupId || !user?.id) return;
+    const group = useGroupRecord(groupId);
+    const { hydrating, ready, setActiveGroup } = useSyncStatus();
 
-        try {
-            const group = await groupsApi.getById(groupId);
+    // Regista o grupo aberto — dispara a sincronização dos seus dados
+    // (trips/orders/items/splits) e as subscrições realtime filtradas.
+    useEffect(() => {
+        setActiveGroup(groupId);
+        return () => setActiveGroup(null);
+    }, [groupId, setActiveGroup]);
+    // O grupo pode não estar em cache (ex.: acabaste de ser convidado). Antes de
+    // dizer "não encontrado", força um catch-up e espera por ele.
+    const [probedId, setProbedId] = useState<string | null>(null);
 
-            // Check if user is a member
-            if (!group.members.includes(user.id)) {
-                setError('Não tens acesso a este grupo');
-                return;
-            }
+    const isMember = !!(group && user?.id && group.members.includes(user.id));
+    const loading =
+        group === undefined ||
+        (group === null && (hydrating || !ready || probedId !== groupId));
+    const error = !loading && !isMember
+        ? group === null
+            ? 'Grupo não encontrado'
+            : 'Não tens acesso a este grupo'
+        : null;
 
-            setError(null);
-            setCurrentGroup(group);
-        } catch (err) {
-            console.error('Error loading group:', err);
-            setError('Grupo não encontrado');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, user?.id, setCurrentGroup]);
-
-    // Este layout nao remonta ao navegar entre viagens/divisor/admin do mesmo
-    // grupo, por isso o pathname esta nas dependencias: cada ecra que abre volta
-    // a pedir o grupo (membros e admins podem ter mudado entretanto).
     useEffect(() => {
         if (!isLoggedIn) {
             router.push('/');
-            return;
         }
+    }, [isLoggedIn, router]);
 
-        loadGroup();
+    useEffect(() => {
+        if (!ready || group !== null || probedId === groupId) return;
+        catchUp().finally(() => setProbedId(groupId));
+    }, [ready, group, groupId, probedId]);
 
-        return () => {
-            // Don't clear group on unmount to prevent flicker during navigation
-        };
-    }, [isLoggedIn, router, loadGroup, pathname]);
-
-    useRefreshHandler(loadGroup);
+    // Mantém o GroupContext em sincronia com a cache local.
+    useEffect(() => {
+        if (isMember && group) setCurrentGroup(group);
+    }, [isMember, group, setCurrentGroup]);
 
     if (!isLoggedIn) return null;
 

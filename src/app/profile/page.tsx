@@ -1,29 +1,33 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
-import { cn } from '@/lib/utils';
+import { cn, getUserGeminiApiKey } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
     const { theme, toggleTheme } = useTheme();
     const { showToast } = useToast();
-    const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [name, setName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [geminiKeyInput, setGeminiKeyInput] = useState('');
+    const [isSavingKey, setIsSavingKey] = useState(false);
+
+    const currentGeminiKey = getUserGeminiApiKey(user) ?? '';
+    const hasGeminiKey = Boolean(currentGeminiKey);
 
     useEffect(() => {
         if (user) {
             setName(user.name || '');
+            setGeminiKeyInput(getUserGeminiApiKey(user) ?? '');
         }
     }, [user]);
 
@@ -68,6 +72,21 @@ export default function ProfilePage() {
         }
     };
 
+    const handleSaveGeminiKey = async () => {
+        const key = geminiKeyInput.trim();
+        if (!key || key === currentGeminiKey) return;
+        setIsSavingKey(true);
+        try {
+            await updateProfile({ geminiApiKey: key });
+            showToast('Chave Gemini atualizada!', 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao atualizar chave', 'error');
+        } finally {
+            setIsSavingKey(false);
+        }
+    };
+
     const handleLogout = () => {
         logout();
         // Router push is handled in context but being safe
@@ -88,7 +107,7 @@ export default function ProfilePage() {
                 {/* Profile Card */}
                 <div className="card p-6 flex flex-col items-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm">
                     <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50 dark:ring-slate-800 transition-all group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
+                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50 dark:ring-slate-800 transition group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
                             {isLoading ? (
                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
                                     <LoadingSpinner size="sm" />
@@ -142,7 +161,7 @@ export default function ProfilePage() {
                                 onClick={handleSaveName}
                                 disabled={isSaving || name === user.name}
                                 className={cn(
-                                    "px-4 rounded-xl font-semibold transition-all",
+                                    "px-4 rounded-xl font-semibold transition",
                                     isSaving || name === user.name
                                         ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
                                         : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"
@@ -152,6 +171,56 @@ export default function ProfilePage() {
                             </button>
                         </div>
                     </div>
+
+                    {/* Chave Gemini — só para quem já tem uma definida (usada no scan de faturas). */}
+                    {hasGeminiKey && (
+                        <div className="card p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Chave API Gemini</label>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                                Usada para ler faturas. Cria uma nova em{' '}
+                                <a
+                                    href="https://aistudio.google.com/apikey"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary-600 dark:text-primary-400 underline"
+                                >
+                                    aistudio.google.com
+                                </a>
+                                .
+                            </p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    autoComplete="off"
+                                    autoCapitalize="off"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    value={geminiKeyInput}
+                                    onChange={(e) => setGeminiKeyInput(e.target.value)}
+                                    className="input flex-1 font-mono text-sm bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:bg-white dark:focus:bg-slate-900"
+                                    placeholder="A tua chave…"
+                                />
+                                <button
+                                    onClick={handleSaveGeminiKey}
+                                    disabled={
+                                        isSavingKey ||
+                                        !geminiKeyInput.trim() ||
+                                        geminiKeyInput.trim() === currentGeminiKey
+                                    }
+                                    className={cn(
+                                        "px-4 rounded-xl font-semibold transition",
+                                        isSavingKey ||
+                                            !geminiKeyInput.trim() ||
+                                            geminiKeyInput.trim() === currentGeminiKey
+                                            ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"
+                                    )}
+                                >
+                                    {isSavingKey ? '...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Theme Toggle */}
                     <div className="card p-4 flex items-center justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 cursor-pointer hover:border-gray-200 dark:hover:border-slate-700 transition-colors" onClick={toggleTheme}>

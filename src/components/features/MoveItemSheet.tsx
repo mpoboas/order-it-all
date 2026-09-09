@@ -7,6 +7,8 @@ import { OrderParticipantsPicker } from '@/components/features/OrderParticipants
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { ordersApi, itemsApi } from '@/lib/pocketbase';
 import type { Item, User } from '@/lib/types';
+import { db } from '@/lib/db/schema';
+import { optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
 import {
   inferAudienceType,
   buildOrderCreatePayload,
@@ -147,38 +149,53 @@ export function MoveItemSheet({
     }
   };
 
-  const cleanupEmptySourceOrder = async () => {
-    try {
-      await itemsApi.pruneOrderIfEmpty(sourceOrderId);
-    } catch {
-      /* ignore — order may still have items if race */
-    }
+  /**
+   * Se o pedido de origem ficou sem itens, o servidor apaga-o
+   * (`pruneOrderIfEmpty`). Em background — o evento realtime de delete tira-o
+   * do Dexie.
+   */
+  const pruneSourceOrder = () => {
+    void db.items
+      .where('order_id')
+      .equals(sourceOrderId)
+      .count()
+      .then((left) => {
+        if (left === 0) return itemsApi.pruneOrderIfEmpty(sourceOrderId);
+      })
+      .catch(() => {
+        /* ignore — corrige-se no próximo sync */
+      });
   };
 
-  const moveToOrder = async (orderId: string) => {
+  /** Move optimista: aplica ao Dexie já, fecha o sheet, e reverte se a rede falhar. */
+  const moveItemToOrder = async (orderId: string) => {
     if (!item) return;
-    setSubmitting(true);
+    const itemId = item.id;
+    trigger('success');
+    onMoved();
+    handleClose();
     try {
-      await itemsApi.update(item.id, { order_id: orderId });
-      await cleanupEmptySourceOrder();
-      trigger('success');
-      onMoved();
-      handleClose();
-    } catch {
+      await optimisticEdit({
+        table: db.items,
+        id: itemId,
+        patch: { order_id: orderId },
+        commit: () => itemsApi.update(itemId, { order_id: orderId }),
+      });
+      pruneSourceOrder();
+    } catch (err) {
       trigger('error');
-      showToast('Falha ao mover produto', 'error');
-    } finally {
-      setSubmitting(false);
+      showToast(mutationErrorMessage(err, 'Falha ao mover produto'), 'error');
     }
   };
 
   const handleConfirmExisting = () => {
     if (!targetOrderId) return;
-    moveToOrder(targetOrderId);
+    void moveItemToOrder(targetOrderId);
   };
 
   const handleConfirmNew = async () => {
     if (!item || selectedParticipantIds.length === 0) return;
+    const itemId = item.id;
     const audience = audienceType ?? inferAudienceType(selectedParticipantIds, groupMembers, currentUserId);
     setSubmitting(true);
     try {
@@ -190,14 +207,20 @@ export function MoveItemSheet({
         createdByUserId: currentUserId,
       });
       const order = await ordersApi.create(createPayload);
-      await itemsApi.update(item.id, { order_id: order.id });
-      await cleanupEmptySourceOrder();
+      await db.orders.put(order);
+      await optimisticEdit({
+        table: db.items,
+        id: itemId,
+        patch: { order_id: order.id },
+        commit: () => itemsApi.update(itemId, { order_id: order.id }),
+      });
       trigger('success');
       onMoved();
       handleClose();
-    } catch {
+      pruneSourceOrder();
+    } catch (err) {
       trigger('error');
-      showToast('Falha ao criar pedido', 'error');
+      showToast(mutationErrorMessage(err, 'Falha ao criar pedido'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -334,7 +357,7 @@ export function MoveItemSheet({
                           type="button"
                           onClick={() => { trigger(); setTargetOrderId(order.orderId); }}
                           className={cn(
-                            'w-full text-left p-4 rounded-2xl border-2 transition-all',
+                            'w-full text-left p-4 rounded-2xl border-2 transition',
                             selected
                               ? 'border-primary-500 bg-primary-50/60 dark:bg-primary-950/30'
                               : 'border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-200'

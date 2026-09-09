@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface RemoteImageProps {
@@ -7,30 +6,38 @@ interface RemoteImageProps {
   width: number;
   height: number;
   className?: string;
+  /** Ignorado — mantido por compatibilidade com chamadas antigas. */
   unoptimized?: boolean;
 }
 
-/** External image with fixed dimensions (CLS-safe) and no referrer cookies. */
+/**
+ * Imagem externa com dimensões fixas (CLS-safe) e sem enviar referrer.
+ *
+ * Usa `<img>` em vez de `next/image` de propósito: as imagens de produto vêm de
+ * um agregador (supersave.pt) e podem estar em qualquer CDN de retalhista
+ * (Continente, Pingo Doce, Auchan, …). Manter uma allowlist de hostnames em
+ * `next.config.ts` era frágil e rebentava a página inteira quando aparecia um
+ * host novo. Estas imagens já eram servidas com `unoptimized`, por isso não se
+ * perde optimização nenhuma.
+ */
 export function RemoteImage({
   src,
   alt,
   width,
   height,
   className,
-  unoptimized,
 }: RemoteImageProps) {
-  const isStoreImage =
-    src.includes('continente.pt') || src.includes('pingodoce.pt');
-
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt={alt}
       width={width}
       height={height}
-      className={cn(className)}
+      loading="lazy"
+      decoding="async"
       referrerPolicy="no-referrer"
-      unoptimized={unoptimized ?? isStoreImage}
+      className={cn(className)}
     />
   );
 }

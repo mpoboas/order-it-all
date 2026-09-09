@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
@@ -14,7 +14,6 @@ import { cn, emojiToImageBlob } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { SplitwiseIntegrationCard } from '@/components/features/SplitwiseIntegrationCard';
 
 interface GroupSettingsTabProps {
   group: Group;
@@ -333,7 +332,7 @@ export function GroupSettingsTab({
                     type="button"
                     onClick={() => handleSelectEmoji(emoji)}
                     className={cn(
-                      'w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all border',
+                      'w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition border',
                       selectedEmoji === emoji && !galleryFile
                         ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-500 ring-2 ring-violet-500/20 scale-105'
                         : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:bg-[var(--bg-tertiary)]'
@@ -376,10 +375,6 @@ export function GroupSettingsTab({
           </>
         )}
       </section>
-
-      <Suspense fallback={null}>
-        <SplitwiseIntegrationCard />
-      </Suspense>
 
       {/* Invite */}
       <section className="card p-5 space-y-4">

@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         title,
         body: message,
         url: url || '/groups',
-        icon: '/icon-192x192.png'
+        icon: '/android-chrome-192x192.png'
       });
 
       return webPush.sendNotification(pushConfig, payload).catch(err => {

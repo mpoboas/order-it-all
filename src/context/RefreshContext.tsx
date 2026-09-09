@@ -2,6 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
+import { useUser } from '@/context/UserContext';
+import { fullResync } from '@/lib/db/sync';
 
 type RefreshHandler = () => void | Promise<void>;
 
@@ -17,6 +19,7 @@ const MIN_VISIBLE_MS = 400;
 const AUTO_REFRESH_THROTTLE_MS = 1500;
 
 export function RefreshProvider({ children }: { children: React.ReactNode }) {
+    const { isLoggedIn } = useUser();
     const handlers = useRef(new Set<RefreshHandler>());
     const lastAutoRefresh = useRef(0);
 
@@ -31,14 +34,21 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
         await Promise.all([...handlers.current].map((handler) => handler()));
     }, []);
 
+    // Pull-to-refresh = "põe tudo fresco": o sync incremental com reconciliação
+    // de apagados + re-arma o realtime (fullResync), mais quaisquer handlers
+    // por-ecrã registados (páginas públicas sem cache local, ex. /split/[code]).
     const onRefresh = useCallback(async () => {
         await Promise.all([
+            fullResync().catch(() => {}),
             runAll(),
             new Promise((resolve) => setTimeout(resolve, MIN_VISIBLE_MS)),
         ]);
     }, [runAll]);
 
-    const canRefresh = useCallback(() => handlers.current.size > 0, []);
+    const canRefresh = useCallback(
+        () => isLoggedIn || handlers.current.size > 0,
+        [isLoggedIn],
+    );
 
     // A app volta ao primeiro plano (ou a rede volta): com o ecra bloqueado a
     // ligacao realtime do PocketBase cai, por isso recarrega-se o ecra atual.

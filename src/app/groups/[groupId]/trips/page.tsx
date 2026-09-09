@@ -1,53 +1,32 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { useToast } from '@/context/ToastContext';
-import { tripsApi, subscriptions } from '@/lib/pocketbase';
-import type { Trip } from '@/lib/types';
-import { getRelativeTime, cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
-import { Badge } from '@/components/ui/Badge';
 import { TripCard } from '@/components/features/TripCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
+import { useTrips } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupTripsPage() {
-    const [trips, setTrips] = useState<Trip[]>([]);
-    const [loading, setLoading] = useState(true);
     const params = useParams();
     const groupId = params.groupId as string;
 
-    const { user, isLoggedIn } = useUser();
+    const { isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
-    const { showToast } = useToast();
     const router = useRouter();
+    const nav = useAppNavigate();
 
-    const loadTrips = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            // Fetch all trips for users.
-            const data = await tripsApi.getAllByGroup(groupId);
-            setTrips(data);
-        } catch (error) {
-            console.error('Error loading trips:', error);
-            showToast('Erro ao carregar viagens', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
-
-    useEffect(() => {
-        loadTrips();
-
-        // Real-time updates
-        subscriptions.subscribeToTrips(() => loadTrips());
-        return () => subscriptions.unsubscribeAll();
-    }, [loadTrips]);
-
-    useRefreshHandler(loadTrips);
+    const tripsQuery = useTrips(groupId);
+    const trips = tripsQuery ?? [];
+    usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/trips/${t.id}`));
+    const { groupSyncing } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {
@@ -56,8 +35,6 @@ export default function GroupTripsPage() {
 
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
-
-    const userName = user?.name || user?.email || '??';
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -69,12 +46,10 @@ export default function GroupTripsPage() {
             />
 
             <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Greeting */}
-                <div className="mb-8 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-1">
-                        Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{userName}</span>! 👋
-                    </h2>
-                    <p className="text-[var(--text-secondary)]">Seleciona uma viagem para fazer o teu pedido</p>
+                {/* Título — utilizadores normais não criam viagens, por isso é só o cabeçalho (como em Divisões). */}
+                <div className="mb-6 animate-fade-in-up">
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)]">Viagens</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">Escolhe uma viagem para fazer o teu pedido</p>
                 </div>
 
                 {/* Loading */}
@@ -103,7 +78,8 @@ export default function GroupTripsPage() {
                             <TripCard
                                 key={trip.id}
                                 trip={trip}
-                                onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
+                                href={`/groups/${groupId}/trips/${trip.id}`}
+                                onClick={() => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             />
                         ))}
@@ -115,7 +91,7 @@ export default function GroupTripsPage() {
             {!loading && trips.length > 0 && (
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 md:hidden">
                     <button
-                        onClick={loadTrips}
+                        onClick={() => void catchUp()}
                         className="px-4 py-2 bg-white/80 backdrop-blur rounded-full shadow-lg text-sm text-[var(--text-secondary)] flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -47,19 +47,55 @@ export function SplitMemberDetailView({
     [split.participants, user]
   );
 
+  /**
+   * `apply` recebe o split fresco e devolve os novos `items`. Corre optimista já,
+   * e em conflito de versão (outro participante marcou ao mesmo tempo) relê e
+   * re-aplica a intenção — `items_version` (OCC) impede o *lost update*.
+   */
   const saveItems = async (
-    items: Split['items'],
+    apply: (current: Split) => Split['items'],
     rollback: Split,
     itemIndex?: number
   ) => {
     if (itemIndex !== undefined) setTogglingIdx(itemIndex);
-    const nextItems = reconcileSplitItems(items, split.participants);
-    onSplitUpdate({ ...split, items: nextItems });
+    onSplitUpdate({
+      ...split,
+      items: reconcileSplitItems(apply(split), split.participants),
+    });
     try {
-      await splitsApi.update(split.id, { items: nextItems });
+      let base = split;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const items = reconcileSplitItems(apply(base), base.participants);
+        try {
+          const saved = await splitsApi.updateItems(
+            split.id,
+            { items },
+            base.items_version ?? 0
+          );
+          onSplitUpdate(saved);
+          return;
+        } catch (err) {
+          const status = (err as { status?: number })?.status;
+          if (
+            (status === 404 || status === 403 || status === 400) &&
+            attempt < 4
+          ) {
+            // Conflito de versão — relê e tenta outra vez com a base fresca.
+            base = await splitsApi.getById(split.id);
+            await new Promise((r) => setTimeout(r, 60 * (attempt + 1)));
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error('split_conflict');
     } catch {
-      onSplitUpdate(rollback);
-      showToast('Erro ao guardar', 'error');
+      try {
+        onSplitUpdate(await splitsApi.getById(split.id));
+      } catch {
+        onSplitUpdate(rollback);
+      }
+      showToast('Não consegui guardar — tenta outra vez.', 'error');
     } finally {
       setTogglingIdx(null);
     }
@@ -77,27 +113,38 @@ export function SplitMemberDetailView({
       setAllocationSheetIdx(itemIndex);
       return;
     }
-    const result = toggleItemParticipant(
+    const precheck = toggleItemParticipant(
       split.items,
       itemIndex,
       myName,
       include
     );
-    if (!result.ok) {
-      if (result.reason === 'locked') {
+    if (!precheck.ok) {
+      if (precheck.reason === 'locked') {
         showToast('Este item está bloqueado — não podes remover-te', 'error');
       }
       return;
     }
-    await saveItems(result.items, split, itemIndex);
+    await saveItems(
+      (current) => {
+        const r = toggleItemParticipant(current.items, itemIndex, myName, include);
+        return r.ok ? r.items : current.items;
+      },
+      split,
+      itemIndex
+    );
   };
 
   const handleConfirmAllocation = async (updatedItem: SplitItem) => {
     if (!myName || allocationSheetIdx === null) return;
-    const items = split.items.map((item, index) =>
-      index === allocationSheetIdx ? updatedItem : item
+    await saveItems(
+      (current) =>
+        current.items.map((item, index) =>
+          index === allocationSheetIdx ? updatedItem : item
+        ),
+      split,
+      allocationSheetIdx
     );
-    await saveItems(items, split, allocationSheetIdx);
   };
 
   if (!myName) {

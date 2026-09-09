@@ -13,7 +13,7 @@ export function Card({ children, className, hover = true, onClick, style }: Card
     return (
         <div
             className={cn(
-                'bg-white rounded-2xl shadow-lg transition-all duration-300',
+                'bg-white rounded-2xl shadow-lg transition duration-300',
                 hover && 'hover:-translate-y-0.5 hover:shadow-xl',
                 onClick && 'cursor-pointer',
                 className

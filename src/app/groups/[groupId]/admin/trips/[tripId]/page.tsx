@@ -1,11 +1,23 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo, use } from 'react';
+import { useState, useCallback, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
-import { tripsApi, ordersApi, itemsApi, groupsApi, subscriptions } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
 import { useUser } from '@/context/UserContext';
+import { useGroup } from '@/context/GroupContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
+import { db } from '@/lib/db/schema';
+import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
+import { useOnline } from '@/hooks/useOnline';
+import { useWebHaptics } from 'web-haptics/react';
 import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
 import {
     getOtherParticipants,
@@ -31,7 +43,6 @@ import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormShe
 import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -100,10 +111,15 @@ function buildAdminOrderCard(order: Order, items: Item[], members: User[]): Admi
 
 export default function AdminTripDetailPage({ params }: { params: Promise<{ tripId: string }> }) {
     const { tripId } = use(params);
-    const [trip, setTrip] = useState<Trip | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [orderCards, setOrderCards] = useState<AdminOrderCard[]>([]);
     const { user, updateProfile } = useUser();
+    const { currentGroup } = useGroup();
+    const online = useOnline();
+
+    const tripQuery = useTrip(tripId);
+    const trip = tripQuery ?? null;
+    const tripOrders = useOrders(tripId);
+    const orderIds = useMemo(() => (tripOrders ?? []).map((o) => o.id), [tripOrders]);
+    const tripItems = useItems(orderIds);
 
     const [showScanSheet, setShowScanSheet] = useState(false);
     const [compactView, setCompactView] = useState(false);
@@ -123,8 +139,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
 
-    // New Order Form
-    const [members, setMembers] = useState<User[]>([]);
+    // Membros do grupo (do GroupContext, alimentado pela cache local).
+    const members = useMemo<User[]>(() => {
+        const list: User[] = [];
+        if (currentGroup?.expand?.creator) list.push(currentGroup.expand.creator);
+        if (currentGroup?.expand?.admins) list.push(...currentGroup.expand.admins);
+        if (currentGroup?.expand?.members) list.push(...currentGroup.expand.members);
+        return Array.from(new Map(list.map((m) => [m.id, m])).values());
+    }, [currentGroup]);
 
     const [submitting, setSubmitting] = useState(false);
     const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -150,6 +172,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             found_status: selectedItem.found_status,
         }];
     }, [selectedItem]);
+
+    // Cartões de pedido derivados da cache local (orders + items + membros).
+    const orderCards = useMemo<AdminOrderCard[]>(() => {
+        const orders = tripOrders ?? [];
+        const itemsByOrder = new Map<string, Item[]>();
+        for (const item of tripItems ?? []) {
+            const list = itemsByOrder.get(item.order_id) ?? [];
+            list.push(item);
+            itemsByOrder.set(item.order_id, list);
+        }
+        return orders.map((order) =>
+            buildAdminOrderCard(order, itemsByOrder.get(order.id) ?? [], members),
+        );
+    }, [tripOrders, tripItems, members]);
 
     const participantsSheetOrder = participantsSheetOrderId
         ? orderCards.find(o => o.orderId === participantsSheetOrderId)
@@ -179,120 +215,24 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     }, [sortedOrderCards]);
     const { showToast } = useToast();
     const router = useRouter();
-
-    // Race condition protection
-    const activeTripId = useRef(tripId);
-    useEffect(() => { activeTripId.current = tripId; }, [tripId]);
-
-    const loadShoppingItems = useCallback(async () => {
-        try {
-            const ordersData = await ordersApi.getByTrip(tripId);
-            if (activeTripId.current !== tripId) return;
-
-            const allItems = await itemsApi.getByOrderIds(ordersData.map((order) => order.id));
-            const itemsByOrder = new Map<string, Item[]>();
-            for (const item of allItems) {
-                const list = itemsByOrder.get(item.order_id) ?? [];
-                list.push(item);
-                itemsByOrder.set(item.order_id, list);
-            }
-
-            if (activeTripId.current !== tripId) return;
-
-            const cards = ordersData.map((order) =>
-                buildAdminOrderCard(order, itemsByOrder.get(order.id) ?? [], members)
-            );
-            setOrderCards(cards);
-        } catch (error) {
-            if (activeTripId.current === tripId) {
-                console.error(error);
-                showToast('Falha ao carregar itens', 'error');
-            }
-        }
-    }, [tripId, showToast, members]);
-
-    const loadTrip = useCallback(async () => {
-        try {
-            const data = await tripsApi.getById(tripId);
-            if (activeTripId.current !== tripId) return;
-            setTrip(data);
-        } catch {
-            if (activeTripId.current !== tripId) return;
-            showToast('Falha ao carregar detalhes da viagem', 'error');
-            router.push('/admin');
-        } finally {
-            if (activeTripId.current === tripId) setLoading(false);
-        }
-    }, [tripId, showToast, router]);
-
-    useEffect(() => {
-        setLoading(true);
-        loadTrip();
-        loadShoppingItems();
-
-        const unsubTrips = subscriptions.subscribeToTrips(() => {
-            if (activeTripId.current === tripId) loadTrip();
-        });
-        const unsubItems = subscriptions.subscribeToItems(() => {
-            if (activeTripId.current === tripId) loadShoppingItems();
-        });
-
-        return () => {
-            subscriptions.unsubscribeAll();
-        };
-    }, [loadTrip, loadShoppingItems, tripId]);
-
-    const refreshTrip = useCallback(async () => {
-        await Promise.all([loadTrip(), loadShoppingItems()]);
-    }, [loadTrip, loadShoppingItems]);
-
-    useRefreshHandler(refreshTrip);
-
-    // Load members separately when group_id is available
-    useEffect(() => {
-        if (trip?.group_id) {
-            groupsApi.getById(trip.group_id).then(g => {
-                const list = [];
-                if (g.expand?.creator) list.push(g.expand.creator);
-                if (g.expand?.admins) list.push(...g.expand.admins);
-                if (g.expand?.members) list.push(...g.expand.members);
-                // Dedup
-                const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
-                setMembers(unique);
-            }).catch(console.error);
-        }
-    }, [trip?.group_id]);
+    const { trigger } = useWebHaptics();
 
     const cycleStatus = async (item: ShoppingItem, e: React.MouseEvent) => {
         e.stopPropagation();
+        trigger();
         const statuses: Item['found_status'][] = ['pending', 'found', 'not_available'];
         const currentIdx = statuses.indexOf(item.found_status);
         const nextStatus = statuses[(currentIdx + 1) % 3];
 
-        // Optimistic UI update
-        setOrderCards(prev =>
-            prev.map(order => ({
-                ...order,
-                items: order.items.map(i =>
-                    i.id === item.id ? { ...i, found_status: nextStatus } : i
-                ),
-            }))
-        );
-
         try {
-            await itemsApi.updateStatus(item.id, nextStatus);
-            // No reload needed if successful, state is already correct
-        } catch {
-            showToast('Falha ao atualizar estado do produto', 'error');
-            // Revert on failure
-            setOrderCards(prev =>
-                prev.map(order => ({
-                    ...order,
-                    items: order.items.map(i =>
-                        i.id === item.id ? { ...i, found_status: item.found_status } : i
-                    ),
-                }))
-            );
+            await optimisticEdit({
+                table: db.items,
+                id: item.id,
+                patch: { found_status: nextStatus },
+                commit: () => itemsApi.updateStatus(item.id, nextStatus),
+            });
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao atualizar estado do produto'), 'error');
         }
     };
 
@@ -304,6 +244,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const openNewOrder = () => {
         if (newOrderSession === 'minimized') {
             setNewOrderSession('expanded');
+            return;
+        }
+        if (!online) {
+            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
             return;
         }
         setNewOrderSession('expanded');
@@ -330,8 +274,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         setMoveSourceOrderId('');
         setMoveItemSession('closed');
         setSelectedItem(null);
-        showToast('Produto movido para outro pedido', 'success');
-        loadShoppingItems();
+        // A escrita optimista no Dexie + o eco do realtime tratam da lista.
     };
 
     const handleUpdateItem = async (data: { items: ItemFormData[] }) => {
@@ -341,21 +284,26 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const qty = Number(itemData.quantity) || 1;
         const uPrice = Number(itemData.unit_price) || 0;
 
+        const patch = {
+            name: itemData.name,
+            quantity: qty,
+            unit_price: uPrice,
+            price: uPrice * qty,
+            found_status: itemData.found_status,
+            brand: itemData.brand ?? '',
+            notes: itemData.notes ?? '',
+        };
         try {
-            await itemsApi.update(selectedItem.id, {
-                name: itemData.name,
-                quantity: qty,
-                unit_price: uPrice,
-                price: uPrice * qty,
-                found_status: itemData.found_status,
-                brand: itemData.brand,
-                notes: itemData.notes
+            await optimisticEdit({
+                table: db.items,
+                id: selectedItem.id,
+                patch,
+                commit: () => itemsApi.update(selectedItem.id, patch),
             });
             showToast('Produto atualizado!', 'success');
             setShowEditItemModal(false);
-            loadShoppingItems();
-        } catch {
-            showToast('Falha ao atualizar produto', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao atualizar produto'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -363,21 +311,30 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const handleDeleteItem = async () => {
         if (!selectedItem || !confirm('Tem a certeza de que quer eliminar este produto?')) return;
+        trigger('error');
         setSubmitting(true);
+        const orderId = selectedItem.order_id;
+        // O pedido fica vazio se este era o último item em cache.
+        const siblingsLeft = (await db.items.where('order_id').equals(orderId).count()) - 1;
         try {
-            const { orderDeleted } = await itemsApi.deleteAndPruneEmptyOrder(
-                selectedItem.id,
-                selectedItem.order_id
-            );
+            await optimisticDelete({
+                table: db.items,
+                id: selectedItem.id,
+                cascade:
+                    siblingsLeft <= 0 ? [{ table: db.orders, id: orderId }] : [],
+                commit: () =>
+                    itemsApi.deleteAndPruneEmptyOrder(selectedItem.id, orderId),
+            });
             showToast(
-                orderDeleted ? 'Produto removido e pedido vazio eliminado' : 'Produto eliminado!',
-                'success'
+                siblingsLeft <= 0
+                    ? 'Produto removido e pedido vazio eliminado'
+                    : 'Produto eliminado!',
+                'success',
             );
             setShowEditItemModal(false);
             setSelectedItem(null);
-            loadShoppingItems();
-        } catch {
-            showToast('Falha ao eliminar produto', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao eliminar produto'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -401,14 +358,18 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             } else if (!participantsSheetOrder.creatorUserId && !creatorUserId && user?.id) {
                 updatePayload.user = user.id;
             }
-            await ordersApi.update(participantsSheetOrder.orderId, updatePayload);
+            await optimisticEdit({
+                table: db.orders,
+                id: participantsSheetOrder.orderId,
+                patch: updatePayload,
+                commit: () => ordersApi.update(participantsSheetOrder.orderId, updatePayload),
+            });
             showToast('Pedido atualizado', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            loadShoppingItems();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar participantes', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar participantes'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -455,6 +416,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
         setSubmitting(true);
         try {
+            assertOnline();
             const createPayload = buildOrderCreatePayload({
                 tripId,
                 participantIds,
@@ -464,27 +426,30 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             const order = await ordersApi.create(createPayload);
 
-            for (const item of data.items) {
-                if (item.name.trim()) {
-                    await itemsApi.create({
-                        order_id: order.id,
-                        name: item.name.trim(),
-                        quantity: item.quantity,
-                        price: (item.unit_price || 0) * item.quantity,
-                        // @ts-ignore
-                        unit_price: item.unit_price,
-                        brand: item.brand,
-                        notes: item.notes,
-                        image_url: item.image_url
-                    });
-                }
-            }
+            const createdItems = await Promise.all(
+                data.items
+                    .filter((item) => item.name.trim())
+                    .map((item) =>
+                        itemsApi.create({
+                            order_id: order.id,
+                            name: item.name.trim(),
+                            quantity: item.quantity,
+                            price: (item.unit_price || 0) * item.quantity,
+                            unit_price: item.unit_price,
+                            brand: item.brand,
+                            notes: item.notes,
+                            image_url: item.image_url,
+                        }),
+                    ),
+            );
+
+            await db.orders.put(order);
+            if (createdItems.length) await db.items.bulkPut(createdItems);
 
             showToast('Pedido adicionado!', 'success');
             setNewOrderSession('closed');
-            loadShoppingItems();
-        } catch {
-            showToast('Falha ao criar pedido', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao criar pedido'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -541,7 +506,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         type="button"
                         onClick={() => onChange(opt.value)}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition-all",
+                            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition",
                             isActive
                                 ? "bg-white dark:bg-slate-700 text-[var(--text-primary)] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-600/50",
@@ -571,9 +536,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         if (!trip) return;
 
         try {
-            await tripsApi.update(tripId, { status: 'closed' });
+            await optimisticEdit({
+                table: db.trips,
+                id: tripId,
+                patch: { status: 'closed' },
+                commit: () => tripsApi.update(tripId, { status: 'closed' }),
+            });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
-            loadTrip();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -586,8 +555,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 })
             }).catch(console.error);
 
-        } catch {
-            showToast('Erro ao atualizar viagem', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
         }
     };
 
@@ -596,9 +565,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         if (!trip) return;
 
         try {
-            await tripsApi.update(tripId, { status: 'in_progress' });
+            await optimisticEdit({
+                table: db.trips,
+                id: tripId,
+                patch: { status: 'in_progress' },
+                commit: () => tripsApi.update(tripId, { status: 'in_progress' }),
+            });
             showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
-            loadTrip();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -611,8 +584,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 })
             }).catch(console.error);
 
-        } catch {
-            showToast('Erro ao atualizar viagem', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
         }
     };
 
@@ -724,7 +697,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     {/* Sort Pill */}
                     <button
                         onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
                     >
                         <span className="material-icons text-sm">schedule</span>
                         {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
@@ -734,7 +707,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     <button
                         onClick={cycleStatusFilter}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap active:scale-95",
                             getStatusFilterConfig(statusFilter).color
                         )}
                     >
@@ -746,7 +719,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     <button
                         onClick={cyclePriceFilter}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap active:scale-95",
                             getPriceFilterConfig(priceFilter).color
                         )}
                     >
@@ -787,7 +760,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
                                 return (
                                     <div key={orderCard.orderId} className={cn(
-                                        "rounded-[24px] shadow-sm overflow-hidden",
+                                        "cv-auto rounded-[24px] shadow-sm overflow-hidden",
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
                                         allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
                                     )}>
@@ -803,7 +776,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                             )}
                                             {/* Order header */}
                                             {compactView ? (
-                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}
@@ -819,7 +792,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                     </p>
                                                 </div>
                                             ) : (
-                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}
@@ -891,7 +864,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 members={members}
                 user={user}
                 updateProfile={updateProfile}
-                onApplied={loadShoppingItems}
+                onApplied={() => void catchUp()}
             />
 
             {/* New Order Sheet */}

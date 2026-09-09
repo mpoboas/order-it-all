@@ -14,11 +14,14 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
-import { useRefreshHandler } from '@/context/RefreshContext';
+import { useGroups } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupsPage() {
-    const [groups, setGroups] = useState<Group[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
     const [selectedEmoji, setSelectedEmoji] = useState('👥');
@@ -28,6 +31,13 @@ export default function GroupsPage() {
     const { setCurrentGroup } = useGroup();
     const { showToast } = useToast();
     const router = useRouter();
+    const nav = useAppNavigate();
+    const online = useOnline();
+
+    const groupsQuery = useGroups(user?.id);
+    const groups = groupsQuery ?? [];
+    const { hydrating } = useSyncStatus();
+    const loading = groupsQuery === undefined || (groups.length === 0 && hydrating);
 
     // Redirect if not logged in
     useEffect(() => {
@@ -41,27 +51,6 @@ export default function GroupsPage() {
         setCurrentGroup(null);
     }, [setCurrentGroup]);
 
-    const loadGroups = async () => {
-        if (!user?.id) return;
-        try {
-            const data = await groupsApi.getByUser(user.id);
-            setGroups(data);
-        } catch (error) {
-            console.error('Error loading groups:', error);
-            showToast('Erro ao carregar grupos', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (user?.id) {
-            loadGroups();
-        }
-    }, [user?.id]);
-
-    useRefreshHandler(loadGroups);
-
     const handleCreateGroup = async () => {
         if (!newGroupName.trim()) {
             showToast('O nome do grupo é obrigatório', 'error');
@@ -70,28 +59,19 @@ export default function GroupsPage() {
 
         setCreating(true);
         try {
-            // Convert emoji to image
             const avatarBlob = await emojiToImageBlob(selectedEmoji);
 
-            const newGroup = await groupsApi.create({
-                name: newGroupName.trim(),
-                avatar: avatarBlob,
-            });
-            setGroups(prev => [newGroup, ...prev]);
+            await onlineCreate(() =>
+                groupsApi.create({ name: newGroupName.trim(), avatar: avatarBlob }),
+            );
+            void catchUp();
             setShowCreateModal(false);
             setNewGroupName('');
             setSelectedEmoji('👥');
             showToast('Grupo criado com sucesso!', 'success');
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error creating group:', error);
-            if (error?.data) console.error('Error Data:', JSON.stringify(error.data, null, 2));
-
-            // PocketBase error details
-            const details = error?.data?.data
-                ? Object.entries(error.data.data).map(([k, v]: [string, any]) => `${k}: ${v.message}`).join(', ')
-                : error.message;
-
-            showToast(`Erro ao criar grupo: ${details}`, 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao criar grupo'), 'error');
         } finally {
             setCreating(false);
         }
@@ -100,7 +80,7 @@ export default function GroupsPage() {
     const handleSelectGroup = (group: Group) => {
         setCurrentGroup(group);
         const isGroupAdmin = !!user?.id && group.admins?.includes(user.id);
-        router.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`);
+        nav.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`, { haptic: false });
     };
 
     if (!isLoggedIn) return null;
@@ -137,7 +117,7 @@ export default function GroupsPage() {
                         {/* Create Group Button */}
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="w-full mb-6 p-4 border-2 border-dashed border-violet-300 rounded-2xl text-violet-600 font-semibold hover:bg-violet-50 hover:border-violet-400 transition-all flex items-center justify-center gap-2 animate-fade-in-up"
+                            className="w-full mb-6 p-4 border-2 border-dashed border-violet-300 rounded-2xl text-violet-600 font-semibold hover:bg-violet-50 hover:border-violet-400 transition flex items-center justify-center gap-2 animate-fade-in-up"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -184,20 +164,27 @@ export default function GroupsPage() {
                 size="medium"
                 title="Criar Novo Grupo"
                 footer={
-                    <button
-                        onClick={handleCreateGroup}
-                        disabled={creating || !newGroupName.trim()}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
-                    >
-                        {creating ? (
-                            <>
-                                <LoadingSpinner size="sm" />
-                                A criar...
-                            </>
-                        ) : (
-                            'Criar Grupo'
+                    <div>
+                        <button
+                            onClick={handleCreateGroup}
+                            disabled={creating || !newGroupName.trim() || !online}
+                            className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
+                        >
+                            {creating ? (
+                                <>
+                                    <LoadingSpinner size="sm" />
+                                    A criar...
+                                </>
+                            ) : (
+                                'Criar Grupo'
+                            )}
+                        </button>
+                        {!online && (
+                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                                Sem ligação — precisas de rede para criar um grupo.
+                            </p>
                         )}
-                    </button>
+                    </div>
                 }
             >
                 <div className="space-y-6 pb-4">
@@ -227,7 +214,7 @@ export default function GroupsPage() {
                                     key={emoji}
                                     onClick={() => setSelectedEmoji(emoji)}
                                     className={cn(
-                                        'w-14 h-14 rounded-2xl text-3xl transition-all flex items-center justify-center',
+                                        'w-14 h-14 rounded-2xl text-3xl transition flex items-center justify-center',
                                         selectedEmoji === emoji
                                             ? 'bg-violet-100 dark:bg-violet-900/40 ring-4 ring-violet-500/20 dark:ring-violet-500/40 scale-110 shadow-sm'
                                             : 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700'
