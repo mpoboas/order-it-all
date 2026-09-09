@@ -23,7 +23,6 @@ interface SplitCardProps {
   total: number;
   canEdit?: boolean;
   canDelete?: boolean;
-  showSplitwise?: boolean;
   onOpen: () => void;
   /** Rota do detalhe — pré-carregada no primeiro toque/hover. */
   href?: string;
@@ -46,7 +45,6 @@ export function SplitCard({
   total,
   canEdit = false,
   canDelete = false,
-  showSplitwise = false,
   onOpen,
   href,
   onEdit,
@@ -151,9 +149,6 @@ export function SplitCard({
               <EntityStatusPill variant="closed">Fechada</EntityStatusPill>
             ) : (
               <EntityStatusPill variant="open">Aberta</EntityStatusPill>
-            )}
-            {showSplitwise && split.splitwise_exported_at && (
-              <EntityStatusPill variant="splitwise">Splitwise</EntityStatusPill>
             )}
           </>
         }

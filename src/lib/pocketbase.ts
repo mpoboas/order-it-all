@@ -99,11 +99,17 @@ export const ordersApi = {
       payload.user = creatorId;
     }
 
-    return await pb.collection('orders').create<Order>(payload);
+    // Pede o `expand` já na resposta — o card do pedido acabado de criar aparece
+    // completo no Dexie sem esperar o eco do realtime.
+    return await pb.collection('orders').create<Order>(payload, {
+      expand: 'user,participants',
+    });
   },
 
   update: async (id: string, data: Partial<Order>): Promise<Order> => {
-    return await pb.collection('orders').update<Order>(id, data);
+    return await pb.collection('orders').update<Order>(id, data, {
+      expand: 'user,participants',
+    });
   },
 
   delete: async (id: string): Promise<boolean> => {
@@ -268,6 +274,24 @@ export const splitsApi = {
 
   update: async (id: string, data: Partial<Split>): Promise<Split> => {
     return await pb.collection('splits').update<Split>(id, data);
+  },
+
+  /**
+   * Escrita que toca em `items` com controlo de concorrência optimista.
+   * `items_version` tem de ficar > ao guardado (regra de API do PB) — se outra
+   * pessoa (ex.: um participante no link) escreveu entretanto, o PB devolve
+   * 404/403 e o chamador relê + volta a tentar. `data` pode trazer outros
+   * campos (`participants`, `name`, …) que vão no mesmo update.
+   */
+  updateItems: async (
+    id: string,
+    data: Partial<Split> & { items: Split['items'] },
+    expectedVersion: number
+  ): Promise<Split> => {
+    return await pb.collection('splits').update<Split>(id, {
+      ...data,
+      items_version: (expectedVersion || 0) + 1,
+    });
   },
 
   delete: async (id: string): Promise<boolean> => {

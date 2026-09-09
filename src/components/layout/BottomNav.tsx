@@ -67,7 +67,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
     };
 
     return (
-        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 z-50 md:hidden safe-bottom">
+        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 z-50 md:hidden safe-bottom">
             <div className="flex items-center justify-around h-16">
                 {navItems.map((item) => {
                     const active = isActive(item.href);

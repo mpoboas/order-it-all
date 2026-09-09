@@ -175,23 +175,29 @@ export default function GroupTripDetailPage() {
 
                 if (validItems.length === 0) {
                     if (existing) {
-                        for (const item of existing.items) await itemsApi.delete(item.id);
+                        await Promise.all(existing.items.map(item => itemsApi.delete(item.id)));
                     }
                     await ordersApi.delete(editingOrderId);
+                    await db.orders.delete(editingOrderId);
+                    await db.items.where('order_id').equals(editingOrderId).delete();
                     showToast('Pedido eliminado (sem produtos)', 'success');
                 } else if (existing) {
-                    for (const item of existing.items) await itemsApi.delete(item.id);
-                    for (const item of validItems) {
-                        await itemsApi.create({
-                            order_id: editingOrderId,
-                            name: item.name,
-                            quantity: item.quantity,
-                            brand: item.brand,
-                            notes: item.notes,
-                            price: item.quantity * item.unit_price,
-                            image_url: item.image_url,
-                        });
-                    }
+                    await Promise.all(existing.items.map(item => itemsApi.delete(item.id)));
+                    const createdItems = await Promise.all(
+                        validItems.map(item =>
+                            itemsApi.create({
+                                order_id: editingOrderId,
+                                name: item.name,
+                                quantity: item.quantity,
+                                brand: item.brand,
+                                notes: item.notes,
+                                price: item.quantity * item.unit_price,
+                                image_url: item.image_url,
+                            }),
+                        ),
+                    );
+                    await db.items.where('order_id').equals(editingOrderId).delete();
+                    await db.items.bulkPut(createdItems);
                     showToast('Pedido atualizado!', 'success');
                 }
             } else {
@@ -208,10 +214,9 @@ export default function GroupTripDetailPage() {
                 });
                 const order = await ordersApi.create(createPayload);
                 startTimer(order.id, order.can_edit_until);
-                const createdItems: Item[] = [];
-                for (const item of data.items) {
-                    createdItems.push(
-                        await itemsApi.create({
+                const createdItems = await Promise.all(
+                    data.items.map(item =>
+                        itemsApi.create({
                             order_id: order.id,
                             name: item.name,
                             quantity: item.quantity,
@@ -220,8 +225,8 @@ export default function GroupTripDetailPage() {
                             price: item.quantity * item.unit_price,
                             image_url: item.image_url,
                         }),
-                    );
-                }
+                    ),
+                );
                 // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
                 await db.orders.put(order);
                 if (createdItems.length) await db.items.bulkPut(createdItems);
@@ -229,7 +234,6 @@ export default function GroupTripDetailPage() {
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
-            void catchUp();
         } catch (error) {
             console.error('Error:', error);
             showToast(mutationErrorMessage(error, 'Erro ao guardar pedido'), 'error');
@@ -539,7 +543,7 @@ export default function GroupTripDetailPage() {
                                             </div>
                                         )}
                                         {/* Order Header */}
-                                        <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                        <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-white dark:ring-slate-700">
                                                     🛒

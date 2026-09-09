@@ -7,12 +7,40 @@ import { db } from './schema';
 
 /**
  * Wrappers finos de `useLiveQuery` com o mesmo filtro/sort que as páginas usavam
- * nos `getFullList`. Devolvem `undefined` enquanto a primeira query não resolve.
+ * nos `getFullList`.
  *
  * Cada wrapper sobrepõe os utilizadores frescos da tabela `users` por cima do
  * `expand` que veio do servidor — assim um rename/avatar novo reflete-se em toda
  * a app sem re-hidratar (o `expand` embebido fica como fallback).
  */
+
+/**
+ * `useLiveQuery` devolve `undefined` no primeiro render depois de (re)montar,
+ * mesmo quando os dados já estão em IndexedDB — o que faz a página piscar um
+ * skeleton a cada re-navegação (nota-se sobretudo a voltar a `/groups`, onde a
+ * View Transition apanha o skeleton no snapshot "novo"). Guardamos o último
+ * resultado por chave e devolvemo-lo nesse intervalo: dados reais (talvez com 1
+ * frame de atraso) em vez de `undefined`. A query resolve logo a seguir e
+ * corrige se algo mudou.
+ */
+const liveResultCache = new Map<string, unknown>();
+
+/** Limpar na troca de utilizador / logout (o Dexie é apagado). */
+export function clearLiveResultCache(): void {
+  liveResultCache.clear();
+}
+
+function useCachedLiveQuery<T>(
+  cacheKey: string,
+  querier: () => Promise<T>,
+  deps: unknown[],
+): T | undefined {
+  const live = useLiveQuery(querier, deps);
+  if (live !== undefined) liveResultCache.set(cacheKey, live);
+  return live !== undefined
+    ? live
+    : (liveResultCache.get(cacheKey) as T | undefined);
+}
 
 const byCreatedDesc = <T extends { created: string }>(a: T, b: T) =>
   b.created.localeCompare(a.created);
@@ -57,7 +85,7 @@ function usersMap(list: User[]): Map<string, User> {
 }
 
 export function useGroups(userId: string | undefined): Group[] | undefined {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`groups:${userId ?? ''}`, async () => {
     if (!userId) return [];
     const [all, users] = await Promise.all([db.groups.toArray(), db.users.toArray()]);
     const byId = usersMap(users);
@@ -69,7 +97,7 @@ export function useGroups(userId: string | undefined): Group[] | undefined {
 }
 
 export function useGroup(groupId: string | undefined): Group | undefined | null {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`group:${groupId ?? ''}`, async () => {
     if (!groupId) return null;
     const [g, users] = await Promise.all([
       db.groups.get(groupId),
@@ -80,7 +108,7 @@ export function useGroup(groupId: string | undefined): Group | undefined | null 
 }
 
 export function useTrips(groupId: string | undefined): Trip[] | undefined {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`trips:${groupId ?? ''}`, async () => {
     if (!groupId) return [];
     const [trips, users] = await Promise.all([
       db.trips.where('group_id').equals(groupId).toArray(),
@@ -92,7 +120,7 @@ export function useTrips(groupId: string | undefined): Trip[] | undefined {
 }
 
 export function useTrip(tripId: string | undefined): Trip | undefined | null {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`trip:${tripId ?? ''}`, async () => {
     if (!tripId) return null;
     const [t, users] = await Promise.all([
       db.trips.get(tripId),
@@ -103,7 +131,7 @@ export function useTrip(tripId: string | undefined): Trip | undefined | null {
 }
 
 export function useOrders(tripId: string | undefined): Order[] | undefined {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`orders:${tripId ?? ''}`, async () => {
     if (!tripId) return [];
     const [orders, users] = await Promise.all([
       db.orders.where('trip_id').equals(tripId).toArray(),
@@ -116,7 +144,7 @@ export function useOrders(tripId: string | undefined): Order[] | undefined {
 
 export function useItems(orderIds: string[]): Item[] | undefined {
   const key = orderIds.join(',');
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`items:${key}`, async () => {
     if (!orderIds.length) return [];
     const items = await db.items.where('order_id').anyOf(orderIds).toArray();
     return items.sort((a, b) => a.created.localeCompare(b.created));
@@ -124,7 +152,7 @@ export function useItems(orderIds: string[]): Item[] | undefined {
 }
 
 export function useSplits(groupId: string | undefined): Split[] | undefined {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`splits:${groupId ?? ''}`, async () => {
     if (!groupId) return [];
     const [splits, users] = await Promise.all([
       db.splits.where('group_id').equals(groupId).toArray(),
@@ -138,7 +166,7 @@ export function useSplits(groupId: string | undefined): Split[] | undefined {
 }
 
 export function useSplit(splitId: string | undefined): Split | undefined | null {
-  return useLiveQuery(async () => {
+  return useCachedLiveQuery(`split:${splitId ?? ''}`, async () => {
     if (!splitId) return null;
     const [s, users] = await Promise.all([
       db.splits.get(splitId),

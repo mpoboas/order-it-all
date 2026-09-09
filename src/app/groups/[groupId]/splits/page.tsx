@@ -169,7 +169,6 @@ export default function GroupSplitsPage() {
                                 total={getTotalAmount(split)}
                                 canEdit={canManageSplit(split)}
                                 canDelete={canManageSplit(split)}
-                                showSplitwise={isAdmin}
                                 href={`/groups/${groupId}/splits/${split.id}`}
                                 onOpen={() => nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false })}
                                 onEdit={(e) => openEdit(split, e)}

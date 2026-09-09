@@ -24,7 +24,6 @@ const SplitInvoiceScanSheet = dynamic(
     () => import('@/components/features/SplitInvoiceScanSheet').then((m) => m.SplitInvoiceScanSheet),
     { ssr: false }
 );
-import { SplitwiseExportSheet } from '@/components/features/SplitwiseExportSheet';
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
 import { SplitParticipantNameInput } from '@/components/features/SplitParticipantNameInput';
 import { SplitItemAllocationSheet } from '@/components/features/SplitItemAllocationSheet';
@@ -48,6 +47,7 @@ import {
     getRemoveItemConfirmMessage,
     isItemLocked,
     reconcileItemLock,
+    reconcileSplitItems,
     setItemLocked,
     shouldConfirmRemoveItem,
 } from '@/lib/splitItems';
@@ -121,6 +121,11 @@ export default function GroupSplitDetailPage() {
     const [split, setSplit] = useState<Split | null>(null);
     const [saving, setSaving] = useState(false);
     const liveSplit = useSplit(splitId);
+    /** Fila de gravações — serializa `saveSplit` para os writes de `items` não
+     *  colidirem entre si na versão. */
+    const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+    /** Versão de `items` mais fresca conhecida (realtime + respostas de save). */
+    const itemsVersionRef = useRef<number | null>(null);
     const loading = liveSplit === undefined && split === null;
     const [newParticipant, setNewParticipant] = useState('');
     const [participantsExpanded, setParticipantsExpanded] = useState(true);
@@ -129,7 +134,6 @@ export default function GroupSplitDetailPage() {
     const [showInviteSheet, setShowInviteSheet] = useState(false);
     const [showAllowedModesSheet, setShowAllowedModesSheet] = useState(false);
     const [showScanSheet, setShowScanSheet] = useState(false);
-    const [showSplitwiseExport, setShowSplitwiseExport] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(null);
 
@@ -159,39 +163,137 @@ export default function GroupSplitDetailPage() {
         });
     };
 
+    const splitRef = useRef<Split | null>(null);
+    splitRef.current = split;
+
     // A cache local (Dexie) é a fonte da verdade. Mantém-se o `split` em estado
-    // local para as edições in-place não "saltarem"; sincroniza-se com a cache
-    // quando não estamos a meio de uma gravação.
+    // local para as edições in-place não "saltarem". Não recua: se a cache ainda
+    // não recebeu a nossa última gravação de `items`, espera (evita o "flash").
     useEffect(() => {
         if (liveSplit === undefined) return;
+        const liveV = liveSplit?.items_version;
+        if (typeof liveV === 'number') {
+            if (liveV >= (itemsVersionRef.current ?? 0)) {
+                itemsVersionRef.current = liveV;
+            } else if (!saving) {
+                return; // a cache ainda não tem a nossa última gravação — evita o flash
+            }
+        }
         if (saving) return;
         setSplit(liveSplit ?? null);
     }, [liveSplit, saving]);
 
-    const saveSplit = async (updatedFields: Partial<Split>) => {
-        if (!split) return;
+    type ItemsMutator = (items: SplitItem[]) => SplitItem[];
 
-        // Deep clone for rollback safety
-        const previousSplit = JSON.parse(JSON.stringify(split));
+    /**
+     * Grava. Para escritas que tocam em `items` passa-se um `mutator` — é
+     * re-aplicado sobre o estado **fresco** a cada tentativa, por isso um toque
+     * concorrente (outro dispositivo / o link) nunca é pisado. `items_version`
+     * (OCC) faz o PocketBase rejeitar (404) um write com base desatualizada →
+     * relê e repete.
+     */
+    const runSaveSplit = async (
+        updatedFields: Partial<Split>,
+        mutator?: ItemsMutator,
+    ) => {
+        const base = splitRef.current;
+        if (!base) return;
+        const previousSplit = JSON.parse(JSON.stringify(base));
 
-        // Optimistic update
-        const newSplit = { ...split, ...updatedFields };
-        setSplit(newSplit);
+        if (!mutator) {
+            setSplit({ ...base, ...updatedFields });
+            if (!saving) setSaving(true);
+            try {
+                await splitsApi.update(splitId, updatedFields);
+                await db.splits.update(splitId, updatedFields);
+            } catch (error) {
+                console.error('Error saving split:', error);
+                showToast(mutationErrorMessage(error, 'Erro ao guardar alteração'), 'error');
+                setSplit(previousSplit);
+            } finally {
+                setSaving(false);
+            }
+            return;
+        }
 
-        // Debounce saving indicator for better UX on rapid typing
+        // Optimista: aplica já sobre o estado local.
+        setSplit({
+            ...base,
+            ...updatedFields,
+            items: reconcileSplitItems(mutator(base.items), base.participants),
+        });
         if (!saving) setSaving(true);
 
         try {
-            await splitsApi.update(splitId, updatedFields);
-            // Escreve também na cache local para o useLiveQuery ficar coerente.
-            await db.splits.update(splitId, updatedFields);
+            let baseSplit: Split = base;
+            let expected = Math.max(
+                itemsVersionRef.current ?? 0,
+                base.items_version ?? 0,
+            );
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const nextItems = reconcileSplitItems(
+                    mutator(baseSplit.items),
+                    updatedFields.participants ?? baseSplit.participants,
+                );
+                try {
+                    const saved = await splitsApi.updateItems(
+                        splitId,
+                        { ...updatedFields, items: nextItems },
+                        expected,
+                    );
+                    itemsVersionRef.current = saved.items_version ?? expected + 1;
+                    await db.splits.put(saved);
+                    setSplit(normalizeSplitRecord(saved));
+                    return;
+                } catch (err) {
+                    const status = (err as { status?: number })?.status;
+                    if ((status === 404 || status === 403 || status === 400) && attempt < 5) {
+                        baseSplit = await splitsApi.getById(splitId);
+                        expected = baseSplit.items_version ?? 0;
+                        itemsVersionRef.current = expected;
+                        await new Promise((r) => setTimeout(r, 40 + 60 * attempt));
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            throw new Error('split_conflict');
         } catch (error) {
-            console.error('Error saving split:', error);
-            showToast(mutationErrorMessage(error, 'Erro ao guardar alteração'), 'error');
-            setSplit(previousSplit); // Rollback
+            try {
+                const fresh = await splitsApi.getById(splitId);
+                itemsVersionRef.current = fresh.items_version ?? null;
+                await db.splits.put(fresh);
+                setSplit(normalizeSplitRecord(fresh));
+            } catch {
+                setSplit(previousSplit);
+            }
+            if ((error as Error)?.message !== 'split_conflict') {
+                console.error('Error saving split items:', error);
+            }
+            showToast(
+                'Muita gente a mexer ao mesmo tempo — recarreguei. Confirma e tenta outra vez.',
+                'error',
+            );
         } finally {
             setSaving(false);
         }
+    };
+
+    const saveSplit = (updatedFields: Partial<Split>) => {
+        const run = saveQueue.current
+            .catch(() => {})
+            .then(() => runSaveSplit(updatedFields));
+        saveQueue.current = run;
+        return run;
+    };
+
+    /** Escrita que toca em `items` — ver `runSaveSplit`. */
+    const saveSplitItems = (mutator: ItemsMutator, extra: Partial<Split> = {}) => {
+        const run = saveQueue.current
+            .catch(() => {})
+            .then(() => runSaveSplit(extra, mutator));
+        saveQueue.current = run;
+        return run;
     };
 
     // Atualização vinda de sheets/exports: aplica no estado local e na cache.
@@ -225,14 +327,10 @@ export default function GroupSplitDetailPage() {
         if (!split || split.participants.length <= 1) return;
         if (!confirm(`Remover ${name}?`)) return;
 
-        const updatedItems = split.items.map((item) =>
-            removeParticipantFromItem(item, name)
+        await saveSplitItems(
+            (items) => items.map((item) => removeParticipantFromItem(item, name)),
+            { participants: split.participants.filter((p) => p !== name) },
         );
-
-        await saveSplit({
-            participants: split.participants.filter(p => p !== name),
-            items: updatedItems
-        });
     };
 
     const updateParticipantName = async (oldName: string, newName: string) => {
@@ -241,18 +339,19 @@ export default function GroupSplitDetailPage() {
             showToast('Nome já existe', 'error');
             return;
         }
-        const updatedParticipants = split.participants.map(p => p === oldName ? newName.trim() : p);
-        const updatedItems = split.items.map((item) =>
-            renameParticipantInItem(item, oldName, newName.trim())
+        const trimmed = newName.trim();
+        await saveSplitItems(
+            (items) => items.map((item) => renameParticipantInItem(item, oldName, trimmed)),
+            { participants: split.participants.map((p) => (p === oldName ? trimmed : p)) },
         );
-        await saveSplit({ participants: updatedParticipants, items: updatedItems });
     };
 
     const addItem = async () => {
         if (!split) return;
-        await saveSplit({
-            items: [...split.items, { name: '', price: 0, participants: [], locked: false }],
-        });
+        await saveSplitItems((items) => [
+            ...items,
+            { name: '', price: 0, participants: [], locked: false },
+        ]);
     };
 
     const removeItem = async (idx: number) => {
@@ -261,113 +360,137 @@ export default function GroupSplitDetailPage() {
         if (item && shouldConfirmRemoveItem(item)) {
             if (!confirm(getRemoveItemConfirmMessage(item))) return;
         }
-        const newItems = split.items.filter((_, i) => i !== idx);
-        await saveSplit({ items: newItems });
+        await saveSplitItems((items) => items.filter((_, i) => i !== idx));
     };
 
     const handleScanConfirm = async (newItems: SplitItem[]) => {
         if (!split) return;
-        await saveSplit({ items: [...split.items, ...newItems] });
+        await saveSplitItems((items) => [...items, ...newItems]);
     };
 
     const toggleParticipant = async (itemIdx: number, participant: string) => {
         if (!split) return;
-
-        const items = cloneSplitItems(split.items);
-        const item = items[itemIdx];
-        if (!item) return;
-
-        if (getSplitItemMode(item) !== 'equal') {
+        if (getSplitItemMode(split.items[itemIdx]) !== 'equal') {
             setAllocationSheetIdx(itemIdx);
             return;
         }
-
-        if (item.participants.includes(participant)) {
-            item.participants = item.participants.filter(p => p !== participant);
-        } else {
-            item.participants = [...item.participants, participant];
-        }
-        items[itemIdx] = reconcileItemLock(
-            { ...item, split_mode: 'equal', allocations: undefined },
-            split.participants
-        );
-
-        await saveSplit({ items });
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            const item = next[itemIdx];
+            if (!item) return next;
+            const has = item.participants.includes(participant);
+            next[itemIdx] = reconcileItemLock(
+                {
+                    ...item,
+                    participants: has
+                        ? item.participants.filter((p) => p !== participant)
+                        : [...item.participants, participant],
+                    split_mode: 'equal',
+                    allocations: undefined,
+                },
+                split.participants,
+            );
+            return next;
+        });
     };
 
     const handleSaveItemAllocation = async (updatedItem: SplitItem) => {
         if (!split || allocationSheetIdx === null) return;
-        const items = cloneSplitItems(split.items);
-        items[allocationSheetIdx] = reconcileItemLock(updatedItem, split.participants);
-        await saveSplit({ items });
+        const idx = allocationSheetIdx;
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            if (next[idx]) next[idx] = reconcileItemLock(updatedItem, split.participants);
+            return next;
+        });
         setAllocationSheetIdx(null);
     };
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
         if (!split) return;
-        const items = cloneSplitItems(split.items);
-        const item = items[itemIdx];
-        if (!item) return;
-        items[itemIdx] = reconcileItemLock(
-            {
-                ...item,
-                participants: checked ? [...split.participants] : [],
-                split_mode: 'equal',
-                allocations: undefined,
-            },
-            split.participants
-        );
-        await saveSplit({ items });
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            const item = next[itemIdx];
+            if (!item) return next;
+            next[itemIdx] = reconcileItemLock(
+                {
+                    ...item,
+                    participants: checked ? [...split.participants] : [],
+                    split_mode: 'equal',
+                    allocations: undefined,
+                },
+                split.participants,
+            );
+            return next;
+        });
     };
 
     const toggleItemLock = async (itemIdx: number) => {
         if (!split) return;
-        const items = cloneSplitItems(split.items);
-        const item = items[itemIdx];
-        if (!item) return;
-        items[itemIdx] = setItemLocked(item, !isItemLocked(item));
-        await saveSplit({ items });
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            const item = next[itemIdx];
+            if (item) next[itemIdx] = setItemLocked(item, !isItemLocked(item));
+            return next;
+        });
     };
 
     const updateItemName = async (idx: number, name: string) => {
         if (!split) return;
-        const items = cloneSplitItems(split.items);
-        items[idx].name = name;
-        await saveSplit({ items });
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            if (next[idx]) next[idx].name = name;
+            return next;
+        });
     };
 
     const updateItemPrice = async (idx: number, price: number) => {
         if (!split) return;
-        const items = cloneSplitItems(split.items);
-        items[idx].price = price;
-        await saveSplit({ items });
+        await saveSplitItems((items) => {
+            const next = cloneSplitItems(items);
+            if (next[idx]) next[idx].price = price;
+            return next;
+        });
     };
 
     const totals = split ? calculateSplitTotals(split) : {};
     const grandTotal = split?.items.reduce((sum, item) => sum + item.price, 0) || 0;
 
-    // Share
+    // Share — `modern-screenshot` (foreignObject SVG) em vez do `html2canvas` 1.4.1,
+    // que não suporta as cores `oklch()` / `color-mix()` do Tailwind v4 e rebentava
+    // em alguns devices. É também mais leve e rápido.
     const handleShare = async () => {
         if (!split || !shareRef.current) return;
         setSharing(true);
         try {
-            const html2canvas = (await import('html2canvas')).default;
-            const canvas = await html2canvas(shareRef.current, { backgroundColor: '#ffffff', scale: 2 });
-            const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'));
+            const { domToBlob } = await import('modern-screenshot');
+            const blob = await domToBlob(shareRef.current, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+            });
+            if (!blob) throw new Error('imagem vazia');
             const file = new File([blob], `${split.name}.png`, { type: 'image/png' });
-            if (navigator.share && navigator.canShare({ files: [file] })) {
+
+            if (navigator.canShare?.({ files: [file] })) {
                 await navigator.share({ title: split.name, files: [file] });
             } else {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `${split.name}.png`;
+                document.body.appendChild(a);
                 a.click();
-                URL.revokeObjectURL(url);
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10_000);
                 showToast('Imagem guardada!', 'success');
             }
         } catch (error) {
-            if ((error as Error).name !== 'AbortError') showToast('Erro ao partilhar', 'error');
+            const name = (error as Error)?.name;
+            if (name === 'AbortError') return; // o utilizador cancelou o share nativo
+            console.error('Partilhar imagem:', error);
+            showToast(
+                `Não consegui gerar a imagem${name ? ` (${name})` : ''}. Tira uma screenshot como alternativa.`,
+                'error',
+            );
         } finally {
             setSharing(false);
         }
@@ -473,7 +596,6 @@ export default function GroupSplitDetailPage() {
             {splitClosed && (
                 <div className="mx-4 md:mx-8 mt-4 max-w-[99%] lg:mx-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
                     <strong>Divisão fechada.</strong> Os participantes já não podem alterar marcações.
-                    {split.splitwise_exported_at && ' Exportada para Splitwise.'}
                 </div>
             )}
 
@@ -534,18 +656,6 @@ export default function GroupSplitDetailPage() {
                                 </span>
                                 Definições
                             </button>
-                            {isAdmin && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSplitwiseExport(true)}
-                                    className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2"
-                                >
-                                    <span className="material-icons text-lg" aria-hidden>
-                                        cloud_upload
-                                    </span>
-                                    Enviar para Splitwise
-                                </button>
-                            )}
                             <button onClick={handleShare} disabled={sharing} className="btn btn-primary px-4 py-2 flex items-center gap-2">
                                 {sharing ? <LoadingSpinner size="sm" /> : '📤'} Partilhar
                             </button>
@@ -847,18 +957,6 @@ export default function GroupSplitDetailPage() {
                                 tune
                             </span>
                         </button>
-                        {isAdmin && (
-                            <button
-                                type="button"
-                                onClick={() => setShowSplitwiseExport(true)}
-                                title="Enviar para Splitwise"
-                                className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
-                            >
-                                <span className="material-icons text-[18px]" aria-hidden>
-                                    cloud_upload
-                                </span>
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -1280,15 +1378,6 @@ export default function GroupSplitDetailPage() {
                 updateProfile={updateProfile}
                 onConfirm={handleScanConfirm}
             />
-
-            {isAdmin && (
-                <SplitwiseExportSheet
-                    isOpen={showSplitwiseExport}
-                    onClose={() => setShowSplitwiseExport(false)}
-                    split={split}
-                    onExported={applySplitUpdate}
-                />
-            )}
         </div>
     );
 }

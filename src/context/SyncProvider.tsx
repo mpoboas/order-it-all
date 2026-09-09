@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { useUser } from '@/context/UserContext';
 import { db, clearAllData, metaGet } from '@/lib/db/schema';
+import { clearLiveResultCache } from '@/lib/db/hooks';
 import {
   backfillUsersFromCache,
   catchUp,
@@ -58,6 +59,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (!userId) {
       void stopRealtime();
       resetSyncState();
+      clearLiveResultCache();
       Promise.resolve().then(() => {
         if (!cancelled()) setStatus({ hydrating: false, ready: false });
       });
@@ -70,6 +72,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         if (cachedUser && cachedUser !== userId) {
           await clearAllData();
           resetSyncState();
+          clearLiveResultCache();
         }
 
         const coldStart = (await db.groups.count()) === 0;

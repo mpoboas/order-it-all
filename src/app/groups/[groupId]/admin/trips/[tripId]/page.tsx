@@ -17,6 +17,7 @@ import {
     mutationErrorMessage,
 } from '@/lib/db/mutations';
 import { useOnline } from '@/hooks/useOnline';
+import { useWebHaptics } from 'web-haptics/react';
 import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
 import {
     getOtherParticipants,
@@ -214,9 +215,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     }, [sortedOrderCards]);
     const { showToast } = useToast();
     const router = useRouter();
+    const { trigger } = useWebHaptics();
 
     const cycleStatus = async (item: ShoppingItem, e: React.MouseEvent) => {
         e.stopPropagation();
+        trigger();
         const statuses: Item['found_status'][] = ['pending', 'found', 'not_available'];
         const currentIdx = statuses.indexOf(item.found_status);
         const nextStatus = statuses[(currentIdx + 1) % 3];
@@ -271,8 +274,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         setMoveSourceOrderId('');
         setMoveItemSession('closed');
         setSelectedItem(null);
-        showToast('Produto movido para outro pedido', 'success');
-        void catchUp();
+        // A escrita optimista no Dexie + o eco do realtime tratam da lista.
     };
 
     const handleUpdateItem = async (data: { items: ItemFormData[] }) => {
@@ -309,6 +311,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const handleDeleteItem = async () => {
         if (!selectedItem || !confirm('Tem a certeza de que quer eliminar este produto?')) return;
+        trigger('error');
         setSubmitting(true);
         const orderId = selectedItem.order_id;
         // O pedido fica vazio se este era o último item em cache.
@@ -423,11 +426,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             const order = await ordersApi.create(createPayload);
 
-            const createdItems: Item[] = [];
-            for (const item of data.items) {
-                if (item.name.trim()) {
-                    createdItems.push(
-                        await itemsApi.create({
+            const createdItems = await Promise.all(
+                data.items
+                    .filter((item) => item.name.trim())
+                    .map((item) =>
+                        itemsApi.create({
                             order_id: order.id,
                             name: item.name.trim(),
                             quantity: item.quantity,
@@ -437,16 +440,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             notes: item.notes,
                             image_url: item.image_url,
                         }),
-                    );
-                }
-            }
+                    ),
+            );
 
             await db.orders.put(order);
             if (createdItems.length) await db.items.bulkPut(createdItems);
 
             showToast('Pedido adicionado!', 'success');
             setNewOrderSession('closed');
-            void catchUp();
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Falha ao criar pedido'), 'error');
         } finally {
@@ -759,7 +760,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
                                 return (
                                     <div key={orderCard.orderId} className={cn(
-                                        "rounded-[24px] shadow-sm overflow-hidden",
+                                        "cv-auto rounded-[24px] shadow-sm overflow-hidden",
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
                                         allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
                                     )}>
@@ -775,7 +776,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                             )}
                                             {/* Order header */}
                                             {compactView ? (
-                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}
@@ -791,7 +792,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                     </p>
                                                 </div>
                                             ) : (
-                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50/80 dark:bg-slate-900/50 backdrop-blur-sm relative z-10">
+                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}

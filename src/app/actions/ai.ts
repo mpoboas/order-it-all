@@ -1,6 +1,15 @@
 'use server';
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
+import type {
+  ReconciliationMatch,
+  ReconciliationExtra,
+  ReconciliationResult,
+  ReceiptLineItem,
+  ReceiptExtractionResult,
+  ScanFailure,
+  ScanOutcome,
+} from '@/lib/scanTypes';
 
 interface RawItem {
   name: string;
@@ -9,26 +18,47 @@ interface RawItem {
   id?: string;
 }
 
-export interface ReconciliationMatch {
-  itemId: string;
-  price: number;
-  quantity: number;
-  foundName: string;
+// `gemini-flash-latest` é um alias estável que a Google mantém a apontar para o
+// modelo flash atual — não parte quando um modelo concreto é descontinuado.
+// `gemini-2.5-flash` fica como fallback explícito.
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'] as const;
+
+/** Segundos de espera indicados pelo Gemini num 429 (RPM), se presentes. */
+function retryDelaySeconds(message: string): number | null {
+  const m =
+    message.match(/retry[_ ]?delay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s/i) ||
+    message.match(/retry (?:after|in) (\d+(?:\.\d+)?)\s*s(?:econds?)?/i);
+  return m ? Math.max(1, Math.ceil(Number(m[1]))) : null;
 }
 
-export interface ReconciliationExtra {
-  name: string;
-  price: number;
-  quantity: number;
-  unit_price: number;
-}
+/** Traduz o erro do SDK Gemini numa falha tipada para o cliente. */
+function classifyGeminiError(err: unknown): ScanFailure {
+  const message = err instanceof Error ? err.message : String(err);
 
-export interface ReconciliationResult {
-  matches: ReconciliationMatch[];
-  extras: ReconciliationExtra[];
+  if (
+    /RESOURCE_EXHAUSTED|"code"\s*:\s*429|\b429\b|quota|rate[ -]?limit/i.test(
+      message,
+    )
+  ) {
+    const retry = retryDelaySeconds(message);
+    // Limite por-minuto traz um retryDelay curto; a quota diária não (ou é enorme).
+    if (retry != null && retry <= 120) {
+      return { code: 'quota_rate', retryAfterSeconds: retry };
+    }
+    return { code: 'quota_daily' };
+  }
+  if (
+    /API[_ ]?key|API_KEY_INVALID|invalid.*key|PERMISSION_DENIED|permission denied|unauthenticated/i.test(
+      message,
+    )
+  ) {
+    return { code: 'invalid_key' };
+  }
+  if (/JSON|Unexpected token|Resposta vazia|SAFETY|blocked/i.test(message)) {
+    return { code: 'unreadable' };
+  }
+  return { code: 'error' };
 }
-
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'] as const;
 
 function parseGeminiJsonResponse(text: string): ReconciliationResult {
   let jsonStr = text.trim();
@@ -97,34 +127,35 @@ async function generateWithModel(
   prompt: string,
   base64Data: string,
   mimeType: string
-) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
     model: modelName,
-    generationConfig: {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          { inlineData: { data: base64Data, mimeType } },
+        ],
+      },
+    ],
+    config: {
       responseMimeType: 'application/json',
       temperature: 0.2,
     },
   });
 
-  return model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: base64Data,
-        mimeType,
-      },
-    },
-  ]);
+  return response.text ?? '';
 }
 
 export async function reconcileWithGeminiImage(
   imageFile: File,
   tripItems: RawItem[],
   apiKey: string
-): Promise<ReconciliationResult> {
-  if (!apiKey?.trim()) throw new Error('API Key em falta');
-  if (!imageFile) throw new Error('Imagem da fatura em falta');
+): Promise<ScanOutcome<ReconciliationResult>> {
+  if (!apiKey?.trim()) return { ok: false, failure: { code: 'no_key' } };
+  if (!imageFile) return { ok: false, failure: { code: 'no_image' } };
 
   const imageBase64 = Buffer.from(await imageFile.arrayBuffer()).toString('base64');
   const normalizedMime =
@@ -172,19 +203,17 @@ Use numbers for price, quantity, and unit_price. Skip lines you cannot read conf
 
   for (const modelName of GEMINI_MODELS) {
     try {
-      const result = await generateWithModel(
+      const text = await generateWithModel(
         apiKey.trim(),
         modelName,
         prompt,
         imageBase64,
         normalizedMime
       );
-      const response = await result.response;
-      const text = response.text();
       if (!text?.trim()) {
         throw new Error('Resposta vazia do Gemini');
       }
-      return parseGeminiJsonResponse(text);
+      return { ok: true, data: parseGeminiJsonResponse(text) };
     } catch (error) {
       lastError = error;
       const message =
@@ -201,27 +230,7 @@ Use numbers for price, quantity, and unit_price. Skip lines you cannot read conf
   }
 
   console.error('Gemini Vision Error:', lastError);
-  if (lastError instanceof Error) {
-    if (/API key|API_KEY|invalid/i.test(lastError.message)) {
-      throw new Error('Chave Gemini inválida. Verifica em aistudio.google.com');
-    }
-    if (/JSON|Unexpected token/i.test(lastError.message)) {
-      throw new Error(
-        'Não consegui ler a estrutura da fatura. Tenta outra foto mais nítida.'
-      );
-    }
-    throw new Error(lastError.message);
-  }
-  throw new Error('Falha na análise da fatura com Gemini');
-}
-
-export interface ReceiptLineItem {
-  name: string;
-  price: number;
-}
-
-export interface ReceiptExtractionResult {
-  items: ReceiptLineItem[];
+  return { ok: false, failure: classifyGeminiError(lastError) };
 }
 
 function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
@@ -263,9 +272,9 @@ function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
 export async function extractReceiptLineItems(
   imageFile: File,
   apiKey: string
-): Promise<ReceiptExtractionResult> {
-  if (!apiKey?.trim()) throw new Error('API Key em falta');
-  if (!imageFile) throw new Error('Imagem da fatura em falta');
+): Promise<ScanOutcome<ReceiptExtractionResult>> {
+  if (!apiKey?.trim()) return { ok: false, failure: { code: 'no_key' } };
+  if (!imageFile) return { ok: false, failure: { code: 'no_image' } };
 
   const imageBase64 = Buffer.from(await imageFile.arrayBuffer()).toString('base64');
   const normalizedMime =
@@ -298,19 +307,17 @@ Use a number for price.
 
   for (const modelName of GEMINI_MODELS) {
     try {
-      const result = await generateWithModel(
+      const text = await generateWithModel(
         apiKey.trim(),
         modelName,
         prompt,
         imageBase64,
         normalizedMime
       );
-      const response = await result.response;
-      const text = response.text();
       if (!text?.trim()) {
         throw new Error('Resposta vazia do Gemini');
       }
-      return parseReceiptItemsResponse(text);
+      return { ok: true, data: parseReceiptItemsResponse(text) };
     } catch (error) {
       lastError = error;
       const message =
@@ -327,16 +334,5 @@ Use a number for price.
   }
 
   console.error('Gemini Vision Error:', lastError);
-  if (lastError instanceof Error) {
-    if (/API key|API_KEY|invalid/i.test(lastError.message)) {
-      throw new Error('Chave Gemini inválida. Verifica em aistudio.google.com');
-    }
-    if (/JSON|Unexpected token/i.test(lastError.message)) {
-      throw new Error(
-        'Não consegui ler a estrutura da fatura. Tenta outra foto mais nítida.'
-      );
-    }
-    throw new Error(lastError.message);
-  }
-  throw new Error('Falha na análise da fatura com Gemini');
+  return { ok: false, failure: classifyGeminiError(lastError) };
 }

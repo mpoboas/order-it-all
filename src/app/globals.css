@@ -369,6 +369,20 @@ body {
   animation: bounce 2s ease-in-out infinite;
 }
 
+/* Sem animações de entrada / loops decorativos com "reduzir movimento". */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-fade-in-down,
+  .animate-slide-up,
+  .animate-slide-in-right,
+  .animate-scale-in,
+  .animate-pulse-soft,
+  .animate-bounce-slow {
+    animation: none;
+  }
+}
+
 /* Skeleton loading */
 .skeleton {
   background: linear-gradient(90deg,
@@ -390,13 +404,6 @@ body {
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
-}
-
-.card-glass {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* ===== GRADIENT BACKGROUNDS ===== */
@@ -783,11 +790,6 @@ textarea:focus-visible {
   font-size: 14px;
 }
 
-.modal-modern {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-}
-
 .form-input-modern {
   width: 100%;
   padding: 12px 16px;
@@ -850,4 +852,28 @@ header {
 }
 .bottom-nav {
   view-transition-name: bottom-nav;
+}
+
+/* ===== FASE 5 — main-thread & rendering ===== */
+
+/* A bottom nav está sempre visível: o `backdrop-filter` re-amostra a cada frame
+   de scroll. O raio foi reduzido (`backdrop-blur-md`) e, sem suporte a blur, o
+   fundo passa a opaco (senão ficava translúcido a sério sobre o conteúdo). */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .bottom-nav {
+    background-color: rgb(255 255 255 / 0.97);
+  }
+  .dark .bottom-nav {
+    background-color: rgb(15 23 42 / 0.97);
+  }
+}
+
+/* Itens de listas longas (order cards no admin): o browser salta layout+paint
+   do que está fora do ecrã. `auto` no intrinsic-size faz o browser lembrar-se
+   do tamanho real depois de renderizar uma vez → sem saltos no scrollbar. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }

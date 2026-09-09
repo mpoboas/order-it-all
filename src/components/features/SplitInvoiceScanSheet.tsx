@@ -5,11 +5,12 @@ import { extractReceiptLineItems } from '@/app/actions/ai';
 import type { SplitItem, User } from '@/lib/types';
 import {
   formatCurrency,
-  getPacificDateString,
   getUserGeminiApiKey,
-  DAILY_SCAN_LIMIT,
-  getDailyScanCount,
+  isInvoiceScanBlockedToday,
+  blockInvoiceScanPayload,
+  bumpDailyScanPayload,
 } from '@/lib/utils';
+import { invoiceScanFailureMessage } from '@/lib/scanFeedback';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -50,8 +51,7 @@ export function SplitInvoiceScanSheet({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const dailyCount = getDailyScanCount(user);
-  const atDailyLimit = dailyCount >= DAILY_SCAN_LIMIT;
+  const scanBlocked = isInvoiceScanBlockedToday(user);
   const geminiApiKey = getUserGeminiApiKey(user);
   const hasApiKey = Boolean(geminiApiKey);
 
@@ -167,36 +167,37 @@ export function SplitInvoiceScanSheet({
       showToast(!invoiceFile ? 'Seleciona uma fatura' : 'Configura a API Key', 'error');
       return;
     }
-    if (atDailyLimit) {
-      showToast('Limite diário de análises atingido', 'error');
+    if (scanBlocked) {
+      showToast(invoiceScanFailureMessage({ code: 'quota_daily' }), 'error');
       return;
     }
 
     setScanStep('processing');
 
     try {
-      const result = await extractReceiptLineItems(invoiceFile, geminiApiKey);
+      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey);
 
-      const today = getPacificDateString();
-      const currentCount =
-        user.last_request_date === today ? user.daily_requests_count || 0 : 0;
-      updateProfile({
-        daily_requests_count: currentCount + 1,
-        last_request_date: today,
-      }).catch(console.error);
+      if (!outcome.ok) {
+        if (outcome.failure.code === 'quota_daily') {
+          updateProfile(blockInvoiceScanPayload()).catch(console.error);
+        }
+        showToast(invoiceScanFailureMessage(outcome.failure), 'error');
+        setScanStep('upload');
+        return;
+      }
+
+      updateProfile(bumpDailyScanPayload(user)).catch(console.error);
 
       setDraftItems(
-        result.items.map((item, idx) => ({
+        outcome.data.items.map((item, idx) => ({
           id: `scan-${idx}-${Date.now()}`,
           name: item.name,
           price: item.price > 0 ? item.price.toFixed(2) : '',
         }))
       );
       setScanStep('review');
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Erro ao processar fatura';
-      showToast(message, 'error');
+    } catch {
+      showToast(invoiceScanFailureMessage({ code: 'error' }), 'error');
       setScanStep('upload');
     }
   };
@@ -279,9 +280,9 @@ export function SplitInvoiceScanSheet({
       <Button
         onClick={handleProcessInvoice}
         className="btn-primary w-full py-3.5"
-        disabled={atDailyLimit}
+        disabled={scanBlocked}
       >
-        {atDailyLimit ? 'Limite diário atingido' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -475,13 +476,9 @@ export function SplitInvoiceScanSheet({
             </div>
           )}
 
-          {hasApiKey && (
+          {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-[var(--text-muted)] font-medium">
-              {atDailyLimit
-                ? `Limite diário (${DAILY_SCAN_LIMIT}) atingido`
-                : dailyCount > 0
-                  ? `${dailyCount}/${DAILY_SCAN_LIMIT} análises hoje`
-                  : `Até ${DAILY_SCAN_LIMIT} análises por dia`}
+              Limite diário do Gemini atingido — volta amanhã.
             </p>
           )}
         </div>

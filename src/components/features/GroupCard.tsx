@@ -122,8 +122,14 @@ export function GroupCard({
                 openMembers();
               }
             }}
+            // Não deixar o toque/hover chegar ao card — senão dispara o
+            // `router.prefetch({ kind: 'full' })` do card (RSC completo) no
+            // mesmo gesto de abrir o sheet, e este "laga".
+            onPointerEnter={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
             aria-label={`Ver ${memberCount} membros`}
-            className="flex items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-violet-900/20"
+            className="inline-flex self-start items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-violet-900/20"
           >
             <span className="flex items-center shrink-0">
               {visibleMembers.map((member, index) => (

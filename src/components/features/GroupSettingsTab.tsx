@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
@@ -14,7 +14,6 @@ import { cn, emojiToImageBlob } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { SplitwiseIntegrationCard } from '@/components/features/SplitwiseIntegrationCard';
 
 interface GroupSettingsTabProps {
   group: Group;
@@ -376,10 +375,6 @@ export function GroupSettingsTab({
           </>
         )}
       </section>
-
-      <Suspense fallback={null}>
-        <SplitwiseIntegrationCard />
-      </Suspense>
 
       {/* Invite */}
       <section className="card p-5 space-y-4">

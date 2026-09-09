@@ -17,7 +17,7 @@ export default function GroupTripsPage() {
     const params = useParams();
     const groupId = params.groupId as string;
 
-    const { user, isLoggedIn } = useUser();
+    const { isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const router = useRouter();
     const nav = useAppNavigate();
@@ -36,8 +36,6 @@ export default function GroupTripsPage() {
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
 
-    const userName = user?.name || user?.email || '??';
-
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
             <Header
@@ -48,12 +46,10 @@ export default function GroupTripsPage() {
             />
 
             <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Greeting */}
-                <div className="mb-8 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-1">
-                        Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{userName}</span>! 👋
-                    </h2>
-                    <p className="text-[var(--text-secondary)]">Seleciona uma viagem para fazer o teu pedido</p>
+                {/* Título — utilizadores normais não criam viagens, por isso é só o cabeçalho (como em Divisões). */}
+                <div className="mb-6 animate-fade-in-up">
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)]">Viagens</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">Escolhe uma viagem para fazer o teu pedido</p>
                 </div>
 
                 {/* Loading */}
