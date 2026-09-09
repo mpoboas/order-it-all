@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { splitsApi } from '@/lib/pocketbase';
@@ -108,7 +109,7 @@ export default function GroupSplitDetailPage() {
     const params = useParams();
     const groupId = params.groupId as string;
     const splitId = params.splitId as string;
-    const router = useRouter();
+    const router = useTransitionRouter();
     const { user, isLoggedIn, updateProfile } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();

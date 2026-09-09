@@ -18,6 +18,8 @@ import { useSplits } from '@/lib/db/hooks';
 import { db } from '@/lib/db/schema';
 import { optimisticEdit, optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupSplitsPage() {
     const [showCreate, setShowCreate] = useState(false);
@@ -33,6 +35,7 @@ export default function GroupSplitsPage() {
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
     const router = useRouter();
+    const nav = useAppNavigate();
 
     const userName = user?.name || user?.email || '';
 
@@ -46,6 +49,7 @@ export default function GroupSplitsPage() {
         split.created_by === user?.id ||
         split.participants.includes(userName)
     );
+    usePrefetchRoutes(displayedSplits.map((s) => `/groups/${groupId}/splits/${s.id}`));
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
@@ -167,7 +171,7 @@ export default function GroupSplitsPage() {
                                 canDelete={canManageSplit(split)}
                                 showSplitwise={isAdmin}
                                 href={`/groups/${groupId}/splits/${split.id}`}
-                                onOpen={() => router.push(`/groups/${groupId}/splits/${split.id}`)}
+                                onOpen={() => nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false })}
                                 onEdit={(e) => openEdit(split, e)}
                                 onDelete={(e) => handleDelete(split.id, e)}
                                 style={{ animationDelay: `${idx * 0.05}s` }}
@@ -237,7 +241,7 @@ export default function GroupSplitsPage() {
                 onClose={() => setShowCreate(false)}
                 onCreated={(newSplit) => {
                     setShowCreate(false);
-                    router.push(`/groups/${groupId}/splits/${newSplit.id}`);
+                    nav.push(`/groups/${groupId}/splits/${newSplit.id}`, { haptic: false });
                 }}
                 groupId={groupId}
                 groupMembers={groupMembers}

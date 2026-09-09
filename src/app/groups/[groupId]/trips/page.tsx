@@ -10,6 +10,8 @@ import { TripCard } from '@/components/features/TripCard';
 import { useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupTripsPage() {
     const params = useParams();
@@ -18,9 +20,11 @@ export default function GroupTripsPage() {
     const { user, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const router = useRouter();
+    const nav = useAppNavigate();
 
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
+    usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
@@ -79,7 +83,7 @@ export default function GroupTripsPage() {
                                 key={trip.id}
                                 trip={trip}
                                 href={`/groups/${groupId}/trips/${trip.id}`}
-                                onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
+                                onClick={() => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             />
                         ))}

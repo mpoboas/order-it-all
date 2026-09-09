@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -17,7 +18,7 @@ export default function GroupLayout({
     children: React.ReactNode;
 }) {
     const params = useParams();
-    const router = useRouter();
+    const router = useTransitionRouter();
     const groupId = params.groupId as string;
     const { user, isLoggedIn } = useUser();
     const { currentGroup, setCurrentGroup, isAdmin } = useGroup();

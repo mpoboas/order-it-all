@@ -19,6 +19,7 @@ import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,6 +31,7 @@ export default function GroupsPage() {
     const { setCurrentGroup } = useGroup();
     const { showToast } = useToast();
     const router = useRouter();
+    const nav = useAppNavigate();
     const online = useOnline();
 
     const groupsQuery = useGroups(user?.id);
@@ -78,7 +80,7 @@ export default function GroupsPage() {
     const handleSelectGroup = (group: Group) => {
         setCurrentGroup(group);
         const isGroupAdmin = !!user?.id && group.admins?.includes(user.id);
-        router.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`);
+        nav.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`, { haptic: false });
     };
 
     if (!isLoggedIn) return null;

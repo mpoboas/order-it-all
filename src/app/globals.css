@@ -822,3 +822,32 @@ textarea:focus-visible {
   font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
+/* ===== TRANSIÇÃO DE ROTA (View Transitions API) ===== */
+/* `next-view-transitions` embrulha cada navegação num
+   `document.startViewTransition`: o browser tira um screenshot do ecrã antigo,
+   deixa-o visível enquanto o novo renderiza, e só depois funde. Acaba com o
+   "flash" de fundo entre páginas (o antigo `template.tsx` animava o conteúdo
+   novo de `opacity: 0`, o que dava exatamente esse flash). */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 200ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* O Header e a BottomNav são casca persistente — nome próprio para ficarem
+   estáticos durante a transição (senão entram no snapshot `root` e "piscam"
+   com o resto do conteúdo). */
+header {
+  view-transition-name: app-header;
+}
+.bottom-nav {
+  view-transition-name: bottom-nav;
+}

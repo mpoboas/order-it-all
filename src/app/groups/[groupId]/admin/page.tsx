@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
 import type { Trip, Group } from '@/lib/types';
@@ -16,6 +15,8 @@ import {
 } from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
@@ -44,6 +45,7 @@ function AdminDashboardContent() {
     const { user } = useUser();
     const online = useOnline();
     const router = useRouter();
+    const nav = useAppNavigate();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
 
@@ -57,6 +59,7 @@ function AdminDashboardContent() {
     // Data (local-first: cache do Dexie via SyncProvider)
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
+    usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/admin/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
@@ -325,7 +328,7 @@ function AdminDashboardContent() {
             });
 
             showToast('Divisão gerada com sucesso!', 'success');
-            router.push(`/groups/${groupId}/splits/${split.id}`);
+            nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false });
 
         } catch (error) {
             console.error('Error generating split:', error);
@@ -458,7 +461,7 @@ function AdminDashboardContent() {
                                         key={trip.id}
                                         trip={trip}
                                         href={`/groups/${groupId}/admin/trips/${trip.id}`}
-                                        onClick={() => router.push(`/groups/${groupId}/admin/trips/${trip.id}`)}
+                                        onClick={() => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
                                         isAdmin={true}
                                         onEdit={handleOpenEditModal}
                                         onClose={handleCloseTrip}

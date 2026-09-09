@@ -10,6 +10,8 @@ import { ToastContainer } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
+import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
+import { ViewTransitions } from "next-view-transitions";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -96,21 +98,24 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
-        <UserProvider>
-          <SyncProvider>
-            <GroupProvider>
-              <ToastProvider>
-                <ThemeProvider>
-                  <RefreshProvider>
-                    {children}
-                    <ToastContainer />
-                    <LazyPushNotificationManager />
-                  </RefreshProvider>
-                </ThemeProvider>
-              </ToastProvider>
-            </GroupProvider>
-          </SyncProvider>
-        </UserProvider>
+        <ViewTransitions>
+          <UserProvider>
+            <SyncProvider>
+              <GroupProvider>
+                <ToastProvider>
+                  <ThemeProvider>
+                    <RefreshProvider>
+                      {children}
+                      <NavHistoryTracker />
+                      <ToastContainer />
+                      <LazyPushNotificationManager />
+                    </RefreshProvider>
+                  </ThemeProvider>
+                </ToastProvider>
+              </GroupProvider>
+            </SyncProvider>
+          </UserProvider>
+        </ViewTransitions>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useTransitionRouter } from 'next-view-transitions';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
@@ -19,7 +20,7 @@ interface BottomNavProps {
 
 export function BottomNav({ groupId }: BottomNavProps) {
     const pathname = usePathname();
-    const router = useRouter();
+    const router = useTransitionRouter();
     const tryNavigate = useTryNavigate();
     const { trigger } = useWebHaptics();
 
