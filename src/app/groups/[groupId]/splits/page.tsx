@@ -15,7 +15,8 @@ import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
 import { collectGroupMembers } from '@/lib/splitShare';
 import { useSplits } from '@/lib/db/hooks';
-import { catchUp } from '@/lib/db/sync';
+import { db } from '@/lib/db/schema';
+import { optimisticEdit, optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
 
 export default function GroupSplitsPage() {
@@ -37,8 +38,8 @@ export default function GroupSplitsPage() {
 
     const splitsQuery = useSplits(groupId);
     const splits = splitsQuery ?? [];
-    const { hydrating } = useSyncStatus();
-    const loading = splitsQuery === undefined || (splits.length === 0 && hydrating);
+    const { groupSyncing } = useSyncStatus();
+    const loading = splitsQuery === undefined || (splits.length === 0 && groupSyncing);
 
     const displayedSplits = splits.filter(split =>
         isAdmin ||
@@ -72,17 +73,19 @@ export default function GroupSplitsPage() {
         if (!editingSplit || !editName.trim()) return;
 
         setEditSubmitting(true);
+        const patch = { name: editName.trim(), description: editDesc.trim() };
         try {
-            await splitsApi.update(editingSplit.id, {
-                name: editName.trim(),
-                description: editDesc.trim(),
+            await optimisticEdit({
+                table: db.splits,
+                id: editingSplit.id,
+                patch,
+                commit: () => splitsApi.update(editingSplit.id, patch),
             });
             showToast('Divisão atualizada!', 'success');
             closeEdit();
-            void catchUp();
         } catch (error) {
             console.error('Error updating split:', error);
-            showToast('Erro ao guardar divisão', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar divisão'), 'error');
         } finally {
             setEditSubmitting(false);
         }
@@ -92,12 +95,15 @@ export default function GroupSplitsPage() {
         e.stopPropagation();
         if (!confirm('Eliminar esta divisão?')) return;
         try {
-            await splitsApi.delete(id);
+            await optimisticDelete({
+                table: db.splits,
+                id,
+                commit: () => splitsApi.delete(id),
+            });
             showToast('Divisão eliminada!', 'success');
-            void catchUp();
         } catch (error) {
             console.error('Error deleting split:', error);
-            showToast('Erro ao eliminar', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao eliminar'), 'error');
         }
     };
 
@@ -160,6 +166,7 @@ export default function GroupSplitsPage() {
                                 canEdit={canManageSplit(split)}
                                 canDelete={canManageSplit(split)}
                                 showSplitwise={isAdmin}
+                                href={`/groups/${groupId}/splits/${split.id}`}
                                 onOpen={() => router.push(`/groups/${groupId}/splits/${split.id}`)}
                                 onEdit={(e) => openEdit(split, e)}
                                 onDelete={(e) => handleDelete(split.id, e)}

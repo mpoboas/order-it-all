@@ -7,7 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import { splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { useSplit } from '@/lib/db/hooks';
-import { catchUp } from '@/lib/db/sync';
+import { optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
 import type { Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
@@ -186,7 +186,7 @@ export default function GroupSplitDetailPage() {
             await db.splits.update(splitId, updatedFields);
         } catch (error) {
             console.error('Error saving split:', error);
-            showToast('Erro ao guardar alteração', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar alteração'), 'error');
             setSplit(previousSplit); // Rollback
         } finally {
             setSaving(false);
@@ -390,12 +390,15 @@ export default function GroupSplitDetailPage() {
     const deleteSplit = async () => {
         if (!confirm('Eliminar esta divisão?')) return;
         try {
-            await splitsApi.delete(splitId);
-            void catchUp();
+            await optimisticDelete({
+                table: db.splits,
+                id: splitId,
+                commit: () => splitsApi.delete(splitId),
+            });
             showToast('Divisão eliminada', 'success');
             router.push(`/groups/${groupId}/splits`);
-        } catch {
-            showToast('Erro ao eliminar', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Erro ao eliminar'), 'error');
         }
     };
 

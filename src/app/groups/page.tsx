@@ -16,7 +16,9 @@ import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
+import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
 
 export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -28,6 +30,7 @@ export default function GroupsPage() {
     const { setCurrentGroup } = useGroup();
     const { showToast } = useToast();
     const router = useRouter();
+    const online = useOnline();
 
     const groupsQuery = useGroups(user?.id);
     const groups = groupsQuery ?? [];
@@ -54,28 +57,19 @@ export default function GroupsPage() {
 
         setCreating(true);
         try {
-            // Convert emoji to image
             const avatarBlob = await emojiToImageBlob(selectedEmoji);
 
-            await groupsApi.create({
-                name: newGroupName.trim(),
-                avatar: avatarBlob,
-            });
+            await onlineCreate(() =>
+                groupsApi.create({ name: newGroupName.trim(), avatar: avatarBlob }),
+            );
             void catchUp();
             setShowCreateModal(false);
             setNewGroupName('');
             setSelectedEmoji('👥');
             showToast('Grupo criado com sucesso!', 'success');
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error creating group:', error);
-            if (error?.data) console.error('Error Data:', JSON.stringify(error.data, null, 2));
-
-            // PocketBase error details
-            const details = error?.data?.data
-                ? Object.entries(error.data.data).map(([k, v]: [string, any]) => `${k}: ${v.message}`).join(', ')
-                : error.message;
-
-            showToast(`Erro ao criar grupo: ${details}`, 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao criar grupo'), 'error');
         } finally {
             setCreating(false);
         }
@@ -168,20 +162,27 @@ export default function GroupsPage() {
                 size="medium"
                 title="Criar Novo Grupo"
                 footer={
-                    <button
-                        onClick={handleCreateGroup}
-                        disabled={creating || !newGroupName.trim()}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
-                    >
-                        {creating ? (
-                            <>
-                                <LoadingSpinner size="sm" />
-                                A criar...
-                            </>
-                        ) : (
-                            'Criar Grupo'
+                    <div>
+                        <button
+                            onClick={handleCreateGroup}
+                            disabled={creating || !newGroupName.trim() || !online}
+                            className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
+                        >
+                            {creating ? (
+                                <>
+                                    <LoadingSpinner size="sm" />
+                                    A criar...
+                                </>
+                            ) : (
+                                'Criar Grupo'
+                            )}
+                        </button>
+                        {!online && (
+                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                                Sem ligação — precisas de rede para criar um grupo.
+                            </p>
                         )}
-                    </button>
+                    </div>
                 }
             >
                 <div className="space-y-6 pb-4">

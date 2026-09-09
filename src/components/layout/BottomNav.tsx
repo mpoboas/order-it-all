@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
+import { usePrefetchRoutes } from '@/hooks/usePrefetch';
 
 interface NavItem {
     href: string;
@@ -55,6 +56,10 @@ export function BottomNav({ groupId }: BottomNavProps) {
             ),
         },
     ];
+
+    // As duas rotas do fundo são fixas — pré-carrega ambas para a troca ser
+    // instantânea.
+    usePrefetchRoutes([`${basePath}/admin`, `${basePath}/splits`, `${basePath}/trips`]);
 
     const isActive = (href: string) => {
         return pathname.startsWith(href);

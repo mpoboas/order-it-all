@@ -21,8 +21,8 @@ export default function GroupTripsPage() {
 
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
-    const { hydrating } = useSyncStatus();
-    const loading = tripsQuery === undefined || (trips.length === 0 && hydrating);
+    const { groupSyncing } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {
@@ -78,6 +78,7 @@ export default function GroupTripsPage() {
                             <TripCard
                                 key={trip.id}
                                 trip={trip}
+                                href={`/groups/${groupId}/trips/${trip.id}`}
                                 onClick={() => router.push(`/groups/${groupId}/trips/${trip.id}`)}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             />

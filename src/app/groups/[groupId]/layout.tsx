@@ -23,7 +23,14 @@ export default function GroupLayout({
     const { currentGroup, setCurrentGroup, isAdmin } = useGroup();
 
     const group = useGroupRecord(groupId);
-    const { hydrating, ready } = useSyncStatus();
+    const { hydrating, ready, setActiveGroup } = useSyncStatus();
+
+    // Regista o grupo aberto — dispara a sincronização dos seus dados
+    // (trips/orders/items/splits) e as subscrições realtime filtradas.
+    useEffect(() => {
+        setActiveGroup(groupId);
+        return () => setActiveGroup(null);
+    }, [groupId, setActiveGroup]);
     // O grupo pode não estar em cache (ex.: acabaste de ser convidado). Antes de
     // dizer "não encontrado", força um catch-up e espera por ele.
     const [probedId, setProbedId] = useState<string | null>(null);

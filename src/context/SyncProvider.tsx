@@ -6,42 +6,58 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { useUser } from '@/context/UserContext';
 import { db, clearAllData, metaGet } from '@/lib/db/schema';
 import {
   backfillUsersFromCache,
   catchUp,
-  hydrateAll,
+  hydrateGroups,
+  resetSyncState,
+  setActiveGroup,
   startRealtime,
   stopRealtime,
+  syncStore,
 } from '@/lib/db/sync';
 
 interface SyncStatus {
-  /** Primeira hidratação a decorrer com a cache ainda vazia (cold start real). */
+  /** Primeira hidratação (lista de grupos) com a cache vazia. */
   hydrating: boolean;
   /** Já houve pelo menos uma sincronização bem-sucedida nesta sessão. */
   ready: boolean;
+  /** Primeira sincronização dos dados do grupo aberto a decorrer. */
+  groupSyncing: boolean;
+  /** Regista qual o grupo aberto (chamado pelo layout do grupo). */
+  setActiveGroup: (groupId: string | null) => void;
 }
 
-const SyncContext = createContext<SyncStatus>({ hydrating: false, ready: false });
+const SyncContext = createContext<SyncStatus>({
+  hydrating: false,
+  ready: false,
+  groupSyncing: false,
+  setActiveGroup: () => {},
+});
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const userId: string | undefined = user?.id;
-  const [status, setStatus] = useState<SyncStatus>({
-    hydrating: false,
-    ready: false,
-  });
+  const [status, setStatus] = useState({ hydrating: false, ready: false });
   const runId = useRef(0);
+
+  const groupState = useSyncExternalStore(
+    syncStore.subscribe,
+    syncStore.getSnapshot,
+    syncStore.getSnapshot,
+  );
 
   useEffect(() => {
     const currentRun = ++runId.current;
     const cancelled = () => currentRun !== runId.current;
 
     if (!userId) {
-      stopRealtime();
-      // Reset fora do corpo síncrono do efeito (regra react-hooks/set-state-in-effect).
+      void stopRealtime();
+      resetSyncState();
       Promise.resolve().then(() => {
         if (!cancelled()) setStatus({ hydrating: false, ready: false });
       });
@@ -50,23 +66,18 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        // Troca de utilizador no mesmo browser → deita fora a cache anterior.
         const cachedUser = await metaGet('session:userId');
         if (cachedUser && cachedUser !== userId) {
           await clearAllData();
+          resetSyncState();
         }
 
-        const groupCount = await db.groups.count();
-        const coldStart = groupCount === 0;
-
+        const coldStart = (await db.groups.count()) === 0;
         if (coldStart) {
           setStatus({ hydrating: true, ready: false });
-          await hydrateAll(userId);
+          await hydrateGroups(userId);
         } else {
-          // Garante que a tabela `users` reflete pelo menos o `expand` em cache
-          // (cobre clientes migrados de v1). Barato e idempotente.
           await backfillUsersFromCache();
-          // Revisita: mostra já o que está em cache e apanha o atraso em fundo.
           void catchUp();
         }
 
@@ -78,18 +89,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled()) setStatus({ hydrating: false, ready: false });
       }
     })();
-
-    return () => {
-      // Não paramos o realtime aqui — só na troca/saída de utilizador — para não
-      // o derrubar a cada re-render do provider.
-    };
   }, [userId]);
 
-  // Sinais que disparam catch-up:
-  //  - voltar ao primeiro plano: incremental leve (a ligação pode estar viva).
-  //  - recuperar rede: incremental + reconciliação (equivale a uma reconexão).
-  //  - heartbeat lento em foreground: apanha hard-deletes.
-  //  (A reconexão do realtime em si é tratada pelo `PB_CONNECT` em startRealtime.)
+  // Sinais que disparam catch-up (grupos + grupo ativo).
   useEffect(() => {
     if (!userId) return;
 
@@ -97,7 +99,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === 'visible') void catchUp();
     };
     const onOnline = () =>
-      void catchUp({ reconcileDeletes: true, refreshUsers: true });
+      void catchUp({ reconcileDeletes: true });
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onOnline);
@@ -115,7 +117,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [userId]);
 
-  return <SyncContext.Provider value={status}>{children}</SyncContext.Provider>;
+  const value: SyncStatus = {
+    hydrating: status.hydrating,
+    ready: status.ready,
+    groupSyncing: groupState.groupSyncing,
+    setActiveGroup,
+  };
+
+  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
 
 export function useSyncStatus(): SyncStatus {

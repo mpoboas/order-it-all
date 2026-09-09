@@ -9,7 +9,15 @@ import { ordersApi, itemsApi } from '@/lib/pocketbase';
 import type { Item, OrderWithItems, User } from '@/lib/types';
 import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
+import { db } from '@/lib/db/schema';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
 import {
     orderVisibleToUser,
     deriveOrderUserName,
@@ -43,6 +51,7 @@ export default function GroupTripDetailPage() {
     const { isAdmin, currentGroup } = useGroup();
     const { showToast } = useToast();
     const { startTimer } = useEditTimer();
+    const online = useOnline();
 
     const userName = user?.name || user?.email || 'Anónimo';
 
@@ -78,9 +87,9 @@ export default function GroupTripDetailPage() {
     const allOrders = useOrders(tripId);
     const orderIds = useMemo(() => (allOrders ?? []).map((o) => o.id), [allOrders]);
     const allItems = useItems(orderIds);
-    const { hydrating } = useSyncStatus();
+    const { groupSyncing } = useSyncStatus();
 
-    const loading = tripQuery === undefined || (trip === null && hydrating);
+    const loading = tripQuery === undefined || (trip === null && groupSyncing);
 
     const { orders, otherOrders } = useMemo(() => {
         const ordersData = allOrders ?? [];
@@ -132,6 +141,10 @@ export default function GroupTripDetailPage() {
             setOrderSheetSession('expanded');
             return;
         }
+        if (!online) {
+            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
+            return;
+        }
         setEditingOrderId(null);
         setInitialFormItems([]);
         setInitialParticipantIds([]);
@@ -154,6 +167,7 @@ export default function GroupTripDetailPage() {
     }) => {
         setSubmitting(true);
         try {
+            assertOnline();
             if (editingOrderId) {
                 const existing = orders.find(o => o.id === editingOrderId);
                 const validItems = data.items.filter(i => i.name.trim());
@@ -193,17 +207,23 @@ export default function GroupTripDetailPage() {
                 });
                 const order = await ordersApi.create(createPayload);
                 startTimer(order.id, order.can_edit_until);
+                const createdItems: Item[] = [];
                 for (const item of data.items) {
-                    await itemsApi.create({
-                        order_id: order.id,
-                        name: item.name,
-                        quantity: item.quantity,
-                        brand: item.brand,
-                        notes: item.notes,
-                        price: item.quantity * item.unit_price,
-                        image_url: item.image_url,
-                    });
+                    createdItems.push(
+                        await itemsApi.create({
+                            order_id: order.id,
+                            name: item.name,
+                            quantity: item.quantity,
+                            brand: item.brand,
+                            notes: item.notes,
+                            price: item.quantity * item.unit_price,
+                            image_url: item.image_url,
+                        }),
+                    );
                 }
+                // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
+                await db.orders.put(order);
+                if (createdItems.length) await db.items.bulkPut(createdItems);
                 showToast('Pedido criado!', 'success');
             }
             setEditingOrderId(null);
@@ -211,7 +231,7 @@ export default function GroupTripDetailPage() {
             void catchUp();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar pedido', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar pedido'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -277,14 +297,18 @@ export default function GroupTripDetailPage() {
             if (!creatorId && currentUserId) {
                 updatePayload.user = currentUserId;
             }
-            await ordersApi.update(participantsSheetOrder.id, updatePayload);
+            await optimisticEdit({
+                table: db.orders,
+                id: participantsSheetOrder.id,
+                patch: updatePayload,
+                commit: () => ordersApi.update(participantsSheetOrder.id, updatePayload),
+            });
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            void catchUp();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar participantes', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar participantes'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -300,13 +324,18 @@ export default function GroupTripDetailPage() {
         if (!confirm('Eliminar este pedido?')) return;
 
         try {
-            // Delete items first manually as per current logic
-            for (const item of order.items) await itemsApi.delete(item.id);
-            await ordersApi.delete(orderId);
-            void catchUp();
+            await optimisticDelete({
+                table: db.orders,
+                id: orderId,
+                cascade: order.items.map((item) => ({ table: db.items, id: item.id })),
+                commit: async () => {
+                    for (const item of order.items) await itemsApi.delete(item.id);
+                    await ordersApi.delete(orderId);
+                },
+            });
             showToast('Pedido eliminado', 'success');
-        } catch {
-            showToast('Erro ao eliminar', 'error');
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao eliminar'), 'error');
         }
     };
 
@@ -659,7 +688,8 @@ export default function GroupTripDetailPage() {
                     <button
                         onClick={openNewOrder}
                         className={cn(
-                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300'
+                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
+                            !online && 'opacity-50'
                         )}
                         style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
                         aria-label="Novo pedido"

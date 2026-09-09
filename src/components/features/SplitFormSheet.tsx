@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
 import { SplitAllowedModesToggleList } from '@/components/features/SplitAllowedModesSheet';
 import { splitsApi } from '@/lib/pocketbase';
+import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
 import { participantDisplayName } from '@/lib/splitShare';
 import { MEMBER_ALLOCATION_MODES } from '@/lib/splitItemAllocation';
 import type { Split, SplitItemMode, User } from '@/lib/types';
@@ -99,6 +100,7 @@ export function SplitFormSheet({
     trigger('success');
     setSubmitting(true);
     try {
+      assertOnline();
       const idsToUse = participantIdsOverride ?? selectedParticipantIds;
       const namesFromIds = idsToUse
         .map((id) => groupMembers.find((m) => m.id === id))
@@ -127,7 +129,7 @@ export function SplitFormSheet({
       onCreated(created);
     } catch (error) {
       console.error('Error creating split:', error);
-      showToast('Erro ao criar divisão', 'error');
+      showToast(mutationErrorMessage(error, 'Erro ao criar divisão'), 'error');
     } finally {
       setSubmitting(false);
     }

@@ -7,7 +7,15 @@ import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocke
 import type { Trip, Group } from '@/lib/types';
 import { useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
+import { db } from '@/lib/db/schema';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { useOnline } from '@/hooks/useOnline';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
@@ -34,6 +42,7 @@ function AdminDashboardContent() {
     const groupId = params.groupId as string;
     const { currentGroup, isAdmin, refreshGroup } = useGroup();
     const { user } = useUser();
+    const online = useOnline();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
@@ -48,8 +57,8 @@ function AdminDashboardContent() {
     // Data (local-first: cache do Dexie via SyncProvider)
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
-    const { hydrating } = useSyncStatus();
-    const loading = tripsQuery === undefined || (trips.length === 0 && hydrating);
+    const { groupSyncing } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
     // Create New Trip State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -78,6 +87,7 @@ function AdminDashboardContent() {
         if (!newTripName.trim()) return;
         setCreating(true);
         try {
+            assertOnline();
             await tripsApi.create({
                 name: newTripName.trim(),
                 description: newTripDescription.trim(),
@@ -102,7 +112,7 @@ function AdminDashboardContent() {
 
         } catch (error) {
             console.error('Error creating trip:', error);
-            showToast('Falha ao criar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao criar viagem'), 'error');
         } finally {
             setCreating(false);
         }
@@ -157,18 +167,23 @@ function AdminDashboardContent() {
             if (!canClose) return;
         }
 
+        const patch = {
+            name: editTripName.trim(),
+            description: editTripDescription.trim(),
+            status: editTripStatus,
+        };
         try {
-            await tripsApi.update(editTripId, {
-                name: editTripName.trim(),
-                description: editTripDescription.trim(),
-                status: editTripStatus,
+            await optimisticEdit({
+                table: db.trips,
+                id: editTripId,
+                patch,
+                commit: () => tripsApi.update(editTripId, patch),
             });
             showToast('Viagem atualizada com sucesso!', 'success');
             setShowEditModal(false);
-            void catchUp();
         } catch (error) {
             console.error('Error updating trip:', error);
-            showToast('Falha ao atualizar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao atualizar viagem'), 'error');
         }
     };
 
@@ -177,11 +192,14 @@ function AdminDashboardContent() {
         e.stopPropagation();
         if (!confirm('Tem a certeza de que quer eliminar esta viagem? Esta acção não pode ser desfeita e irá eliminar todos os pedidos e produtos associados.')) return;
         try {
-            await tripsApi.delete(id);
+            await optimisticDelete({
+                table: db.trips,
+                id,
+                commit: () => tripsApi.delete(id),
+            });
             showToast('Viagem eliminada com sucesso!', 'success');
-            void catchUp();
         } catch (error) {
-            showToast('Falha ao eliminar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao eliminar viagem'), 'error');
         }
     };
 
@@ -194,11 +212,15 @@ function AdminDashboardContent() {
 
         if (!confirm('Tem a certeza de que quer terminar esta viagem? Esta acção não pode ser desfeita.')) return;
         try {
-            await tripsApi.close(id);
+            await optimisticEdit({
+                table: db.trips,
+                id,
+                patch: { status: 'closed' },
+                commit: () => tripsApi.close(id),
+            });
             showToast('Viagem terminada com sucesso!', 'success');
-            void catchUp();
         } catch (error) {
-            showToast('Falha ao terminar viagem', 'error');
+            showToast(mutationErrorMessage(error, 'Falha ao terminar viagem'), 'error');
         }
     };
 
@@ -209,6 +231,7 @@ function AdminDashboardContent() {
         if (!confirm('Gerar uma divisão de contas a partir desta viagem?')) return;
 
         try {
+            assertOnline();
             showToast('A gerar divisão...', 'info');
 
             // 1. Fetch Orders and Items
@@ -306,42 +329,61 @@ function AdminDashboardContent() {
 
         } catch (error) {
             console.error('Error generating split:', error);
-            showToast('Erro ao gerar divisão', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao gerar divisão'), 'error');
         }
     };
 
-    // Member Management
+    // Member Management — patch optimista no grupo em cache; `refreshGroup`
+    // confirma com o servidor.
+    const editGroupMembers = async (
+        patch: Partial<Group>,
+        commit: () => Promise<unknown>,
+        okMsg: string,
+        errMsg: string,
+    ) => {
+        try {
+            await optimisticEdit({ table: db.groups, id: groupId, patch, commit });
+            showToast(okMsg, 'success');
+            refreshGroup();
+        } catch (error) {
+            showToast(mutationErrorMessage(error, errMsg), 'error');
+        }
+    };
+
     const handleRemoveMember = async (memberId: string) => {
         if (!confirm('Remover este membro do grupo?')) return;
-        try {
-            await groupsApi.removeMember(groupId, memberId);
-            showToast('Membro removido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao remover membro', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            {
+                members: currentGroup.members.filter((id) => id !== memberId),
+                admins: currentGroup.admins.filter((id) => id !== memberId),
+            },
+            () => groupsApi.removeMember(groupId, memberId),
+            'Membro removido',
+            'Erro ao remover membro',
+        );
     };
 
     const handlePromoteMember = async (memberId: string) => {
         if (!confirm('Promover a administrador?')) return;
-        try {
-            await groupsApi.promoteToAdmin(groupId, memberId);
-            showToast('Membro promovido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao promover', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            { admins: [...currentGroup.admins, memberId] },
+            () => groupsApi.promoteToAdmin(groupId, memberId),
+            'Membro promovido',
+            'Erro ao promover',
+        );
     };
 
     const handleDemoteMember = async (memberId: string) => {
         if (!confirm('Remover privilégios de administrador?')) return;
-        try {
-            await groupsApi.demoteFromAdmin(groupId, memberId);
-            showToast('Administrador despromovido', 'success');
-            refreshGroup();
-        } catch (error: any) {
-            showToast(error.message || 'Erro ao despromover', 'error');
-        }
+        if (!currentGroup) return;
+        await editGroupMembers(
+            { admins: currentGroup.admins.filter((id) => id !== memberId) },
+            () => groupsApi.demoteFromAdmin(groupId, memberId),
+            'Administrador despromovido',
+            'Erro ao despromover',
+        );
     };
 
     if (loading || !currentGroup) {
@@ -415,6 +457,7 @@ function AdminDashboardContent() {
                                     <TripCard
                                         key={trip.id}
                                         trip={trip}
+                                        href={`/groups/${groupId}/admin/trips/${trip.id}`}
                                         onClick={() => router.push(`/groups/${groupId}/admin/trips/${trip.id}`)}
                                         isAdmin={true}
                                         onEdit={handleOpenEditModal}
@@ -514,13 +557,20 @@ function AdminDashboardContent() {
                 size="medium"
                 title="Nova Viagem"
                 footer={
-                    <button
-                        onClick={handleCreateTrip}
-                        disabled={creating || !newTripName.trim()}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
-                    >
-                        {creating ? 'A criar...' : 'Criar Viagem'}
-                    </button>
+                    <div>
+                        <button
+                            onClick={handleCreateTrip}
+                            disabled={creating || !newTripName.trim() || !online}
+                            className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
+                        >
+                            {creating ? 'A criar...' : 'Criar Viagem'}
+                        </button>
+                        {!online && (
+                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                                Sem ligação — precisas de rede para criar uma viagem.
+                            </p>
+                        )}
+                    </div>
                 }
             >
                 <div className="space-y-6 pb-4">

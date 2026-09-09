@@ -9,17 +9,7 @@ import type { Group, Trip, Order, Item, Split, User } from '@/lib/types';
  * As escritas continuam a ir sempre online — o Dexie é só a cache de leitura.
  */
 
-export type SyncCollection = 'groups' | 'trips' | 'orders' | 'items' | 'splits';
-
-export const SYNC_COLLECTIONS: SyncCollection[] = [
-  'groups',
-  'trips',
-  'orders',
-  'items',
-  'splits',
-];
-
-/** KV simples: `lastSync:<coll>` (watermark ISO) e `session:userId`. */
+/** KV simples: `lastSync:groups`, `lastSync:g:<gid>:<coll>`, `session:userId`. */
 export interface MetaRow {
   key: string;
   value: string | null;

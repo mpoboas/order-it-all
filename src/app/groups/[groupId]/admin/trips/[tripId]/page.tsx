@@ -10,6 +10,13 @@ import type { Trip, Item, Order, User } from '@/lib/types';
 import { db } from '@/lib/db/schema';
 import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
+import {
+    assertOnline,
+    optimisticEdit,
+    optimisticDelete,
+    mutationErrorMessage,
+} from '@/lib/db/mutations';
+import { useOnline } from '@/hooks/useOnline';
 import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
 import {
     getOtherParticipants,
@@ -105,6 +112,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const { tripId } = use(params);
     const { user, updateProfile } = useUser();
     const { currentGroup } = useGroup();
+    const online = useOnline();
 
     const tripQuery = useTrip(tripId);
     const trip = tripQuery ?? null;
@@ -213,15 +221,15 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const currentIdx = statuses.indexOf(item.found_status);
         const nextStatus = statuses[(currentIdx + 1) % 3];
 
-        // UI optimista: escreve já na cache local (o useLiveQuery re-renderiza).
-        await db.items.update(item.id, { found_status: nextStatus });
-
         try {
-            await itemsApi.updateStatus(item.id, nextStatus);
-            // O eco do realtime confirma; sem reload manual.
-        } catch {
-            showToast('Falha ao atualizar estado do produto', 'error');
-            await db.items.update(item.id, { found_status: item.found_status });
+            await optimisticEdit({
+                table: db.items,
+                id: item.id,
+                patch: { found_status: nextStatus },
+                commit: () => itemsApi.updateStatus(item.id, nextStatus),
+            });
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao atualizar estado do produto'), 'error');
         }
     };
 
@@ -233,6 +241,10 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const openNewOrder = () => {
         if (newOrderSession === 'minimized') {
             setNewOrderSession('expanded');
+            return;
+        }
+        if (!online) {
+            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
             return;
         }
         setNewOrderSession('expanded');
@@ -270,21 +282,26 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const qty = Number(itemData.quantity) || 1;
         const uPrice = Number(itemData.unit_price) || 0;
 
+        const patch = {
+            name: itemData.name,
+            quantity: qty,
+            unit_price: uPrice,
+            price: uPrice * qty,
+            found_status: itemData.found_status,
+            brand: itemData.brand ?? '',
+            notes: itemData.notes ?? '',
+        };
         try {
-            await itemsApi.update(selectedItem.id, {
-                name: itemData.name,
-                quantity: qty,
-                unit_price: uPrice,
-                price: uPrice * qty,
-                found_status: itemData.found_status,
-                brand: itemData.brand,
-                notes: itemData.notes
+            await optimisticEdit({
+                table: db.items,
+                id: selectedItem.id,
+                patch,
+                commit: () => itemsApi.update(selectedItem.id, patch),
             });
             showToast('Produto atualizado!', 'success');
             setShowEditItemModal(false);
-            void catchUp();
-        } catch {
-            showToast('Falha ao atualizar produto', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao atualizar produto'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -293,20 +310,28 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const handleDeleteItem = async () => {
         if (!selectedItem || !confirm('Tem a certeza de que quer eliminar este produto?')) return;
         setSubmitting(true);
+        const orderId = selectedItem.order_id;
+        // O pedido fica vazio se este era o último item em cache.
+        const siblingsLeft = (await db.items.where('order_id').equals(orderId).count()) - 1;
         try {
-            const { orderDeleted } = await itemsApi.deleteAndPruneEmptyOrder(
-                selectedItem.id,
-                selectedItem.order_id
-            );
+            await optimisticDelete({
+                table: db.items,
+                id: selectedItem.id,
+                cascade:
+                    siblingsLeft <= 0 ? [{ table: db.orders, id: orderId }] : [],
+                commit: () =>
+                    itemsApi.deleteAndPruneEmptyOrder(selectedItem.id, orderId),
+            });
             showToast(
-                orderDeleted ? 'Produto removido e pedido vazio eliminado' : 'Produto eliminado!',
-                'success'
+                siblingsLeft <= 0
+                    ? 'Produto removido e pedido vazio eliminado'
+                    : 'Produto eliminado!',
+                'success',
             );
             setShowEditItemModal(false);
             setSelectedItem(null);
-            void catchUp();
-        } catch {
-            showToast('Falha ao eliminar produto', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao eliminar produto'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -330,14 +355,18 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             } else if (!participantsSheetOrder.creatorUserId && !creatorUserId && user?.id) {
                 updatePayload.user = user.id;
             }
-            await ordersApi.update(participantsSheetOrder.orderId, updatePayload);
+            await optimisticEdit({
+                table: db.orders,
+                id: participantsSheetOrder.orderId,
+                patch: updatePayload,
+                commit: () => ordersApi.update(participantsSheetOrder.orderId, updatePayload),
+            });
             showToast('Pedido atualizado', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            void catchUp();
         } catch (error) {
             console.error('Error:', error);
-            showToast('Erro ao guardar participantes', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao guardar participantes'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -384,6 +413,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
         setSubmitting(true);
         try {
+            assertOnline();
             const createPayload = buildOrderCreatePayload({
                 tripId,
                 participantIds,
@@ -393,27 +423,32 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             const order = await ordersApi.create(createPayload);
 
+            const createdItems: Item[] = [];
             for (const item of data.items) {
                 if (item.name.trim()) {
-                    await itemsApi.create({
-                        order_id: order.id,
-                        name: item.name.trim(),
-                        quantity: item.quantity,
-                        price: (item.unit_price || 0) * item.quantity,
-                        // @ts-ignore
-                        unit_price: item.unit_price,
-                        brand: item.brand,
-                        notes: item.notes,
-                        image_url: item.image_url
-                    });
+                    createdItems.push(
+                        await itemsApi.create({
+                            order_id: order.id,
+                            name: item.name.trim(),
+                            quantity: item.quantity,
+                            price: (item.unit_price || 0) * item.quantity,
+                            unit_price: item.unit_price,
+                            brand: item.brand,
+                            notes: item.notes,
+                            image_url: item.image_url,
+                        }),
+                    );
                 }
             }
+
+            await db.orders.put(order);
+            if (createdItems.length) await db.items.bulkPut(createdItems);
 
             showToast('Pedido adicionado!', 'success');
             setNewOrderSession('closed');
             void catchUp();
-        } catch {
-            showToast('Falha ao criar pedido', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Falha ao criar pedido'), 'error');
         } finally {
             setSubmitting(false);
         }
@@ -500,9 +535,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         if (!trip) return;
 
         try {
-            await tripsApi.update(tripId, { status: 'closed' });
+            await optimisticEdit({
+                table: db.trips,
+                id: tripId,
+                patch: { status: 'closed' },
+                commit: () => tripsApi.update(tripId, { status: 'closed' }),
+            });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
-            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -515,8 +554,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 })
             }).catch(console.error);
 
-        } catch {
-            showToast('Erro ao atualizar viagem', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
         }
     };
 
@@ -525,9 +564,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         if (!trip) return;
 
         try {
-            await tripsApi.update(tripId, { status: 'in_progress' });
+            await optimisticEdit({
+                table: db.trips,
+                id: tripId,
+                patch: { status: 'in_progress' },
+                commit: () => tripsApi.update(tripId, { status: 'in_progress' }),
+            });
             showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
-            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -540,8 +583,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 })
             }).catch(console.error);
 
-        } catch {
-            showToast('Erro ao atualizar viagem', 'error');
+        } catch (err) {
+            showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
         }
     };
 
