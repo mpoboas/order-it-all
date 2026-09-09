@@ -605,7 +605,7 @@ export default function GroupTripDetailPage() {
                                                     <div
                                                         key={item.id}
                                                         className={cn(
-                                                            "relative group transition-all duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
+                                                            "relative group transition duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
                                                             item.found_status === 'found' ? "bg-emerald-50/30 dark:bg-emerald-900/10" :
                                                                 item.found_status === 'not_available' ? "bg-red-50/30 dark:bg-red-900/10" : "bg-white dark:bg-slate-800"
                                                         )}
@@ -684,7 +684,7 @@ export default function GroupTripDetailPage() {
                     <button
                         onClick={openNewOrder}
                         className={cn(
-                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition-all duration-300'
+                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300'
                         )}
                         style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
                         aria-label="Novo pedido"

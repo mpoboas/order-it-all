@@ -32,7 +32,7 @@ export function StickyActionCard({
     return (
         <div
             className={cn(
-                'fixed left-0 right-0 z-[54] px-4 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in duration-500',
+                'fixed left-0 right-0 z-[54] px-4 transition duration-300 animate-in slide-in-from-bottom-5 fade-in duration-500',
                 'container mx-auto max-w-2xl pointer-events-none',
                 className
             )}

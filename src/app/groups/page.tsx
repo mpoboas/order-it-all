@@ -137,7 +137,7 @@ export default function GroupsPage() {
                         {/* Create Group Button */}
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="w-full mb-6 p-4 border-2 border-dashed border-violet-300 rounded-2xl text-violet-600 font-semibold hover:bg-violet-50 hover:border-violet-400 transition-all flex items-center justify-center gap-2 animate-fade-in-up"
+                            className="w-full mb-6 p-4 border-2 border-dashed border-violet-300 rounded-2xl text-violet-600 font-semibold hover:bg-violet-50 hover:border-violet-400 transition flex items-center justify-center gap-2 animate-fade-in-up"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -227,7 +227,7 @@ export default function GroupsPage() {
                                     key={emoji}
                                     onClick={() => setSelectedEmoji(emoji)}
                                     className={cn(
-                                        'w-14 h-14 rounded-2xl text-3xl transition-all flex items-center justify-center',
+                                        'w-14 h-14 rounded-2xl text-3xl transition flex items-center justify-center',
                                         selectedEmoji === emoji
                                             ? 'bg-violet-100 dark:bg-violet-900/40 ring-4 ring-violet-500/20 dark:ring-violet-500/40 scale-110 shadow-sm'
                                             : 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700'

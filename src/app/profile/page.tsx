@@ -88,7 +88,7 @@ export default function ProfilePage() {
                 {/* Profile Card */}
                 <div className="card p-6 flex flex-col items-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm">
                     <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50 dark:ring-slate-800 transition-all group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
+                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50 dark:ring-slate-800 transition group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
                             {isLoading ? (
                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
                                     <LoadingSpinner size="sm" />
@@ -142,7 +142,7 @@ export default function ProfilePage() {
                                 onClick={handleSaveName}
                                 disabled={isSaving || name === user.name}
                                 className={cn(
-                                    "px-4 rounded-xl font-semibold transition-all",
+                                    "px-4 rounded-xl font-semibold transition",
                                     isSaving || name === user.name
                                         ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
                                         : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"

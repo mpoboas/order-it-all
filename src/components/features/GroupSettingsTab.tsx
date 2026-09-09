@@ -333,7 +333,7 @@ export function GroupSettingsTab({
                     type="button"
                     onClick={() => handleSelectEmoji(emoji)}
                     className={cn(
-                      'w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all border',
+                      'w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition border',
                       selectedEmoji === emoji && !galleryFile
                         ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-500 ring-2 ring-violet-500/20 scale-105'
                         : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:bg-[var(--bg-tertiary)]'

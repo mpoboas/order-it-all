@@ -541,7 +541,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         type="button"
                         onClick={() => onChange(opt.value)}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition-all",
+                            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition",
                             isActive
                                 ? "bg-white dark:bg-slate-700 text-[var(--text-primary)] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-600/50",
@@ -724,7 +724,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     {/* Sort Pill */}
                     <button
                         onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
                     >
                         <span className="material-icons text-sm">schedule</span>
                         {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
@@ -734,7 +734,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     <button
                         onClick={cycleStatusFilter}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap active:scale-95",
                             getStatusFilterConfig(statusFilter).color
                         )}
                     >
@@ -746,7 +746,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     <button
                         onClick={cyclePriceFilter}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap active:scale-95",
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap active:scale-95",
                             getPriceFilterConfig(priceFilter).color
                         )}
                     >

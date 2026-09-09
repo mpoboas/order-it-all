@@ -13,44 +13,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    // Default to 'light' per user request, but check localStorage first
-    const [theme, setThemeState] = useState<Theme>('light');
-    const [isMounted, setIsMounted] = useState(false);
+    // No servidor nao ha DOM: 'light' (igual ao script bloqueante em layout.tsx).
+    // No cliente lemos a classe que esse script ja aplicou ao <html> antes do
+    // paint, portanto o primeiro render ja tem o tema certo e sem flash.
+    const [theme, setThemeState] = useState<Theme>(() => {
+        if (typeof document === 'undefined') return 'light';
+        return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    });
 
     useEffect(() => {
-        setIsMounted(true);
-        // Check local storage
-        const savedTheme = localStorage.getItem('theme') as Theme | null;
-        if (savedTheme) {
-            setThemeState(savedTheme);
-        } else {
-            // Default is light, no need to check system preference if "should be light by default" is strict
-            // But usually good to respect user choice if they previously visited
-            setThemeState('light');
+        const root = document.documentElement;
+        root.classList.toggle('dark', theme === 'dark');
+        root.classList.toggle('light', theme === 'light');
+        try {
+            localStorage.setItem('theme', theme);
+        } catch {
+            // localStorage indisponivel (modo privado) — o tema fica so nesta sessao.
         }
-    }, []);
-
-    useEffect(() => {
-        if (!isMounted) return;
-
-        const root = window.document.documentElement;
-
-        // Remove both classes first
-        root.classList.remove('light', 'dark');
-
-        // Add current theme
-        root.classList.add(theme);
-
-        // Save to local storage
-        localStorage.setItem('theme', theme);
-
-        // Also update meta theme-color if needed (optional)
-        // const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-        // if (metaThemeColor) {
-        //     metaThemeColor.setAttribute('content', theme === 'dark' ? '#020617' : '#f8fafc');
-        // }
-
-    }, [theme, isMounted]);
+    }, [theme]);
 
     const toggleTheme = () => {
         setThemeState(prev => prev === 'light' ? 'dark' : 'light');
@@ -59,11 +39,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const setTheme = (newTheme: Theme) => {
         setThemeState(newTheme);
     };
-
-    // Return current theme and toggle function
-    // Prevent flash of wrong theme by not rendering children until mounted? 
-    // Or just let it hydrate. For simple apps, hydration mismatch is minimal issue if defaults match server (light).
-    // Since Next.js, 'light' matches server default if we assume that.
 
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

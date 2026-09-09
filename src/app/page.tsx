@@ -33,7 +33,7 @@ export default function WelcomePage() {
       {/* Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative z-10">
         {/* Logo and Title */}
-        <div className={`text-center mb-12 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+        <div className={`text-center mb-12 transition duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="mb-6 relative">
             <div className="w-24 h-24 mx-auto bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl animate-bounce-slow">
               <img
@@ -53,7 +53,7 @@ export default function WelcomePage() {
 
         {/* Auth Selection Card */}
         <div
-          className={`w-full max-w-md transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          className={`w-full max-w-md transition duration-700 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
           <div className="bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl text-center">
             <h2 className="text-2xl font-bold text-white mb-3">Bem-vindo! 👋</h2>
@@ -63,7 +63,7 @@ export default function WelcomePage() {
 
             <button
               onClick={() => { trigger(); router.push('/auth/register'); }}
-              className="w-full py-4 bg-white text-purple-600 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 mb-6"
+              className="w-full py-4 bg-white text-purple-600 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition duration-200 mb-6"
             >
               Vamos lá! 🚀
             </button>

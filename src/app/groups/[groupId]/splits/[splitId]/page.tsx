@@ -635,7 +635,7 @@ export default function GroupSplitDetailPage() {
                                                         value={item.name}
                                                         onSave={val => updateItemName(idx, val)}
                                                         placeholder="Nome do item"
-                                                        className="w-full px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-violet-500 rounded-lg bg-transparent focus:bg-white transition-all"
+                                                        className="w-full px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-violet-500 rounded-lg bg-transparent focus:bg-white transition"
                                                     />
                                                     <button
                                                         type="button"
@@ -654,7 +654,7 @@ export default function GroupSplitDetailPage() {
                                                             value={item.price || ''}
                                                             onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
                                                             placeholder="0.00"
-                                                            className="w-20 px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-violet-500 rounded-lg bg-transparent text-right focus:bg-white transition-all"
+                                                            className="w-20 px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-violet-500 rounded-lg bg-transparent text-right focus:bg-white transition"
                                                         />
                                                         <span className="text-[var(--text-muted)]">€</span>
                                                     </div>
@@ -880,7 +880,7 @@ export default function GroupSplitDetailPage() {
                                             value={item.name}
                                             onSave={val => updateItemName(idx, val)}
                                             placeholder="Nome do item"
-                                            className="w-full text-base font-semibold bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-[var(--text-muted)]/50"
+                                            className="w-full text-base font-semibold bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition placeholder:text-[var(--text-muted)]/50"
                                         />
                                     </div>
 
@@ -892,7 +892,7 @@ export default function GroupSplitDetailPage() {
                                             value={item.price || ''}
                                             onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
                                             placeholder="0"
-                                            className="w-full text-right text-base font-bold text-violet-600 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                            className="w-full text-right text-base font-bold text-violet-600 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
                                         />
                                         <span className="absolute right-3 text-[var(--text-muted)] text-sm font-medium">€</span>
                                     </div>
@@ -901,7 +901,7 @@ export default function GroupSplitDetailPage() {
                                         {renderItemLockButton(idx, locked)}
                                         <button
                                             onClick={() => removeItem(idx)}
-                                            className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                                            className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
                                             title="Remover item"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -956,7 +956,7 @@ export default function GroupSplitDetailPage() {
                                                         type="button"
                                                         onClick={() => toggleParticipant(idx, p)}
                                                         className={cn(
-                                                            'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border shadow-sm',
+                                                            'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition duration-200 border shadow-sm',
                                                             isSelected
                                                                 ? 'bg-violet-500 border-violet-500 text-white shadow-violet-500/20'
                                                                 : 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
@@ -990,10 +990,10 @@ export default function GroupSplitDetailPage() {
                         );
                     })}
                     <div className="flex gap-2">
-                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition-all flex items-center justify-center gap-2">
+                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2">
                             + Adicionar Item
                         </button>
-                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition-all flex items-center justify-center gap-2">
+                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2">
                             <span className="material-icons text-lg">receipt_long</span> Scan Fatura
                         </button>
                     </div>

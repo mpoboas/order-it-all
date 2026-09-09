@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 
 export const entityListCardClassName =
-  'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition-all hover:shadow-md';
+  'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
 
 export function EntityCardDivider() {
   return <div className="h-px w-full bg-gray-100 dark:bg-slate-700/60" />;

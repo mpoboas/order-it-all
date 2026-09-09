@@ -127,16 +127,50 @@
 /* ===== BASE STYLES ===== */
 * {
   -webkit-tap-highlight-color: transparent;
+  /* Sem menu de contexto / lupa nativos ao segurar o ecra (reativado nos inputs
+     mais abaixo). Denuncia a web view. */
+  -webkit-touch-callout: none;
 }
 
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Remove o atraso de ~300ms reservado para deteccao de duplo-toque de zoom. */
+  touch-action: manipulation;
   /* Sem rubber-band: o overscroll nativo expunha o fundo do documento (que nao e
      o do ecra atual) em faixas no topo e no fundo. O pull-to-refresh que isto
      desliga esta reimplementado em PullToRefresh.tsx. */
   overscroll-behavior-y: none;
+}
+
+/* Elementos de chrome / interacao: nada de selecao de texto acidental ao tocar. */
+button,
+a,
+nav,
+header,
+label,
+summary,
+.btn {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Campos editaveis: selecao, cursor e menu de contexto nativos de volta. */
+input,
+textarea,
+select,
+[contenteditable] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Marcar explicitamente conteudo que o utilizador possa querer copiar
+   (codigos de convite/partilha, totais). */
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 body {
@@ -350,7 +384,7 @@ body {
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-hover:hover {
@@ -395,7 +429,7 @@ body {
   gap: 8px;
   font-weight: 600;
   border-radius: var(--radius-full);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -442,7 +476,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 40;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fab:hover {
@@ -527,7 +561,7 @@ body {
   background: var(--bg-tertiary);
   border-radius: var(--radius);
   padding: 12px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   border: 1px solid transparent;
 }
 
@@ -548,7 +582,7 @@ body {
   border: 2px solid var(--border);
   border-radius: var(--radius);
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   color: var(--text-primary);
 }
 
@@ -609,7 +643,7 @@ textarea:focus-visible {
   background: white;
   border-radius: 20px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, color 0.3s ease;
 }
 
 .modern-card:hover {
@@ -621,7 +655,7 @@ textarea:focus-visible {
   background: #f8fafc;
   border-radius: 16px;
   padding: 16px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   border: 1px solid #f1f5f9;
 }
 
@@ -696,7 +730,7 @@ textarea:focus-visible {
   border-radius: 16px;
   padding: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -710,7 +744,7 @@ textarea:focus-visible {
   border-radius: 25px;
   border: none;
   box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, color 0.3s ease;
 }
 
 .btn-secondary-modern {
@@ -721,7 +755,7 @@ textarea:focus-visible {
   border-radius: 20px;
   border: none;
   box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, color 0.3s ease;
   font-size: 14px;
 }
 
@@ -733,7 +767,7 @@ textarea:focus-visible {
   border-radius: 20px;
   border: none;
   box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, color 0.3s ease;
   font-size: 14px;
 }
 
@@ -745,7 +779,7 @@ textarea:focus-visible {
   border-radius: 20px;
   border: none;
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease, color 0.3s ease;
   font-size: 14px;
 }
 
@@ -760,7 +794,7 @@ textarea:focus-visible {
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   background: white;
 }
 
@@ -771,8 +805,9 @@ textarea:focus-visible {
 }
 
 /* ===== MATERIAL ICONS ===== */
+/* Fonte self-hosted via next/font/local (--font-material-icons). */
 .material-icons {
-  font-family: 'Material Icons' !important;
+  font-family: var(--font-material-icons), 'Material Icons' !important;
   font-weight: normal;
   font-style: normal;
   font-size: 24px;

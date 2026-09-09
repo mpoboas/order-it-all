@@ -334,7 +334,7 @@ export function MoveItemSheet({
                           type="button"
                           onClick={() => { trigger(); setTargetOrderId(order.orderId); }}
                           className={cn(
-                            'w-full text-left p-4 rounded-2xl border-2 transition-all',
+                            'w-full text-left p-4 rounded-2xl border-2 transition',
                             selected
                               ? 'border-primary-500 bg-primary-50/60 dark:bg-primary-950/30'
                               : 'border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-200'

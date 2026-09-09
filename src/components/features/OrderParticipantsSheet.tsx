@@ -146,7 +146,7 @@ export function OrderParticipantsSheet({
                                     type="button"
                                     onClick={() => setSelectedCreatorId(member.id)}
                                     className={cn(
-                                        'flex flex-col items-center gap-1.5 shrink-0 w-16 py-2 rounded-2xl transition-all',
+                                        'flex flex-col items-center gap-1.5 shrink-0 w-16 py-2 rounded-2xl transition',
                                         selected
                                             ? 'bg-violet-50/90 dark:bg-violet-950/40 ring-2 ring-primary-500 dark:ring-primary-400'
                                             : 'ring-1 ring-transparent hover:ring-gray-200 dark:hover:ring-slate-700'

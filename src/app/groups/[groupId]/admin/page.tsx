@@ -610,7 +610,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('open')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'open'
                                         ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
@@ -622,7 +622,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('in_progress')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'in_progress'
                                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
@@ -634,7 +634,7 @@ function AdminDashboardContent() {
                                 type="button"
                                 onClick={() => setEditTripStatus('closed')}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition-all text-center text-sm",
+                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
                                     editTripStatus === 'closed'
                                         ? "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                                         : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"

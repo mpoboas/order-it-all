@@ -100,7 +100,7 @@ export default function InvitePage() {
                 <p className="text-white/80 mb-8 max-w-xs mx-auto">{error || 'Convite não encontrado.'}</p>
                 <button
                     onClick={() => router.push('/')}
-                    className="px-6 py-3 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl text-white font-bold hover:bg-white/30 transition-all"
+                    className="px-6 py-3 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl text-white font-bold hover:bg-white/30 transition"
                 >
                     Voltar ao início
                 </button>
@@ -148,7 +148,7 @@ export default function InvitePage() {
                         </div>
                         <button
                             onClick={() => router.push(`/groups/${group.id}/trips`)}
-                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition-all"
+                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition"
                         >
                             Ver Grupo
                         </button>
@@ -158,7 +158,7 @@ export default function InvitePage() {
                         <button
                             onClick={handleJoin}
                             disabled={joining}
-                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {joining ? 'A entrar...' : (isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite')}
                         </button>

@@ -501,7 +501,7 @@ export function OrderFormSheet({
             type="button"
             onClick={() => { trigger(); onClick(); }}
             className={cn(
-                "flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1 flex-1",
+                "flex flex-col items-center justify-center p-2 rounded-xl border-2 transition gap-1 flex-1",
                 currentStatus === status
                     ? color + " border-current"
                     : "bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 hover:border-gray-200 dark:hover:border-slate-600"
@@ -682,7 +682,7 @@ export function OrderFormSheet({
                         ref={(el) => {
                             itemCardRefs.current[i] = el;
                         }}
-                        className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition-all"
+                        className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition"
                     >
                         {mode === 'multi' && items.length > 1 && (
                             <div className="flex items-center justify-between gap-2 mb-3">
@@ -758,7 +758,7 @@ export function OrderFormSheet({
                                             type="button"
                                             onClick={() => { trigger(); updateItem(i, 'brand', choice.value); }}
                                             className={cn(
-                                                'flex items-center justify-center text-center p-3 rounded-xl border-2 transition-all touch-manipulation min-h-[48px]',
+                                                'flex items-center justify-center text-center p-3 rounded-xl border-2 transition touch-manipulation min-h-[48px]',
                                                 selected
                                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 shadow-sm'
                                                     : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-300'
@@ -887,7 +887,7 @@ export function OrderFormSheet({
                 {mode === 'multi' && (
                     <button
                         onClick={() => addEmptyItem()}
-                        className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition-all flex items-center justify-center gap-2 group"
+                        className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center justify-center gap-2 group"
                     >
                         <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
                             <span className="material-icons text-sm">add</span>
@@ -910,7 +910,7 @@ export function OrderFormSheet({
                             onChange={e => setSearchQuery(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchProducts())}
                             placeholder="Pesquisar (ex: Super Bock)..."
-                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary-500 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
                         {searchQuery && (
                             <button
@@ -933,7 +933,7 @@ export function OrderFormSheet({
                                         key={p.id}
                                         type="button"
                                         onClick={() => addFromSearch(p)}
-                                        className="w-full p-2.5 bg-white dark:bg-slate-800 rounded-xl flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700 transition-all text-left group"
+                                        className="w-full p-2.5 bg-white dark:bg-slate-800 rounded-xl flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700 transition text-left group"
                                     >
                                         <div className={cn("w-12 h-12 shrink-0 rounded-lg border border-gray-100 p-1 flex items-center justify-center overflow-hidden", p.imageURL ? "bg-white" : "bg-white dark:bg-slate-900 dark:border-slate-800")}>
                                             {p.imageURL ? (
