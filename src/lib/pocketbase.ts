@@ -461,33 +461,6 @@ export const groupsApi = {
   },
 };
 
-// Real-time subscriptions
-export const subscriptions = {
-  subscribeToGroups: (callback: (e: unknown) => void) => {
-    return pb.collection('groups').subscribe('*', callback);
-  },
-
-  subscribeToTrips: (callback: (e: unknown) => void) => {
-    return pb.collection('trips').subscribe('*', callback);
-  },
-
-  subscribeToOrders: (tripId: string, callback: (e: unknown) => void) => {
-    return pb.collection('orders').subscribe('*', callback);
-  },
-
-  subscribeToItems: (callback: (e: unknown) => void) => {
-    return pb.collection('items').subscribe('*', callback);
-  },
-
-  subscribeToSplits: (callback: (e: unknown) => void) => {
-    return pb.collection('splits').subscribe('*', callback);
-  },
-
-  unsubscribeAll: () => {
-    pb.collection('groups').unsubscribe();
-    pb.collection('trips').unsubscribe();
-    pb.collection('orders').unsubscribe();
-    pb.collection('items').unsubscribe();
-    pb.collection('splits').unsubscribe();
-  },
-};
+// As subscrições realtime por-página foram substituídas pela cache local-first:
+// há uma subscrição partilhada por coleção em src/lib/db/sync.ts que alimenta o
+// Dexie, e as páginas lêem via os hooks de src/lib/db/hooks.ts.

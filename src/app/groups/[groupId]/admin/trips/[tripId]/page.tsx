@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo, use } from 'react';
+import { useState, useCallback, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
-import { tripsApi, ordersApi, itemsApi, groupsApi, subscriptions } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
 import { useUser } from '@/context/UserContext';
+import { useGroup } from '@/context/GroupContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
+import { db } from '@/lib/db/schema';
+import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
 import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
 import {
     getOtherParticipants,
@@ -100,10 +104,14 @@ function buildAdminOrderCard(order: Order, items: Item[], members: User[]): Admi
 
 export default function AdminTripDetailPage({ params }: { params: Promise<{ tripId: string }> }) {
     const { tripId } = use(params);
-    const [trip, setTrip] = useState<Trip | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [orderCards, setOrderCards] = useState<AdminOrderCard[]>([]);
     const { user, updateProfile } = useUser();
+    const { currentGroup } = useGroup();
+
+    const tripQuery = useTrip(tripId);
+    const trip = tripQuery ?? null;
+    const tripOrders = useOrders(tripId);
+    const orderIds = useMemo(() => (tripOrders ?? []).map((o) => o.id), [tripOrders]);
+    const tripItems = useItems(orderIds);
 
     const [showScanSheet, setShowScanSheet] = useState(false);
     const [compactView, setCompactView] = useState(false);
@@ -123,8 +131,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     // Edit Item Form
     const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
 
-    // New Order Form
-    const [members, setMembers] = useState<User[]>([]);
+    // Membros do grupo (do GroupContext, alimentado pela cache local).
+    const members = useMemo<User[]>(() => {
+        const list: User[] = [];
+        if (currentGroup?.expand?.creator) list.push(currentGroup.expand.creator);
+        if (currentGroup?.expand?.admins) list.push(...currentGroup.expand.admins);
+        if (currentGroup?.expand?.members) list.push(...currentGroup.expand.members);
+        return Array.from(new Map(list.map((m) => [m.id, m])).values());
+    }, [currentGroup]);
 
     const [submitting, setSubmitting] = useState(false);
     const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -150,6 +164,20 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             found_status: selectedItem.found_status,
         }];
     }, [selectedItem]);
+
+    // Cartões de pedido derivados da cache local (orders + items + membros).
+    const orderCards = useMemo<AdminOrderCard[]>(() => {
+        const orders = tripOrders ?? [];
+        const itemsByOrder = new Map<string, Item[]>();
+        for (const item of tripItems ?? []) {
+            const list = itemsByOrder.get(item.order_id) ?? [];
+            list.push(item);
+            itemsByOrder.set(item.order_id, list);
+        }
+        return orders.map((order) =>
+            buildAdminOrderCard(order, itemsByOrder.get(order.id) ?? [], members),
+        );
+    }, [tripOrders, tripItems, members]);
 
     const participantsSheetOrder = participantsSheetOrderId
         ? orderCards.find(o => o.orderId === participantsSheetOrderId)
@@ -180,88 +208,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const { showToast } = useToast();
     const router = useRouter();
 
-    // Race condition protection
-    const activeTripId = useRef(tripId);
-    useEffect(() => { activeTripId.current = tripId; }, [tripId]);
-
-    const loadShoppingItems = useCallback(async () => {
-        try {
-            const ordersData = await ordersApi.getByTrip(tripId);
-            if (activeTripId.current !== tripId) return;
-
-            const allItems = await itemsApi.getByOrderIds(ordersData.map((order) => order.id));
-            const itemsByOrder = new Map<string, Item[]>();
-            for (const item of allItems) {
-                const list = itemsByOrder.get(item.order_id) ?? [];
-                list.push(item);
-                itemsByOrder.set(item.order_id, list);
-            }
-
-            if (activeTripId.current !== tripId) return;
-
-            const cards = ordersData.map((order) =>
-                buildAdminOrderCard(order, itemsByOrder.get(order.id) ?? [], members)
-            );
-            setOrderCards(cards);
-        } catch (error) {
-            if (activeTripId.current === tripId) {
-                console.error(error);
-                showToast('Falha ao carregar itens', 'error');
-            }
-        }
-    }, [tripId, showToast, members]);
-
-    const loadTrip = useCallback(async () => {
-        try {
-            const data = await tripsApi.getById(tripId);
-            if (activeTripId.current !== tripId) return;
-            setTrip(data);
-        } catch {
-            if (activeTripId.current !== tripId) return;
-            showToast('Falha ao carregar detalhes da viagem', 'error');
-            router.push('/admin');
-        } finally {
-            if (activeTripId.current === tripId) setLoading(false);
-        }
-    }, [tripId, showToast, router]);
-
-    useEffect(() => {
-        setLoading(true);
-        loadTrip();
-        loadShoppingItems();
-
-        const unsubTrips = subscriptions.subscribeToTrips(() => {
-            if (activeTripId.current === tripId) loadTrip();
-        });
-        const unsubItems = subscriptions.subscribeToItems(() => {
-            if (activeTripId.current === tripId) loadShoppingItems();
-        });
-
-        return () => {
-            subscriptions.unsubscribeAll();
-        };
-    }, [loadTrip, loadShoppingItems, tripId]);
-
-    const refreshTrip = useCallback(async () => {
-        await Promise.all([loadTrip(), loadShoppingItems()]);
-    }, [loadTrip, loadShoppingItems]);
-
-    useRefreshHandler(refreshTrip);
-
-    // Load members separately when group_id is available
-    useEffect(() => {
-        if (trip?.group_id) {
-            groupsApi.getById(trip.group_id).then(g => {
-                const list = [];
-                if (g.expand?.creator) list.push(g.expand.creator);
-                if (g.expand?.admins) list.push(...g.expand.admins);
-                if (g.expand?.members) list.push(...g.expand.members);
-                // Dedup
-                const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
-                setMembers(unique);
-            }).catch(console.error);
-        }
-    }, [trip?.group_id]);
+    useRefreshHandler(catchUp);
 
     const cycleStatus = async (item: ShoppingItem, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -269,30 +216,15 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const currentIdx = statuses.indexOf(item.found_status);
         const nextStatus = statuses[(currentIdx + 1) % 3];
 
-        // Optimistic UI update
-        setOrderCards(prev =>
-            prev.map(order => ({
-                ...order,
-                items: order.items.map(i =>
-                    i.id === item.id ? { ...i, found_status: nextStatus } : i
-                ),
-            }))
-        );
+        // UI optimista: escreve já na cache local (o useLiveQuery re-renderiza).
+        await db.items.update(item.id, { found_status: nextStatus });
 
         try {
             await itemsApi.updateStatus(item.id, nextStatus);
-            // No reload needed if successful, state is already correct
+            // O eco do realtime confirma; sem reload manual.
         } catch {
             showToast('Falha ao atualizar estado do produto', 'error');
-            // Revert on failure
-            setOrderCards(prev =>
-                prev.map(order => ({
-                    ...order,
-                    items: order.items.map(i =>
-                        i.id === item.id ? { ...i, found_status: item.found_status } : i
-                    ),
-                }))
-            );
+            await db.items.update(item.id, { found_status: item.found_status });
         }
     };
 
@@ -331,7 +263,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         setMoveItemSession('closed');
         setSelectedItem(null);
         showToast('Produto movido para outro pedido', 'success');
-        loadShoppingItems();
+        void catchUp();
     };
 
     const handleUpdateItem = async (data: { items: ItemFormData[] }) => {
@@ -353,7 +285,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast('Produto atualizado!', 'success');
             setShowEditItemModal(false);
-            loadShoppingItems();
+            void catchUp();
         } catch {
             showToast('Falha ao atualizar produto', 'error');
         } finally {
@@ -375,7 +307,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             );
             setShowEditItemModal(false);
             setSelectedItem(null);
-            loadShoppingItems();
+            void catchUp();
         } catch {
             showToast('Falha ao eliminar produto', 'error');
         } finally {
@@ -405,7 +337,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             showToast('Pedido atualizado', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            loadShoppingItems();
+            void catchUp();
         } catch (error) {
             console.error('Error:', error);
             showToast('Erro ao guardar participantes', 'error');
@@ -482,7 +414,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
             showToast('Pedido adicionado!', 'success');
             setNewOrderSession('closed');
-            loadShoppingItems();
+            void catchUp();
         } catch {
             showToast('Falha ao criar pedido', 'error');
         } finally {
@@ -573,7 +505,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         try {
             await tripsApi.update(tripId, { status: 'closed' });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
-            loadTrip();
+            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -598,7 +530,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         try {
             await tripsApi.update(tripId, { status: 'in_progress' });
             showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
-            loadTrip();
+            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -891,7 +823,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 members={members}
                 user={user}
                 updateProfile={updateProfile}
-                onApplied={loadShoppingItems}
+                onApplied={() => void catchUp()}
             />
 
             {/* New Order Sheet */}

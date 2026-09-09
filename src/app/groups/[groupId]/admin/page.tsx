@@ -1,10 +1,13 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { tripsApi, subscriptions, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
+import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
 import type { Trip, Group } from '@/lib/types';
+import { useTrips } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
@@ -43,9 +46,11 @@ function AdminDashboardContent() {
         }
     }, [searchParams]);
 
-    // Data
-    const [trips, setTrips] = useState<Trip[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Data (local-first: cache do Dexie via SyncProvider)
+    const tripsQuery = useTrips(groupId);
+    const trips = tripsQuery ?? [];
+    const { hydrating } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && hydrating);
 
     // Create New Trip State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,29 +74,7 @@ function AdminDashboardContent() {
         }
     }, [isAdmin, groupId, router]);
 
-    const loadTrips = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            // Admins see all trips
-            const allTrips = await tripsApi.getAllByGroup(groupId);
-            setTrips(allTrips);
-        } catch (error) {
-            console.error('Error loading trips:', error);
-            showToast('Falha ao carregar viagens', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
-
-    useEffect(() => {
-        loadTrips();
-        const unsub = subscriptions.subscribeToTrips(() => loadTrips());
-        return () => {
-            subscriptions.unsubscribeAll();
-        };
-    }, [loadTrips]);
-
-    useRefreshHandler(loadTrips);
+    useRefreshHandler(catchUp);
 
     const handleCreateTrip = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,7 +90,7 @@ function AdminDashboardContent() {
             setNewTripName('');
             setNewTripDescription('');
             setShowCreateModal(false);
-            loadTrips();
+            void catchUp();
 
             // Notify Users
             await fetch('/api/notify', {
@@ -185,7 +168,7 @@ function AdminDashboardContent() {
             });
             showToast('Viagem atualizada com sucesso!', 'success');
             setShowEditModal(false);
-            loadTrips();
+            void catchUp();
         } catch (error) {
             console.error('Error updating trip:', error);
             showToast('Falha ao atualizar viagem', 'error');
@@ -199,7 +182,7 @@ function AdminDashboardContent() {
         try {
             await tripsApi.delete(id);
             showToast('Viagem eliminada com sucesso!', 'success');
-            loadTrips();
+            void catchUp();
         } catch (error) {
             showToast('Falha ao eliminar viagem', 'error');
         }
@@ -216,7 +199,7 @@ function AdminDashboardContent() {
         try {
             await tripsApi.close(id);
             showToast('Viagem terminada com sucesso!', 'success');
-            loadTrips();
+            void catchUp();
         } catch (error) {
             showToast('Falha ao terminar viagem', 'error');
         }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { useToast } from '@/context/ToastContext';
-import { splitsApi, subscriptions } from '@/lib/pocketbase';
+import { splitsApi } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
@@ -13,13 +13,13 @@ import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
-import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { collectGroupMembers } from '@/lib/splitShare';
 import { useRefreshHandler } from '@/context/RefreshContext';
+import { useSplits } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
 
 export default function GroupSplitsPage() {
-    const [splits, setSplits] = useState<Split[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [editingSplit, setEditingSplit] = useState<Split | null>(null);
     const [editName, setEditName] = useState('');
@@ -36,6 +36,11 @@ export default function GroupSplitsPage() {
 
     const userName = user?.name || user?.email || '';
 
+    const splitsQuery = useSplits(groupId);
+    const splits = splitsQuery ?? [];
+    const { hydrating } = useSyncStatus();
+    const loading = splitsQuery === undefined || (splits.length === 0 && hydrating);
+
     const displayedSplits = splits.filter(split =>
         isAdmin ||
         split.created_by === user?.id ||
@@ -46,26 +51,7 @@ export default function GroupSplitsPage() {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
 
-    const loadSplits = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            const data = await splitsApi.getByGroup(groupId);
-            setSplits(data.map(normalizeSplitRecord));
-        } catch (error) {
-            console.error('Error loading splits:', error);
-            showToast('Erro ao carregar divisões', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
-
-    useEffect(() => {
-        loadSplits();
-        subscriptions.subscribeToSplits(() => loadSplits());
-        return () => subscriptions.unsubscribeAll();
-    }, [loadSplits]);
-
-    useRefreshHandler(loadSplits);
+    useRefreshHandler(catchUp);
 
     const groupMembers = collectGroupMembers(currentGroup);
 
@@ -96,7 +82,7 @@ export default function GroupSplitsPage() {
             });
             showToast('Divisão atualizada!', 'success');
             closeEdit();
-            loadSplits();
+            void catchUp();
         } catch (error) {
             console.error('Error updating split:', error);
             showToast('Erro ao guardar divisão', 'error');
@@ -111,7 +97,7 @@ export default function GroupSplitsPage() {
         try {
             await splitsApi.delete(id);
             showToast('Divisão eliminada!', 'success');
-            loadSplits();
+            void catchUp();
         } catch (error) {
             console.error('Error deleting split:', error);
             showToast('Erro ao eliminar', 'error');

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
+import { SyncProvider } from "@/context/SyncProvider";
 import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
@@ -96,17 +97,19 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <UserProvider>
-          <GroupProvider>
-            <ToastProvider>
-              <ThemeProvider>
-                <RefreshProvider>
-                  {children}
-                  <ToastContainer />
-                  <LazyPushNotificationManager />
-                </RefreshProvider>
-              </ThemeProvider>
-            </ToastProvider>
-          </GroupProvider>
+          <SyncProvider>
+            <GroupProvider>
+              <ToastProvider>
+                <ThemeProvider>
+                  <RefreshProvider>
+                    {children}
+                    <ToastContainer />
+                    <LazyPushNotificationManager />
+                  </RefreshProvider>
+                </ThemeProvider>
+              </ToastProvider>
+            </GroupProvider>
+          </SyncProvider>
         </UserProvider>
       </body>
     </html>

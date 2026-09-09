@@ -4,7 +4,10 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
-import { splitsApi, subscriptions } from '@/lib/pocketbase';
+import { splitsApi } from '@/lib/pocketbase';
+import { db } from '@/lib/db/schema';
+import { useSplit } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
 import type { Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
@@ -116,8 +119,9 @@ export default function GroupSplitDetailPage() {
     const participantInputMobileRef = useRef<HTMLInputElement>(null);
 
     const [split, setSplit] = useState<Split | null>(null);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const liveSplit = useSplit(splitId);
+    const loading = liveSplit === undefined && split === null;
     const [newParticipant, setNewParticipant] = useState('');
     const [participantsExpanded, setParticipantsExpanded] = useState(true);
     const [totalsExpanded, setTotalsExpanded] = useState(false);
@@ -155,25 +159,16 @@ export default function GroupSplitDetailPage() {
         });
     };
 
-    const loadSplit = useCallback(async () => {
-        try {
-            const data = await splitsApi.getById(splitId);
-            setSplit(normalizeSplitRecord(data));
-        } catch (error) {
-            console.error('Error loading split:', error);
-            showToast('Erro ao carregar divisão', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [splitId, showToast]);
-
+    // A cache local (Dexie) é a fonte da verdade. Mantém-se o `split` em estado
+    // local para as edições in-place não "saltarem"; sincroniza-se com a cache
+    // quando não estamos a meio de uma gravação.
     useEffect(() => {
-        loadSplit();
-        subscriptions.subscribeToSplits(() => loadSplit());
-        return () => subscriptions.unsubscribeAll();
-    }, [loadSplit]);
+        if (liveSplit === undefined) return;
+        if (saving) return;
+        setSplit(liveSplit ?? null);
+    }, [liveSplit, saving]);
 
-    useRefreshHandler(loadSplit);
+    useRefreshHandler(catchUp);
 
     const saveSplit = async (updatedFields: Partial<Split>) => {
         if (!split) return;
@@ -190,7 +185,8 @@ export default function GroupSplitDetailPage() {
 
         try {
             await splitsApi.update(splitId, updatedFields);
-            // We don't overwrite with server response to avoid UI jumps while editing
+            // Escreve também na cache local para o useLiveQuery ficar coerente.
+            await db.splits.update(splitId, updatedFields);
         } catch (error) {
             console.error('Error saving split:', error);
             showToast('Erro ao guardar alteração', 'error');
@@ -199,6 +195,12 @@ export default function GroupSplitDetailPage() {
             setSaving(false);
         }
     };
+
+    // Atualização vinda de sheets/exports: aplica no estado local e na cache.
+    const applySplitUpdate = useCallback((updated: Split) => {
+        setSplit(normalizeSplitRecord(updated));
+        void db.splits.put(updated);
+    }, []);
 
     const addParticipantByName = async (name: string) => {
         if (!split) return;
@@ -392,6 +394,7 @@ export default function GroupSplitDetailPage() {
         if (!confirm('Eliminar esta divisão?')) return;
         try {
             await splitsApi.delete(splitId);
+            void catchUp();
             showToast('Divisão eliminada', 'success');
             router.push(`/groups/${groupId}/splits`);
         } catch {
@@ -430,7 +433,7 @@ export default function GroupSplitDetailPage() {
                 split={split}
                 groupId={groupId}
                 user={user}
-                onSplitUpdate={setSplit}
+                onSplitUpdate={applySplitUpdate}
             />
         );
     }
@@ -1259,14 +1262,14 @@ export default function GroupSplitDetailPage() {
                 isOpen={showInviteSheet}
                 onClose={() => setShowInviteSheet(false)}
                 split={split}
-                onSplitUpdate={setSplit}
+                onSplitUpdate={applySplitUpdate}
             />
 
             <SplitAllowedModesSheet
                 isOpen={showAllowedModesSheet}
                 onClose={() => setShowAllowedModesSheet(false)}
                 split={split}
-                onSplitUpdate={setSplit}
+                onSplitUpdate={applySplitUpdate}
             />
 
             <SplitInvoiceScanSheet
@@ -1282,7 +1285,7 @@ export default function GroupSplitDetailPage() {
                     isOpen={showSplitwiseExport}
                     onClose={() => setShowSplitwiseExport(false)}
                     split={split}
-                    onExported={setSplit}
+                    onExported={applySplitUpdate}
                 />
             )}
         </div>

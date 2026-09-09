@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "dexie": "^4.4.5",
+    "dexie-react-hooks": "^4.4.0",
     "html2canvas": "^1.4.1",
     "motion": "^12.40.0",
     "next": "^16.1.6",

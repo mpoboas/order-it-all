@@ -1,53 +1,31 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { useToast } from '@/context/ToastContext';
-import { tripsApi, subscriptions } from '@/lib/pocketbase';
-import type { Trip } from '@/lib/types';
-import { getRelativeTime, cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
-import { Badge } from '@/components/ui/Badge';
 import { TripCard } from '@/components/features/TripCard';
 import { useRefreshHandler } from '@/context/RefreshContext';
+import { useTrips } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
 
 export default function GroupTripsPage() {
-    const [trips, setTrips] = useState<Trip[]>([]);
-    const [loading, setLoading] = useState(true);
     const params = useParams();
     const groupId = params.groupId as string;
 
     const { user, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
-    const { showToast } = useToast();
     const router = useRouter();
 
-    const loadTrips = useCallback(async () => {
-        if (!groupId) return;
-        try {
-            // Fetch all trips for users.
-            const data = await tripsApi.getAllByGroup(groupId);
-            setTrips(data);
-        } catch (error) {
-            console.error('Error loading trips:', error);
-            showToast('Erro ao carregar viagens', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, showToast]);
+    const tripsQuery = useTrips(groupId);
+    const trips = tripsQuery ?? [];
+    const { hydrating } = useSyncStatus();
+    const loading = tripsQuery === undefined || (trips.length === 0 && hydrating);
 
-    useEffect(() => {
-        loadTrips();
-
-        // Real-time updates
-        subscriptions.subscribeToTrips(() => loadTrips());
-        return () => subscriptions.unsubscribeAll();
-    }, [loadTrips]);
-
-    useRefreshHandler(loadTrips);
+    useRefreshHandler(catchUp);
 
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {
@@ -115,7 +93,7 @@ export default function GroupTripsPage() {
             {!loading && trips.length > 0 && (
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 md:hidden">
                     <button
-                        onClick={loadTrips}
+                        onClick={() => void catchUp()}
                         className="px-4 py-2 bg-white/80 backdrop-blur rounded-full shadow-lg text-sm text-[var(--text-secondary)] flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

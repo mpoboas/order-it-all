@@ -5,8 +5,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
-import { tripsApi, ordersApi, itemsApi, subscriptions } from '@/lib/pocketbase';
-import type { Trip, Item, OrderWithItems, User } from '@/lib/types';
+import { ordersApi, itemsApi } from '@/lib/pocketbase';
+import type { Item, OrderWithItems, User } from '@/lib/types';
+import { useTrip, useOrders, useItems } from '@/lib/db/hooks';
+import { catchUp } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
 import {
     orderVisibleToUser,
     deriveOrderUserName,
@@ -44,10 +47,6 @@ export default function GroupTripDetailPage() {
 
     const userName = user?.name || user?.email || 'Anónimo';
 
-    const [trip, setTrip] = useState<Trip | null>(null);
-    const [orders, setOrders] = useState<OrderWithItems[]>([]);
-    const [otherOrders, setOtherOrders] = useState<OrderWithItems[]>([]);
-    const [loading, setLoading] = useState(true);
     const [orderSheetSession, setOrderSheetSession] = useState<SheetSession>('closed');
     const [participantsSheetSession, setParticipantsSheetSession] = useState<SheetSession>('closed');
     const [orderSheetDraftActive, setOrderSheetDraftActive] = useState(false);
@@ -75,60 +74,44 @@ export default function GroupTripDetailPage() {
 
     const showAllOrders = Boolean(currentGroup?.show_all_orders);
 
-    const loadData = useCallback(async () => {
-        try {
-            const [tripData, ordersData] = await Promise.all([
-                tripsApi.getById(tripId),
-                ordersApi.getByTrip(tripId),
-            ]);
+    const tripQuery = useTrip(tripId);
+    const trip = tripQuery ?? null;
+    const allOrders = useOrders(tripId);
+    const orderIds = useMemo(() => (allOrders ?? []).map((o) => o.id), [allOrders]);
+    const allItems = useItems(orderIds);
+    const { hydrating } = useSyncStatus();
 
-            setTrip(tripData);
-            const userOrders = ordersData
-                .filter(order => orderVisibleToUser(order, currentUserId, userName))
-                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
-            const othersRaw = showAllOrders
-                ? ordersData
-                    .filter(order => !orderVisibleToUser(order, currentUserId, userName))
-                    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
-                : [];
+    const loading = tripQuery === undefined || (trip === null && hydrating);
 
-            const allItems = await itemsApi.getByOrderIds(
-                [...userOrders, ...othersRaw].map((order) => order.id)
-            );
-            const itemsByOrder = new Map<string, Item[]>();
-            for (const item of allItems) {
-                const list = itemsByOrder.get(item.order_id) ?? [];
-                list.push(item);
-                itemsByOrder.set(item.order_id, list);
-            }
-
-            const ordersWithItems = userOrders.map((order) => ({
-                ...order,
-                items: itemsByOrder.get(order.id) ?? [],
-            }));
-            setOrders(ordersWithItems);
-
-            const othersWithItems = othersRaw.map((order) => ({
-                ...order,
-                items: itemsByOrder.get(order.id) ?? [],
-            }));
-            setOtherOrders(othersWithItems);
-        } catch (error) {
-            console.error('Error loading trip:', error);
-            showToast('Erro ao carregar viagem', 'error');
-        } finally {
-            setLoading(false);
+    const { orders, otherOrders } = useMemo(() => {
+        const ordersData = allOrders ?? [];
+        const items = allItems ?? [];
+        const itemsByOrder = new Map<string, Item[]>();
+        for (const item of items) {
+            const list = itemsByOrder.get(item.order_id) ?? [];
+            list.push(item);
+            itemsByOrder.set(item.order_id, list);
         }
-    }, [tripId, userName, currentUserId, showToast, showAllOrders]);
+        const attach = (list: typeof ordersData): OrderWithItems[] =>
+            list
+                .slice()
+                .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+                .map((order) => ({ ...order, items: itemsByOrder.get(order.id) ?? [] }));
 
-    useEffect(() => {
-        loadData();
-        subscriptions.subscribeToOrders(tripId, () => loadData());
-        subscriptions.subscribeToItems(() => loadData());
-        return () => subscriptions.unsubscribeAll();
-    }, [tripId, loadData]);
+        const mine = attach(
+            ordersData.filter((order) => orderVisibleToUser(order, currentUserId, userName)),
+        );
+        const others = showAllOrders
+            ? attach(
+                  ordersData.filter(
+                      (order) => !orderVisibleToUser(order, currentUserId, userName),
+                  ),
+              )
+            : [];
+        return { orders: mine, otherOrders: others };
+    }, [allOrders, allItems, currentUserId, userName, showAllOrders]);
 
-    useRefreshHandler(loadData);
+    useRefreshHandler(catchUp);
 
     const { mine: myOrders, participating: participatingOrders } = useMemo(
         () => partitionOrdersForUser(orders, currentUserId),
@@ -228,7 +211,7 @@ export default function GroupTripDetailPage() {
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
-            loadData();
+            void catchUp();
         } catch (error) {
             console.error('Error:', error);
             showToast('Erro ao guardar pedido', 'error');
@@ -301,7 +284,7 @@ export default function GroupTripDetailPage() {
             showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
-            loadData();
+            void catchUp();
         } catch (error) {
             console.error('Error:', error);
             showToast('Erro ao guardar participantes', 'error');
@@ -319,19 +302,14 @@ export default function GroupTripDetailPage() {
         }
         if (!confirm('Eliminar este pedido?')) return;
 
-        // Optimistic Update
-        const previousOrders = [...orders];
-        setOrders(current => current.filter(o => o.id !== orderId));
-
         try {
             // Delete items first manually as per current logic
             for (const item of order.items) await itemsApi.delete(item.id);
             await ordersApi.delete(orderId);
-
+            void catchUp();
             showToast('Pedido eliminado', 'success');
         } catch {
             showToast('Erro ao eliminar', 'error');
-            setOrders(previousOrders); // Revert on failure
         }
     };
 
@@ -469,7 +447,7 @@ export default function GroupTripDetailPage() {
                     </div>
                     <button
                         type="button"
-                        onClick={loadData}
+                        onClick={() => void catchUp()}
                         className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors shrink-0"
                         aria-label="Atualizar pedidos"
                     >
