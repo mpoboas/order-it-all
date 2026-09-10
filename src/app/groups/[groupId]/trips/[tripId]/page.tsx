@@ -43,6 +43,7 @@ import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -342,11 +343,11 @@ export default function GroupTripDetailPage() {
         }
     };
 
-    const getStatusConfig = (status: Item['found_status']) => ({
-        pending: { label: 'Por comprar', bg: 'bg-amber-500', icon: '⏳' },
-        found: { label: 'Comprado', bg: 'bg-emerald-500', icon: '✓' },
-        not_available: { label: 'Não tinha', bg: 'bg-red-500', icon: '✗' },
-    }[status]);
+    const ITEM_STATUS: Record<Item['found_status'], { label: string; bg: string; icon: IconName }> = {
+        pending: { label: 'Por comprar', bg: 'bg-amber-500 text-white', icon: 'hourglass_empty' },
+        found: { label: 'Comprado', bg: 'bg-emerald-500 text-white', icon: 'check' },
+        not_available: { label: 'Não tinha', bg: 'bg-red-500 text-white', icon: 'close' },
+    };
 
     if (!isLoggedIn) return null;
     if (loading) {
@@ -536,7 +537,7 @@ export default function GroupTripDetailPage() {
                                                 "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
                                                 allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600"
                                             )}>
-                                                {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                {allMissing ? <span className="text-sm">💀</span> : <Icon name="check_circle" className="text-sm" />}
                                                 {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                             </div>
                                         )}
@@ -600,13 +601,7 @@ export default function GroupTripDetailPage() {
                                         {/* Items */}
                                         <div className="bg-gray-50 dark:bg-slate-900/30 p-2 gap-2 flex flex-col">
                                             {order.items.map((item) => {
-                                                const status = getStatusConfig(item.found_status);
-                                                // Override status config to match Admin EXACTLY
-                                                const statusConfig = {
-                                                    pending: { label: 'Por comprar', bg: 'bg-amber-500 text-white', icon: 'hourglass_empty' },
-                                                    found: { label: 'Comprado', bg: 'bg-emerald-500 text-white', icon: 'check' },
-                                                    not_available: { label: 'Não tinha', bg: 'bg-red-500 text-white', icon: 'close' },
-                                                }[item.found_status] || status;
+                                                const statusConfig = ITEM_STATUS[item.found_status];
 
                                                 return (
                                                     <div
@@ -670,7 +665,7 @@ export default function GroupTripDetailPage() {
                                                             "w-full py-1 flex items-center justify-center gap-1.5 text-[13px] font-bold select-none",
                                                             statusConfig.bg
                                                         )}>
-                                                            <span className="material-icons text-xs">{statusConfig.icon}</span>
+                                                            <Icon name={statusConfig.icon} className="text-xs" />
                                                             {statusConfig.label}
                                                         </div>
                                                     </div>

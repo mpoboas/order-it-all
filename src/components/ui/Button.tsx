@@ -2,13 +2,39 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning';
+type ButtonSize = 'sm' | 'md' | 'lg';
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
-    size?: 'sm' | 'md' | 'lg';
+    variant?: ButtonVariant;
+    size?: ButtonSize;
     /** Mostra um spinner por cima do conteúdo, desativa e engole cliques. */
     loading?: boolean;
+    /** Ocupa toda a largura disponível. */
+    block?: boolean;
     children: React.ReactNode;
 }
+
+// Uma cor de ação (primary). Tudo plano — sem gradientes. secondary é a mesma
+// cor em tom baixo; warning/danger são estado, não marca.
+const VARIANTS: Record<ButtonVariant, string> = {
+    primary:
+        'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-600 shadow-sm',
+    secondary:
+        'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900 focus-visible:ring-primary-600',
+    danger:
+        'bg-danger text-white hover:brightness-110 focus-visible:ring-danger shadow-sm',
+    warning:
+        'bg-warning-bg text-warning-fg hover:brightness-105 focus-visible:ring-warning-fg',
+    ghost:
+        'bg-transparent text-ink-soft hover:bg-surface-sunken focus-visible:ring-hairline-strong',
+};
+
+const SIZES: Record<ButtonSize, string> = {
+    sm: 'h-9 px-4 text-sm gap-1.5',
+    md: 'h-11 px-6 text-base gap-2',
+    lg: 'h-13 px-8 text-lg gap-2',
+};
 
 export function Button({
     variant = 'primary',
@@ -17,7 +43,9 @@ export function Button({
     children,
     disabled,
     loading = false,
+    block = false,
     onClick,
+    type = 'button',
     ...props
 }: ButtonProps) {
     const { trigger } = useWebHaptics();
@@ -28,62 +56,22 @@ export function Button({
         trigger();
         onClick?.(e);
     };
-    const baseStyles = `
-    inline-flex items-center justify-center font-semibold
-    transition duration-200 ease-in-out active:scale-[0.97]
-    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
-    focus:outline-none focus:ring-2 focus:ring-offset-2
-  `;
-
-    const variants = {
-        primary: `
-      bg-gradient-to-r from-emerald-500 to-emerald-600
-      text-white rounded-full shadow-lg
-      hover:from-emerald-600 hover:to-emerald-700
-      hover:shadow-xl hover:-translate-y-0.5
-      focus:ring-emerald-500
-    `,
-        secondary: `
-      bg-gradient-to-r from-primary-500 to-primary-600
-      text-white rounded-full shadow-lg
-      hover:from-primary-600 hover:to-primary-700
-      hover:shadow-xl hover:-translate-y-0.5
-      focus:ring-primary-500
-    `,
-        danger: `
-      bg-gradient-to-r from-red-500 to-red-600
-      text-white rounded-full shadow-lg
-      hover:from-red-600 hover:to-red-700
-      hover:shadow-xl hover:-translate-y-0.5
-      focus:ring-red-500
-    `,
-        warning: `
-      bg-gradient-to-r from-amber-500 to-amber-600
-      text-white rounded-full shadow-lg
-      hover:from-amber-600 hover:to-amber-700
-      hover:shadow-xl hover:-translate-y-0.5
-      focus:ring-amber-500
-    `,
-        ghost: `
-      bg-transparent text-gray-600
-      hover:bg-gray-100 rounded-xl
-      focus:ring-gray-500
-    `,
-    };
-
-    const sizes = {
-        sm: 'px-4 py-2 text-sm',
-        md: 'px-6 py-3 text-base',
-        lg: 'px-8 py-4 text-lg',
-    };
 
     return (
         <button
+            type={type}
             className={cn(
-                baseStyles,
-                variants[variant],
-                sizes[size],
+                'inline-flex items-center justify-center rounded-full font-semibold',
+                'transition duration-200 ease-in-out active:scale-[0.97]',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
+                VARIANTS[variant],
+                SIZES[size],
+                block && 'w-full',
                 loading && 'btn-loading',
+                variant === 'ghost' || variant === 'secondary' || variant === 'warning'
+                    ? 'btn-loading--dark'
+                    : null,
                 className,
             )}
             disabled={isDisabled}
@@ -91,7 +79,7 @@ export function Button({
             onClick={handleClick}
             {...props}
         >
-            {loading ? <span>{children}</span> : children}
+            {children}
         </button>
     );
 }

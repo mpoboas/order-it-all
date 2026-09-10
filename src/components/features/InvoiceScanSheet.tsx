@@ -24,6 +24,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { useToast } from '@/context/ToastContext';
+import { Icon } from '@/components/ui/Icon';
 
 export interface InvoiceScanItem {
   id: string;
@@ -417,7 +418,7 @@ export function InvoiceScanSheet({
       {!hasApiKey ? (
         <div className="flex flex-col items-center text-center max-w-sm mx-auto py-4 space-y-5">
           <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 flex items-center justify-center">
-            <span className="material-icons text-3xl">key</span>
+            <Icon name="key" className="text-3xl" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
@@ -465,7 +466,7 @@ export function InvoiceScanSheet({
           <section className="rounded-[20px] border border-emerald-200 dark:border-emerald-800/60 overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
             <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center gap-2">
               <h4 className="font-bold text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5 text-sm">
-                <span className="material-icons text-base">check_circle</span>
+                <Icon name="check_circle" className="text-base" />
                 Encontrados ({scanResult.matches.length})
               </h4>
             </div>
@@ -524,7 +525,7 @@ export function InvoiceScanSheet({
                             title="Mover para extras"
                             aria-label="Desassociar"
                           >
-                            <span className="material-icons text-lg">link_off</span>
+                            <Icon name="link_off" className="text-lg" />
                           </button>
                         </div>
                       </div>
@@ -538,7 +539,7 @@ export function InvoiceScanSheet({
           <section className="rounded-[20px] border border-amber-200 dark:border-amber-800/60 overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
             <div className="px-4 py-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900/50">
               <h4 className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 text-sm">
-                <span className="material-icons text-base">add_shopping_cart</span>
+                <Icon name="add_shopping_cart" className="text-base" />
                 Extras ({scanResult.extras.length})
               </h4>
             </div>
@@ -573,7 +574,7 @@ export function InvoiceScanSheet({
                         aria-pressed={e.selected}
                       >
                         {e.selected && (
-                          <span className="material-icons text-sm">check</span>
+                          <Icon name="check" className="text-sm" />
                         )}
                       </button>
                       <div className="flex-1 min-w-0">
@@ -620,7 +621,7 @@ export function InvoiceScanSheet({
             <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-[20px] overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
               {invoiceFile?.type === 'application/pdf' ? (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-4">
-                  <span className="material-icons text-5xl">picture_as_pdf</span>
+                  <Icon name="picture_as_pdf" className="text-5xl" />
                   <span className="text-xs font-medium text-center truncate max-w-full">{invoiceFile.name}</span>
                 </div>
               ) : (
@@ -636,7 +637,7 @@ export function InvoiceScanSheet({
                 className="absolute top-3 right-3 bg-black/55 text-white p-2 rounded-full hover:bg-black/70"
                 aria-label="Repetir foto"
               >
-                <span className="material-icons text-xl">refresh</span>
+                <Icon name="refresh" className="text-xl" />
               </button>
             </div>
           ) : (
@@ -652,7 +653,7 @@ export function InvoiceScanSheet({
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
-                    <span className="material-icons text-4xl opacity-50">photo_camera</span>
+                    <Icon name="photo_camera" className="text-4xl opacity-50" />
                     <span className="text-sm">A iniciar câmara…</span>
                   </div>
                 )}
@@ -677,7 +678,7 @@ export function InvoiceScanSheet({
                 </p>
               </div>
               <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                <span className="material-icons text-lg">photo_library</span>
+                <Icon name="photo_library" className="text-lg" />
                 Galeria
                 <input
                   type="file"

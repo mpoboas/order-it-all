@@ -21,6 +21,7 @@ import { isItemLocked } from '@/lib/splitItems';
 import type { Group, SplitItem, SplitItemMode } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { getParticipantAvatarUrl } from '@/lib/splitShare';
+import { Icon } from '@/components/ui/Icon';
 
 interface SplitMemberItemAllocationSheetProps {
   isOpen: boolean;
@@ -454,9 +455,7 @@ export function SplitMemberItemAllocationSheet({
                     : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
                 )}
               >
-                <span className="material-icons text-[16px]" aria-hidden>
-                  {isPinned ? 'lock' : 'lock_open'}
-                </span>
+                <Icon name={isPinned ? 'lock' : 'lock_open'} className="text-[16px]" />
               </button>
             )}
             {suffix && (
@@ -515,9 +514,7 @@ export function SplitMemberItemAllocationSheet({
           disabled={!canConfirm}
           className="w-full py-4 text-lg font-semibold btn btn-primary disabled:opacity-50 inline-flex items-center justify-center gap-2"
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            check
-          </span>
+          <Icon name="check" className="text-[22px]" />
           Confirmar
         </button>
       }
@@ -533,9 +530,7 @@ export function SplitMemberItemAllocationSheet({
 
           {locked ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary-600 dark:text-primary-400">
-              <span className="material-icons text-[16px]" aria-hidden>
-                lock
-              </span>
+              <Icon name="lock" className="text-[16px]" />
               {SPLIT_ITEM_MODE_LABELS[draftMode]}
             </div>
           ) : (

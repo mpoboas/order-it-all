@@ -8,6 +8,7 @@ import { sheetEase, sheetSpring, fadeUpTransition, footerVariants } from '@/lib/
 import { AnimatedFade } from '@/components/ui/AnimatedStep';
 import { getMinimizedSheetBottom } from '@/lib/bottomDock';
 import { confirmDiscard, UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
+import { Icon } from '@/components/ui/Icon';
 
 export type SheetSize = 'auto' | 'medium' | 'large';
 
@@ -192,7 +193,7 @@ export function Sheet({
                                             aria-label={shouldMinimize ? 'Minimizar' : 'Fechar'}
                                         >
                                             {shouldMinimize ? (
-                                                <span className="material-icons text-2xl">keyboard_arrow_down</span>
+                                                <Icon name="keyboard_arrow_down" className="text-2xl" />
                                             ) : (
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -273,7 +274,7 @@ export function Sheet({
                                     className="shrink-0 p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
                                     aria-label="Descartar"
                                 >
-                                    <span className="material-icons text-xl">delete_outline</span>
+                                    <Icon name="delete_outline" className="text-xl" />
                                 </button>
                             </div>
                         </motion.div>

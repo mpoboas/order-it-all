@@ -1,32 +1,57 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-type BadgeVariant = 'open' | 'closed' | 'pending' | 'found' | 'not_available' | 'info';
+// Papéis semânticos. Cada cor diz uma coisa: verde = feito, âmbar = à espera,
+// vermelho = não deu, azul = informativo/neutro.
+type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+// Estados do domínio → tom. Mantém a API antiga (variant="open" etc.) a funcionar.
+const DOMAIN_TO_TONE: Record<string, BadgeTone> = {
+    open: 'success',
+    found: 'success',
+    bought: 'success',
+    completed: 'success',
+    pending: 'warning',
+    in_progress: 'warning',
+    closed: 'danger',
+    not_available: 'danger',
+    missing: 'danger',
+    info: 'info',
+    neutral: 'neutral',
+};
+
+const TONES: Record<BadgeTone, string> = {
+    success: 'bg-success-bg text-success-fg',
+    warning: 'bg-warning-bg text-warning-fg',
+    danger: 'bg-danger-bg text-danger-fg',
+    info: 'bg-info-bg text-info-fg',
+    neutral: 'bg-surface-sunken text-ink-soft',
+};
 
 interface BadgeProps {
-    variant: BadgeVariant;
+    /** Tom semântico, ou um estado do domínio (open/pending/found/…). */
+    variant: BadgeTone | keyof typeof DOMAIN_TO_TONE;
     children: React.ReactNode;
+    /** Ícone opcional à esquerda. */
+    icon?: React.ReactNode;
     className?: string;
 }
 
-export function Badge({ variant, children, className }: BadgeProps) {
-    const variants: Record<BadgeVariant, string> = {
-        open: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
-        closed: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-        pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-        found: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
-        not_available: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-        info: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-    };
+export function Badge({ variant, children, icon, className }: BadgeProps) {
+    const tone: BadgeTone =
+        (TONES as Record<string, string>)[variant] !== undefined
+            ? (variant as BadgeTone)
+            : DOMAIN_TO_TONE[variant] ?? 'neutral';
 
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium',
-                variants[variant],
-                className
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+                TONES[tone],
+                className,
             )}
         >
+            {icon}
             {children}
         </span>
     );

@@ -180,6 +180,32 @@
   --color-primary-950: #172554;
 }
 
+/* Tokens semânticos → utilitários Tailwind. `inline` mantém o var() na utilidade
+   gerada, por isso trocam de valor entre claro/escuro em runtime.
+   Ex.: bg-surface, text-ink-soft, border-hairline, bg-warning-bg text-warning-fg */
+@theme inline {
+  --color-app:            var(--app-bg);
+  --color-surface:        var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --color-ink:       var(--text);
+  --color-ink-soft:  var(--text-soft);
+  --color-ink-faint: var(--text-faint);
+
+  --color-hairline:        var(--border);
+  --color-hairline-strong: var(--border-strong);
+
+  --color-success-fg: var(--success-fg);
+  --color-success-bg: var(--success-bg);
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger-fg:  var(--danger-fg);
+  --color-danger-bg:  var(--danger-bg);
+  --color-danger:     var(--danger-solid);
+  --color-info-fg:    var(--info-fg);
+  --color-info-bg:    var(--info-bg);
+}
+
 /* ===== BASE STYLES ===== */
 * {
   -webkit-tap-highlight-color: transparent;
@@ -189,7 +215,10 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* Sem `scroll-behavior: smooth` global — fazia a restauração de scroll (back
+     para a lista) e qualquer `scrollTo` do router *deslizar* em vez de ser
+     instantâneo (não-nativo, e dava a sensação de "scroll aleatório"). Os dois
+     sítios que querem scroll suave pedem `behavior: 'smooth'` explícito. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Remove o atraso de ~300ms reservado para deteccao de duplo-toque de zoom. */
@@ -487,19 +516,15 @@ body {
   -webkit-user-select: none;
 }
 
+/* Plano, sem gradiente — igual ao componente <Button variant="primary">. */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+  background: var(--primary-600);
   color: white;
-  box-shadow: 0 4px 14px -3px var(--primary-500);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px -5px var(--primary-500);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
+  background: var(--primary-700);
 }
 
 /* ===== FLOATING ACTION BUTTON ===== */
@@ -613,24 +638,6 @@ textarea:focus-visible {
   }
 }
 
-/* ===== MATERIAL ICONS ===== */
-/* Fonte self-hosted via next/font/local (--font-material-icons). */
-.material-icons {
-  font-family: var(--font-material-icons), 'Material Icons' !important;
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-}
 /* ===== TRANSIÇÃO DE ROTA (View Transitions API) ===== */
 /* `next-view-transitions` embrulha cada navegação num
    `document.startViewTransition`: o browser tira um screenshot do ecrã antigo,

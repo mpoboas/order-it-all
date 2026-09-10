@@ -15,6 +15,7 @@ import { cn, emojiToImageBlob } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { Icon } from '@/components/ui/Icon';
 
 interface GroupSettingsTabProps {
   group: Group;
@@ -233,9 +234,7 @@ export function GroupSettingsTab({
               }}
               className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
             >
-              <span className="material-icons text-[18px]" aria-hidden>
-                edit
-              </span>
+              <Icon name="edit" className="text-[18px]" />
               Editar
             </button>
           )}
@@ -295,9 +294,7 @@ export function GroupSettingsTab({
                   className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-primary-600 text-white shadow-md flex items-center justify-center hover:bg-primary-700 transition-colors border-2 border-white dark:border-slate-900"
                   title="Escolher da galeria"
                 >
-                  <span className="material-icons text-[18px]" aria-hidden>
-                    photo_library
-                  </span>
+                  <Icon name="photo_library" className="text-[18px]" />
                 </button>
                 <input
                   ref={fileInputRef}
@@ -382,9 +379,7 @@ export function GroupSettingsTab({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span className="material-icons text-primary-600 text-xl" aria-hidden>
-                link
-              </span>
+              <Icon name="link" className="text-primary-600 text-xl" />
               Convites
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -423,9 +418,7 @@ export function GroupSettingsTab({
                 }}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  content_copy
-                </span>
+                <Icon name="content_copy" className="text-[18px]" />
                 Copiar link
               </button>
               <button
@@ -433,9 +426,7 @@ export function GroupSettingsTab({
                 onClick={() => void handleShareInvite()}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  share
-                </span>
+                <Icon name="share" className="text-[18px]" />
                 Partilhar
               </button>
             </div>
@@ -459,9 +450,7 @@ export function GroupSettingsTab({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span className="material-icons text-primary-600 text-xl" aria-hidden>
-                visibility
-              </span>
+              <Icon name="visibility" className="text-primary-600 text-xl" />
               Pedidos de todos
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -492,9 +481,7 @@ export function GroupSettingsTab({
         <section className="card p-5 border-red-200/80 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 space-y-3">
           <div>
             <h2 className="text-lg font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-              <span className="material-icons text-xl" aria-hidden>
-                warning
-              </span>
+              <Icon name="warning" className="text-xl" />
               Zona de perigo
             </h2>
             <p className="text-sm text-red-600/90 dark:text-red-300/90 mt-1">

@@ -10,6 +10,7 @@ import type { Split } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { Icon } from '@/components/ui/Icon';
 
 interface SplitShareSheetProps {
   isOpen: boolean;
@@ -199,9 +200,7 @@ export function SplitShareSheet({
                 disabled={!shareUrl || !shareActive}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  content_copy
-                </span>
+                <Icon name="content_copy" className="text-[18px]" />
                 Copiar link
               </button>
               <button
@@ -210,9 +209,7 @@ export function SplitShareSheet({
                 disabled={!shareUrl || !shareActive}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  share
-                </span>
+                <Icon name="share" className="text-[18px]" />
                 Partilhar
               </button>
             </div>

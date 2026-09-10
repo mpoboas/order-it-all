@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { useWebHaptics } from 'web-haptics/react';
+import { Icon } from '@/components/ui/Icon';
 
 export interface MoveItemOrderOption {
   orderId: string;
@@ -323,7 +324,7 @@ export function MoveItemSheet({
                   onClick={() => { trigger(); navigateToStep('existing'); }}
                   className="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
                 >
-                  <span className="material-icons text-3xl text-primary-600">swap_horiz</span>
+                  <Icon name="swap_horiz" className="text-3xl text-primary-600" />
                   <div>
                     <p className="font-bold text-gray-900 dark:text-gray-100">Pedido existente</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -338,7 +339,7 @@ export function MoveItemSheet({
                   onClick={() => { trigger(); navigateToStep('new-audience'); }}
                   className="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
                 >
-                  <span className="material-icons text-3xl text-primary-600">add_circle</span>
+                  <Icon name="add_circle" className="text-3xl text-primary-600" />
                   <div>
                     <p className="font-bold text-gray-900 dark:text-gray-100">Novo pedido</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -400,7 +401,7 @@ export function MoveItemSheet({
                 onClick={() => selectAudience('me')}
                 className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">person</span>
+                <Icon name="person" className="text-4xl text-primary-600" />
                 <span className="font-bold">Um membro</span>
               </button>
               <button
@@ -408,7 +409,7 @@ export function MoveItemSheet({
                 onClick={() => selectAudience('several')}
                 className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">group</span>
+                <Icon name="group" className="text-4xl text-primary-600" />
                 <span className="font-bold">Vários</span>
               </button>
               <button
@@ -416,7 +417,7 @@ export function MoveItemSheet({
                 onClick={() => selectAudience('all')}
                 className="col-span-2 flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">groups</span>
+                <Icon name="groups" className="text-4xl text-primary-600" />
                 <span className="font-bold">Todos</span>
               </button>
             </div>

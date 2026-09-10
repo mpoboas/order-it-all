@@ -14,6 +14,7 @@ import {
 } from '@/lib/orderParticipants';
 import { useWebHaptics } from 'web-haptics/react';
 import { useToast } from '@/context/ToastContext';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 type OrderFormStep = 'audience' | 'participants' | 'items';
 
@@ -507,7 +508,7 @@ export function OrderFormSheet({
                     : "bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 hover:border-gray-200 dark:hover:border-slate-600"
             )}
         >
-            <span className="material-icons text-lg">{icon}</span>
+            <Icon name={icon} className="text-lg" />
             <span className="text-[10px] font-bold uppercase">{label}</span>
         </button>
     );
@@ -519,7 +520,7 @@ export function OrderFormSheet({
         onClick,
         className,
     }: {
-        icon: string;
+        icon: IconName;
         label: string;
         onClick: () => void;
         className?: string;
@@ -535,7 +536,7 @@ export function OrderFormSheet({
                 className
             )}
         >
-            <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
+            <Icon name={icon} className="text-4xl text-primary-600 dark:text-primary-400" />
             <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
         </button>
     );
@@ -696,7 +697,7 @@ export function OrderFormSheet({
                                     className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-red-500 hover:text-red-600 py-0.5 px-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                     aria-label={`Remover produto ${i + 1}`}
                                 >
-                                    <span className="material-icons text-[14px]">close</span>
+                                    <Icon name="close" className="text-[14px]" />
                                     Remover
                                 </button>
                             </div>
@@ -728,7 +729,7 @@ export function OrderFormSheet({
                                         className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-xl touch-manipulation"
                                         aria-label="Menos"
                                     >
-                                        <span className="material-icons text-lg">remove</span>
+                                        <Icon name="remove" className="text-lg" />
                                     </button>
                                     <span className="flex-1 text-center font-bold text-primary-600 dark:text-primary-400">
                                         {item.quantity}
@@ -739,7 +740,7 @@ export function OrderFormSheet({
                                         className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-xl touch-manipulation"
                                         aria-label="Mais"
                                     >
-                                        <span className="material-icons text-lg">add</span>
+                                        <Icon name="add" className="text-lg" />
                                     </button>
                                 </div>
                             </div>
@@ -875,7 +876,7 @@ export function OrderFormSheet({
                                 onClick={() => { trigger(); onMoveToOtherOrder(); }}
                                 className="w-full py-3 text-sm font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/40 rounded-xl border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors flex items-center justify-center gap-2"
                             >
-                                <span className="material-icons text-lg">drive_file_move</span>
+                                <Icon name="drive_file_move" className="text-lg" />
                                 Mover para outro pedido
                             </button>
                             </div>
@@ -891,7 +892,7 @@ export function OrderFormSheet({
                         className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center justify-center gap-2 group"
                     >
                         <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
-                            <span className="material-icons text-sm">add</span>
+                            <Icon name="add" className="text-sm" />
                         </div>
                         Adicionar Outro Produto
                     </button>
@@ -918,7 +919,7 @@ export function OrderFormSheet({
                                 onClick={() => searchProducts()}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center"
                             >
-                                <span className="material-icons text-sm">arrow_forward</span>
+                                <Icon name="arrow_forward" className="text-sm" />
                             </button>
                         )}
                     </div>
@@ -955,7 +956,7 @@ export function OrderFormSheet({
                                             </div>
                                         </div>
                                         <div className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                                            <span className="material-icons text-sm">add</span>
+                                            <Icon name="add" className="text-sm" />
                                         </div>
                                     </button>
                                 );

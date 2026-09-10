@@ -14,6 +14,7 @@ import type { Split, SplitItemMode, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useToast } from '@/context/ToastContext';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 type SplitFormStep = 'details' | 'audience' | 'participants';
 type SplitAudienceType = 'me' | 'several' | 'all';
@@ -246,14 +247,13 @@ export function SplitFormSheet({
                 <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
                   Definições avançadas
                 </span>
-                <span
+                <Icon
+                  name="expand_more"
                   className={cn(
-                    'material-icons text-gray-400 transition-transform',
+                    'text-xl text-gray-400 transition-transform',
                     showAdvanced && 'rotate-180'
                   )}
-                >
-                  expand_more
-                </span>
+                />
               </button>
               {showAdvanced && (
                 <div className="mt-3">
@@ -313,7 +313,7 @@ function AudienceCard({
   onClick,
   className,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   onClick: () => void;
   className?: string;
@@ -330,7 +330,7 @@ function AudienceCard({
         className
       )}
     >
-      <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
+      <Icon name={icon} className="text-4xl text-primary-600 dark:text-primary-400" />
       <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
     </button>
   );

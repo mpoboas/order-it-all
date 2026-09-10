@@ -147,26 +147,38 @@ async function syncGroups(opts: SyncOpts): Promise<void> {
   const scope = `members ~ "${userId}"`;
   const lastSync = await metaGet('lastSync:groups');
 
-  const changed = await pb.collection('groups').getFullList<Group>({
-    filter: lastSync ? `(${scope}) && updated >= "${withOverlap(lastSync)}"` : scope,
+  // A lista de grupos é pequena e está sempre visível. O sync normal é
+  // incremental (`updated >= lastSync`), mas isso não recupera um grupo que
+  // escapou à hidratação inicial (corrida no registo, filtro relacional do PB,
+  // convite aceite depois) e cujo `updated` não mexeu desde então. Nesses
+  // gatilhos (pull-to-refresh, reconexão, volta de rede) puxamos a lista
+  // **completa** — poucos KB — para a cache se auto-corrigir.
+  const full = opts.fullGroups || !lastSync;
+
+  const records = await pb.collection('groups').getFullList<Group>({
+    filter: full ? scope : `(${scope}) && updated >= "${withOverlap(lastSync)}"`,
     expand: GROUPS_EXPAND,
   });
-  if (changed.length) {
-    await db.groups.bulkPut(changed);
-    await putUsers(extractUsersFromExpand(changed));
+  if (records.length) {
+    await db.groups.bulkPut(records);
+    await putUsers(extractUsersFromExpand(records));
   }
-  const mark = maxUpdated(changed, lastSync);
+  const mark = maxUpdated(records, lastSync);
   if (mark) await metaSet('lastSync:groups', mark);
 
-  if (opts.reconcileDeletes && lastSync) {
-    const serverIds = new Set(
-      (
-        await pb.collection('groups').getFullList<{ id: string }>({
-          filter: scope,
-          fields: 'id',
-        })
-      ).map((r) => r.id),
-    );
+  // Reconciliação de apagados. Com a lista completa em mão, a verdade do
+  // servidor são os próprios `records` — dispensa o pedido extra só de ids.
+  if (opts.reconcileDeletes && (full || lastSync)) {
+    const serverIds = full
+      ? new Set(records.map((r) => r.id))
+      : new Set(
+          (
+            await pb.collection('groups').getFullList<{ id: string }>({
+              filter: scope,
+              fields: 'id',
+            })
+          ).map((r) => r.id),
+        );
     const localIds = (await db.groups.toCollection().primaryKeys()) as string[];
     const stale = localIds.filter((id) => !serverIds.has(id));
     if (stale.length) {
@@ -272,14 +284,22 @@ async function runSyncGroupData(gid: string, opts: SyncOpts): Promise<void> {
 
 interface SyncOpts {
   reconcileDeletes?: boolean;
+  /** Puxa a lista de grupos completa (não o delta) — auto-corrige uma cache parcial. */
+  fullGroups?: boolean;
 }
 
 function mergeOpts(a: SyncOpts, b: SyncOpts): SyncOpts {
-  return { reconcileDeletes: !!(a.reconcileDeletes || b.reconcileDeletes) };
+  return {
+    reconcileDeletes: !!(a.reconcileDeletes || b.reconcileDeletes),
+    fullGroups: !!(a.fullGroups || b.fullGroups),
+  };
 }
 
 function covers(current: SyncOpts, wanted: SyncOpts): boolean {
-  return !wanted.reconcileDeletes || !!current.reconcileDeletes;
+  return (
+    (!wanted.reconcileDeletes || !!current.reconcileDeletes) &&
+    (!wanted.fullGroups || !!current.fullGroups)
+  );
 }
 
 let running: Promise<void> | null = null;
@@ -350,12 +370,15 @@ async function runCatchUp(opts: SyncOpts): Promise<void> {
 }
 
 /**
- * Pull-to-refresh. NÃO faz full re-download — sync incremental dos grupos e do
- * grupo ativo, com reconciliação de apagados, e re-arma o realtime.
+ * Pull-to-refresh. O grupo ativo continua a sincronizar por delta (não puxa a
+ * BD toda), mas a **lista de grupos vem completa** — é o único gesto explícito
+ * do utilizador para "põe isto como deve estar", e tem de recuperar um grupo
+ * que a hidratação inicial não trouxe. Mais reconciliação de apagados e re-arma
+ * o realtime.
  */
 export async function fullResync(): Promise<void> {
   await ensureRealtime();
-  await catchUp({ reconcileDeletes: true });
+  await catchUp({ reconcileDeletes: true, fullGroups: true });
 }
 
 // --- Grupo ativo + estado observável -----------------------------------
@@ -543,7 +566,9 @@ export async function startRealtime(): Promise<void> {
     connectUnsub = await pb.realtime.subscribe('PB_CONNECT', () => {
       connectSeen += 1;
       if (connectSeen > 1) {
-        void catchUp({ reconcileDeletes: true });
+        // Reconexão: o SSE do PB não reenvia backlog — pode ter-nos escapado um
+        // convite/entrada em grupo. Lista de grupos completa (barato).
+        void catchUp({ reconcileDeletes: true, fullGroups: true });
       }
     });
     groupsUnsub = await pb.collection('groups').subscribe('*', groupsHandler, {

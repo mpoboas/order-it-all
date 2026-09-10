@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import localFont from "next/font/local";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
 import { SyncProvider } from "@/context/SyncProvider";
@@ -19,15 +18,6 @@ const inter = Inter({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-inter",
-});
-
-// Self-hosted (era um <link> render-blocking para fonts.googleapis.com).
-const materialIcons = localFont({
-  src: "./fonts/material-icons.woff2",
-  weight: "400",
-  style: "normal",
-  display: "block",
-  variable: "--font-material-icons",
 });
 
 export const metadata: Metadata = {
@@ -83,7 +73,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-PT"
-      className={`${inter.variable} ${materialIcons.variable}`}
+      className={inter.variable}
       suppressHydrationWarning
     >
       <head>

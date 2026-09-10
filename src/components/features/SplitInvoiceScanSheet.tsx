@@ -15,6 +15,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { useToast } from '@/context/ToastContext';
+import { Icon } from '@/components/ui/Icon';
 
 type ScanStep = 'upload' | 'processing' | 'review';
 
@@ -300,7 +301,7 @@ export function SplitInvoiceScanSheet({
       {!hasApiKey ? (
         <div className="flex flex-col items-center text-center max-w-sm mx-auto py-4 space-y-5">
           <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 flex items-center justify-center">
-            <span className="material-icons text-3xl">key</span>
+            <Icon name="key" className="text-3xl" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
@@ -374,7 +375,7 @@ export function SplitInvoiceScanSheet({
                     className="shrink-0 p-1.5 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     aria-label="Remover item"
                   >
-                    <span className="material-icons text-lg">close</span>
+                    <Icon name="close" className="text-lg" />
                   </button>
                 </div>
               ))}
@@ -386,7 +387,7 @@ export function SplitInvoiceScanSheet({
             onClick={addBlankDraftItem}
             className="w-full py-2.5 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center justify-center gap-2"
           >
-            <span className="material-icons text-base">add</span>
+            <Icon name="add" className="text-base" />
             Adicionar item
           </button>
 
@@ -405,7 +406,7 @@ export function SplitInvoiceScanSheet({
             <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-[20px] overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
               {invoiceFile?.type === 'application/pdf' ? (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-4">
-                  <span className="material-icons text-5xl">picture_as_pdf</span>
+                  <Icon name="picture_as_pdf" className="text-5xl" />
                   <span className="text-xs font-medium text-center truncate max-w-full">{invoiceFile.name}</span>
                 </div>
               ) : (
@@ -421,7 +422,7 @@ export function SplitInvoiceScanSheet({
                 className="absolute top-3 right-3 bg-black/55 text-white p-2 rounded-full hover:bg-black/70"
                 aria-label="Repetir foto"
               >
-                <span className="material-icons text-xl">refresh</span>
+                <Icon name="refresh" className="text-xl" />
               </button>
             </div>
           ) : (
@@ -437,7 +438,7 @@ export function SplitInvoiceScanSheet({
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
-                    <span className="material-icons text-4xl opacity-50">photo_camera</span>
+                    <Icon name="photo_camera" className="text-4xl opacity-50" />
                     <span className="text-sm">A iniciar câmara…</span>
                   </div>
                 )}
@@ -462,7 +463,7 @@ export function SplitInvoiceScanSheet({
                 </p>
               </div>
               <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                <span className="material-icons text-lg">photo_library</span>
+                <Icon name="photo_library" className="text-lg" />
                 Galeria
                 <input
                   type="file"

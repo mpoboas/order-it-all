@@ -10,6 +10,7 @@ import { isItemLocked } from '@/lib/splitItems';
 import { formatCurrency, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitItemShareRow } from '@/components/features/SplitItemShareRow';
+import { Icon } from '@/components/ui/Icon';
 
 interface SplitParticipantItemsViewProps {
   items: SplitItem[];
@@ -124,13 +125,7 @@ export function SplitParticipantItemsView({
                         {item.name || 'Item sem nome'}
                       </p>
                       {locked && (
-                        <span
-                          className="material-icons text-[16px] text-[var(--text-muted)] shrink-0"
-                          title="Bloqueado"
-                          aria-hidden
-                        >
-                          lock
-                        </span>
+                        <Icon name="lock" className="text-[16px] text-[var(--text-muted)] shrink-0" title="Bloqueado" />
                       )}
                     </div>
                     <p className="text-sm text-[var(--text-muted)] mt-0.5">

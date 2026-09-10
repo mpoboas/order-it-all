@@ -102,7 +102,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === 'visible') void catchUp();
     };
     const onOnline = () =>
-      void catchUp({ reconcileDeletes: true });
+      void catchUp({ reconcileDeletes: true, fullGroups: true });
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onOnline);

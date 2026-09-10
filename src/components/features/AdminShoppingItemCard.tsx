@@ -5,8 +5,9 @@ import { cn, formatCurrency, getProductEmoji } from '@/lib/utils';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 import type { Item } from '@/lib/types';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
-const STATUS_CONFIG: Record<Item['found_status'], { icon: string; label: string }> = {
+const STATUS_CONFIG: Record<Item['found_status'], { icon: IconName; label: string }> = {
   pending: { icon: 'hourglass_empty', label: 'Por comprar' },
   found: { icon: 'check', label: 'Comprado' },
   not_available: { icon: 'close', label: 'Não tinha' },
@@ -60,7 +61,7 @@ export function AdminShoppingItemCard({
               statusDotClass
             )}
           >
-            <span className="material-icons text-sm">{status.icon}</span>
+            <Icon name={status.icon} className="text-sm" />
           </button>
 
           <div className="flex-1 min-w-0 cursor-pointer" onClick={onOpenEdit}>
@@ -93,7 +94,7 @@ export function AdminShoppingItemCard({
                   : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
               )}
             >
-              <span className="material-icons text-[13px]">sticky_note_2</span>
+              <Icon name="sticky_note_2" className="text-[13px]" />
             </button>
           )}
 
@@ -188,17 +189,17 @@ export function AdminShoppingItemCard({
       >
         {item.found_status === 'pending' ? (
           <span className="flex items-center gap-1">
-            <span className="material-icons text-sm">hourglass_empty</span>
+            <Icon name="hourglass_empty" className="text-sm" />
             Por comprar
           </span>
         ) : item.found_status === 'found' ? (
           <>
-            <span className="material-icons text-sm">check</span>
+            <Icon name="check" className="text-sm" />
             Comprado
           </>
         ) : (
           <>
-            <span className="material-icons text-sm">close</span>
+            <Icon name="close" className="text-sm" />
             Não tinha
           </>
         )}

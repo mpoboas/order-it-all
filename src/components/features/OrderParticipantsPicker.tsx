@@ -8,6 +8,7 @@ import type { User } from '@/lib/types';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { useWebHaptics } from 'web-haptics/react';
 import { fadeUpTransition, staggerContainerVariants, staggerItemVariants } from '@/lib/motion';
+import { Icon } from '@/components/ui/Icon';
 
 interface OrderParticipantsPickerProps {
     groupMembers: User[];
@@ -148,7 +149,7 @@ export function OrderParticipantsPicker({
                                 className="absolute -top-1 -right-1 z-10 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md"
                                 aria-label={`Remover ${member.name}`}
                             >
-                                <span className="material-icons text-sm">close</span>
+                                <Icon name="close" className="text-sm" />
                             </button>
                         )}
                         <Avatar

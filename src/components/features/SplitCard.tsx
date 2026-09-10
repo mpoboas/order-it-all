@@ -17,6 +17,7 @@ import {
   EntityStatusPill,
   EntityCardActionIcon,
 } from '@/components/ui/EntityListCard';
+import { Icon } from '@/components/ui/Icon';
 
 interface SplitCardProps {
   split: Split;
@@ -70,9 +71,7 @@ export function SplitCard({
           className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
           onActivate={(e) => onEdit(e as React.MouseEvent)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            edit
-          </span>
+          <Icon name="edit" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
       {canDelete && onDelete && (
@@ -82,9 +81,7 @@ export function SplitCard({
           className="hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
           onActivate={(e) => onDelete(e as React.MouseEvent)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            delete_outline
-          </span>
+          <Icon name="delete_outline" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
     </>

@@ -4,8 +4,9 @@ import {
   normalizeItemBrand,
   type NormalizedItemBrand,
 } from '@/lib/itemBrand';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
-const BRAND_CHIP_ICONS: Record<NormalizedItemBrand, string> = {
+const BRAND_CHIP_ICONS: Record<NormalizedItemBrand, IconName> = {
   official: 'verified',
   'off-brand': 'storefront',
   unset: 'help_outline',
@@ -42,9 +43,7 @@ export function ShoppingItemBrandChip({ brand }: { brand?: string }) {
           'bg-primary-50 text-primary-900 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-100 dark:border-primary-700'
       )}
     >
-      <span className="material-icons text-[15px] leading-none shrink-0" aria-hidden>
-        {icon}
-      </span>
+      <Icon name={icon} className="text-[15px] leading-none shrink-0" />
       {label}
     </span>
   );

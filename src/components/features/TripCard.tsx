@@ -13,6 +13,7 @@ import {
 import { getRelativeTime, cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
+import { Icon } from '@/components/ui/Icon';
 
 interface TripCardProps {
   trip: Trip;
@@ -65,9 +66,7 @@ export function TripCard({
           className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
           onActivate={(e) => onEdit(e as React.MouseEvent, trip)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            edit
-          </span>
+          <Icon name="edit" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
       {trip.status === 'in_progress' && onClose && (
@@ -76,9 +75,7 @@ export function TripCard({
           className="hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
           onActivate={(e) => onClose(e as React.MouseEvent, trip.id)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            done
-          </span>
+          <Icon name="done" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
       {trip.status === 'closed' && onSplit && (
@@ -88,9 +85,7 @@ export function TripCard({
           className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
           onActivate={(e) => onSplit(e as React.MouseEvent, trip)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            calculate
-          </span>
+          <Icon name="calculate" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
       {onDelete && (
@@ -100,9 +95,7 @@ export function TripCard({
           className="hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
           onActivate={(e) => onDelete(e as React.MouseEvent, trip.id)}
         >
-          <span className="material-icons text-[22px]" aria-hidden>
-            delete_outline
-          </span>
+          <Icon name="delete_outline" className="text-[22px]" />
         </EntityCardActionIcon>
       )}
     </>

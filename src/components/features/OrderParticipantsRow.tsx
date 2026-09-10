@@ -7,6 +7,7 @@ import {
   getUserAvatarUrl,
   resolveOrderParticipants,
 } from '@/lib/orderParticipants';
+import { Icon } from '@/components/ui/Icon';
 
 const MAX_VISIBLE_AVATARS = 4;
 
@@ -80,9 +81,7 @@ export function OrderParticipantsRow({
         {label}
       </span>
       {canOpenSheet && (
-        <span className="material-icons text-sm text-primary-400 dark:text-primary-500 shrink-0">
-          chevron_right
-        </span>
+        <Icon name="chevron_right" className="-ml-1 text-base text-primary-400 dark:text-primary-500 shrink-0" />
       )}
     </>
   );

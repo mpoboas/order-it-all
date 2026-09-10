@@ -12,6 +12,7 @@ import {
     urlToAvatarFile,
 } from '@/lib/googleAuth';
 import { navStart } from '@/lib/navProgress';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
@@ -263,9 +264,7 @@ export default function ProfileSetupPage() {
                             >
                                 {avatarLoading ? (
                                     <div className="w-full h-full flex items-center justify-center bg-black/40">
-                                        <span className="material-icons text-white/70 animate-pulse text-3xl">
-                                            photo
-                                        </span>
+                                        <Icon name="photo" className="text-white/70 animate-pulse text-3xl" />
                                     </div>
                                 ) : isCameraActive ? (
                                     <video
@@ -289,9 +288,7 @@ export default function ProfileSetupPage() {
                                                 {name[0].toUpperCase()}
                                             </span>
                                         ) : (
-                                            <span className="material-icons text-white/80 text-5xl">
-                                                person
-                                            </span>
+                                            <Icon name="person" className="text-white/80 text-5xl" />
                                         )}
                                     </div>
                                 )}
@@ -323,7 +320,7 @@ export default function ProfileSetupPage() {
                                     onClick={handleCapture}
                                     className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-primary-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
                                 >
-                                    <span className="material-icons text-lg">camera</span>
+                                    <Icon name="camera" className="text-lg" />
                                     Capturar
                                 </button>
                             </div>
@@ -336,7 +333,7 @@ export default function ProfileSetupPage() {
                                         disabled={avatarLoading}
                                         className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
-                                        <span className="material-icons text-lg">photo_library</span>
+                                        <Icon name="photo_library" className="text-lg" />
                                         Galeria
                                     </button>
                                     <button
@@ -345,7 +342,7 @@ export default function ProfileSetupPage() {
                                         disabled={avatarLoading}
                                         className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
-                                        <span className="material-icons text-lg">photo_camera</span>
+                                        <Icon name="photo_camera" className="text-lg" />
                                         Câmara
                                     </button>
                                 </div>

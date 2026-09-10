@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 export const entityListCardClassName =
   'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
@@ -14,17 +15,12 @@ export function EntityMetaItem({
   icon,
   children,
 }: {
-  icon: string;
+  icon: IconName;
   children: React.ReactNode;
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] shrink-0">
-      <span
-        className="material-icons text-[18px] text-[var(--text-muted)] leading-none"
-        aria-hidden
-      >
-        {icon}
-      </span>
+      <Icon name={icon} className="text-[18px] text-[var(--text-muted)] leading-none" />
       {children}
     </span>
   );
@@ -39,7 +35,7 @@ export type EntityStatusPillVariant =
 
 const STATUS_PILL_STYLES: Record<
   EntityStatusPillVariant,
-  { className: string; icon: string; compact?: boolean }
+  { className: string; icon: IconName; compact?: boolean }
 > = {
   open: {
     className:
@@ -82,15 +78,7 @@ export function EntityStatusPill({
         style.className
       )}
     >
-      <span
-        className={cn(
-          'material-icons',
-          style.compact ? 'text-[14px]' : 'text-[16px]'
-        )}
-        aria-hidden
-      >
-        {style.icon}
-      </span>
+      <Icon name={style.icon} className={style.compact ? 'text-[14px]' : 'text-[16px]'} />
       {children}
     </span>
   );
@@ -115,13 +103,14 @@ export function EntityCardFooter({
 }
 
 export function EntityCardChevron() {
+  // O glifo `>` do Lucide vive muito ao centro do seu viewBox — sem o `-ml`
+  // parece "descolado" do ícone anterior (o olho vê o espaço vazio interno
+  // + o padding). Mesmo tamanho (22px) que os EntityCardActionIcon.
   return (
-    <span
-      className="material-icons text-[22px] text-[var(--text-muted)] group-hover:text-primary-500 transition-colors p-2"
-      aria-hidden
-    >
-      chevron_right
-    </span>
+    <Icon
+      name="chevron_right"
+      className="-ml-1 text-[22px] text-[var(--text-muted)] group-hover:text-primary-500 transition-colors box-content p-2"
+    />
   );
 }
 

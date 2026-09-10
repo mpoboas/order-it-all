@@ -21,6 +21,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
+import { Icon } from '@/components/ui/Icon';
 
 const MAX_VISIBLE_AVATARS = 4;
 
@@ -151,12 +152,7 @@ export function GroupCard({
             <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
               Ver {memberCount} {memberCount === 1 ? 'membro' : 'membros'}
             </span>
-            <span
-              className="material-icons text-sm text-primary-400 shrink-0 dark:text-primary-500"
-              aria-hidden
-            >
-              chevron_right
-            </span>
+            <Icon name="chevron_right" className="-ml-1 text-base text-primary-400 shrink-0 dark:text-primary-500" />
           </span>
         )}
 

@@ -43,6 +43,7 @@ import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormShe
 import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
+import { Icon, type IconName } from '@/components/ui/Icon';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -489,7 +490,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         onChange,
         className = ""
     }: {
-        options: { value: string; label: string; icon?: string; color?: string }[],
+        options: { value: string; label: string; icon?: IconName; color?: string }[],
         value: string,
         onChange: (val: any) => void,
         className?: string
@@ -511,7 +512,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         )}
                         style={isActive && opt.color ? { color: opt.color, backgroundColor: 'var(--bg-secondary)' } : {}}
                     >
-                        {opt.icon && <span className="material-icons text-base">{opt.icon}</span>}
+                        {opt.icon && <Icon name={opt.icon} className="text-base" />}
                         {opt.label}
                     </button>
                 )
@@ -668,7 +669,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             )}
                             title={compactView ? "Ver detalhado" : "Ver resumo"}
                         >
-                            <span className="material-icons text-xl">{compactView ? 'view_agenda' : 'checklist'}</span>
+                            <Icon name={compactView ? 'view_agenda' : 'checklist'} className="text-xl" />
                         </Button>
                         <Button
                             onClick={() => setShowScanSheet(true)}
@@ -696,7 +697,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
                     >
-                        <span className="material-icons text-sm">schedule</span>
+                        <Icon name="schedule" className="text-sm" />
                         {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
                     </button>
 
@@ -708,7 +709,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             getStatusFilterConfig(statusFilter).color
                         )}
                     >
-                        <span className="material-icons text-sm">filter_list</span>
+                        <Icon name="filter_list" className="text-sm" />
                         {getStatusFilterConfig(statusFilter).label}
                     </button>
 
@@ -720,7 +721,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             getPriceFilterConfig(priceFilter).color
                         )}
                     >
-                        <span className="material-icons text-sm">attach_money</span>
+                        <Icon name="attach_money" className="text-sm" />
                         {getPriceFilterConfig(priceFilter).label}
                     </button>
                 </div>
@@ -767,7 +768,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                     "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
                                                     allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600"
                                                 )}>
-                                                    {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                    {allMissing ? <span className="text-sm">💀</span> : <Icon name="check_circle" className="text-sm" />}
                                                     {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                                 </div>
                                             )}

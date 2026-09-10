@@ -105,6 +105,7 @@ function EditableInput({ value: initialValue, onSave, className, ...props }: Edi
 
 import { useGroup } from '@/context/GroupContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
+import { Icon } from '@/components/ui/Icon';
 
 export default function GroupSplitDetailPage() {
     const params = useParams();
@@ -127,7 +128,12 @@ export default function GroupSplitDetailPage() {
     const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
     /** Versão de `items` mais fresca conhecida (realtime + respostas de save). */
     const itemsVersionRef = useRef<number | null>(null);
-    const loading = liveSplit === undefined && split === null;
+    // `liveSplit` já trouxe dados mas o `setSplit` do efeito ainda não correu
+    // (lag de 1 render) → continua em loading, senão "Divisão não encontrada"
+    // pisca por um frame. Só quando a query resolve mesmo a `null` é que caímos
+    // no ecrã de não-encontrada.
+    const loading =
+        liveSplit === undefined || (split === null && liveSplit !== null);
     const [newParticipant, setNewParticipant] = useState('');
     const [participantsExpanded, setParticipantsExpanded] = useState(true);
     const [totalsExpanded, setTotalsExpanded] = useState(false);
@@ -579,9 +585,7 @@ export default function GroupSplitDetailPage() {
             )}
             title={locked ? 'Desbloquear (permite remover participantes)' : 'Bloquear item'}
         >
-            <span className="material-icons text-[20px]" aria-hidden>
-                {locked ? 'lock' : 'lock_open'}
-            </span>
+            <Icon name={locked ? 'lock' : 'lock_open'} className="text-[20px]" />
         </button>
     );
 
@@ -632,9 +636,7 @@ export default function GroupSplitDetailPage() {
                                         : 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60'
                                 )}
                             >
-                                <span className="material-icons text-lg" aria-hidden>
-                                    {splitClosed ? 'lock_open' : 'lock'}
-                                </span>
+                                <Icon name={splitClosed ? 'lock_open' : 'lock'} className="text-lg" />
                                 {splitClosed ? 'Reabrir' : 'Fechar divisão'}
                             </button>
                             <button
@@ -653,9 +655,7 @@ export default function GroupSplitDetailPage() {
                                 onClick={() => setShowAllowedModesSheet(true)}
                                 className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2"
                             >
-                                <span className="material-icons text-lg" aria-hidden>
-                                    tune
-                                </span>
+                                <Icon name="tune" className="text-lg" />
                                 Definições
                             </button>
                             <button onClick={handleShare} disabled={sharing} className="btn btn-primary px-4 py-2 flex items-center gap-2">
@@ -829,7 +829,7 @@ export default function GroupSplitDetailPage() {
                                                     <span className="text-lg">+</span> Adicionar Item
                                                 </button>
                                                 <button onClick={() => setShowScanSheet(true)} className="flex items-center gap-2 text-primary-600 hover:underline font-medium">
-                                                    <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                                                    <Icon name="receipt_long" className="text-lg" /> Scan Fatura
                                                 </button>
                                             </div>
                                         </td>
@@ -955,9 +955,7 @@ export default function GroupSplitDetailPage() {
                             title="Definições"
                             className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
                         >
-                            <span className="material-icons text-[18px]" aria-hidden>
-                                tune
-                            </span>
+                            <Icon name="tune" className="text-[18px]" />
                         </button>
                     </div>
                 </div>
@@ -1019,9 +1017,7 @@ export default function GroupSplitDetailPage() {
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Dividir com</span>
                                             {locked && (
-                                                <span className="material-icons text-[14px] text-primary-600 dark:text-primary-400" title="Bloqueado" aria-hidden>
-                                                    lock
-                                                </span>
+                                                <Icon name="lock" className="text-[14px] text-primary-600 dark:text-primary-400" title="Bloqueado" />
                                             )}
                                             {itemMode === 'equal' && (
                                                 <button
@@ -1098,7 +1094,7 @@ export default function GroupSplitDetailPage() {
                             + Adicionar Item
                         </button>
                         <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
-                            <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                            <Icon name="receipt_long" className="text-lg" /> Scan Fatura
                         </button>
                     </div>
                 </div>
@@ -1322,7 +1318,7 @@ export default function GroupSplitDetailPage() {
                                                         <span className="text-lg">+</span> Adicionar Item
                                                     </button>
                                                     <button onClick={() => setShowScanSheet(true)} className="flex items-center gap-2 text-primary-600 hover:underline font-medium">
-                                                        <span className="material-icons text-lg">receipt_long</span> Scan Fatura
+                                                        <Icon name="receipt_long" className="text-lg" /> Scan Fatura
                                                     </button>
                                                 </div>
                                             </td>

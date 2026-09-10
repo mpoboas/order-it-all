@@ -24,7 +24,6 @@ import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getRelativeTime } from '@/lib/utils';
 import {
