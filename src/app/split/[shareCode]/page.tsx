@@ -389,7 +389,7 @@ export default function PublicSplitPage() {
   if (step === 'identity') {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
-        <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-6 safe-top">
+        <header className="bg-gradient-to-r from-primary-600 to-primary-600 px-4 py-6 safe-top">
           <h1 className="text-xl font-bold text-white">{split.name}</h1>
           {split.description && (
             <p className="text-sm text-white/80 mt-1">{split.description}</p>
@@ -405,13 +405,13 @@ export default function PublicSplitPage() {
           </p>
 
           {suggested && selectedName !== suggested && (
-            <div className="mb-4 p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
+            <div className="mb-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
               <p className="text-sm text-[var(--text-secondary)]">
                 Parece que és{' '}
                 <button
                   type="button"
                   onClick={() => setSelectedName(suggested)}
-                  className="font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                  className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                 >
                   {suggested}
                 </button>
@@ -434,8 +434,8 @@ export default function PublicSplitPage() {
                     className={cn(
                       'w-full flex items-center gap-3 p-4 rounded-xl border transition text-left',
                       selectedName === name
-                        ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 ring-2 ring-violet-500/30'
-                        : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-violet-300'
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-2 ring-primary-500/30'
+                        : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-primary-300'
                     )}
                   >
                     <Avatar name={name} size="md" />
@@ -444,7 +444,7 @@ export default function PublicSplitPage() {
                     </span>
                     {selectedName === name && (
                       <svg
-                        className="w-5 h-5 text-violet-600 ml-auto shrink-0"
+                        className="w-5 h-5 text-primary-600 ml-auto shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -480,7 +480,7 @@ export default function PublicSplitPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
-      <header className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-5 safe-top">
+      <header className="bg-gradient-to-r from-primary-600 to-primary-600 px-4 py-5 safe-top">
         <h1 className="text-lg font-bold text-white break-words">{split.name}</h1>
         <p className="text-sm text-white/90 mt-1">
           A marcar como: <strong>{selectedName}</strong>
@@ -503,7 +503,7 @@ export default function PublicSplitPage() {
         {isLoggedIn && split.group_id && (
           <Link
             href={`/groups/${split.group_id}/splits/${split.id}`}
-            className="block mb-4 text-sm text-violet-600 dark:text-violet-400 hover:underline"
+            className="block mb-4 text-sm text-primary-600 dark:text-primary-400 hover:underline"
           >
             Abrir no grupo
           </Link>

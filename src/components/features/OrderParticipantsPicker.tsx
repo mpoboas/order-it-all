@@ -38,7 +38,7 @@ function MemberPickCard({
             className={cn(
                 'flex flex-col items-center gap-2 p-3 pt-3.5 rounded-2xl overflow-visible',
                 selected
-                    ? 'bg-violet-50/90 dark:bg-violet-950/40 ring-2 ring-primary-500 dark:ring-primary-400 shadow-sm'
+                    ? 'bg-primary-50/90 dark:bg-primary-950/40 ring-2 ring-primary-500 dark:ring-primary-400 shadow-sm'
                     : 'bg-white dark:bg-slate-800 ring-1 ring-gray-200 dark:ring-slate-600 hover:ring-primary-300 dark:hover:ring-primary-600 hover:bg-primary-50/30 dark:hover:bg-primary-900/15'
             )}
             aria-pressed={selected}
@@ -52,7 +52,7 @@ function MemberPickCard({
                 className={cn(
                     'text-xs font-semibold text-center line-clamp-2 max-w-full',
                     selected
-                        ? 'text-violet-950 dark:text-violet-100'
+                        ? 'text-primary-950 dark:text-primary-100'
                         : 'text-gray-800 dark:text-gray-100'
                 )}
             >
@@ -139,7 +139,7 @@ export function OrderParticipantsPicker({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 6 }}
                         transition={fadeUpTransition}
-                        className="relative flex flex-col items-center gap-2 p-3 pt-3.5 overflow-visible rounded-2xl bg-violet-50/90 dark:bg-violet-950/40 ring-1 ring-violet-100 dark:ring-violet-800/50"
+                        className="relative flex flex-col items-center gap-2 p-3 pt-3.5 overflow-visible rounded-2xl bg-primary-50/90 dark:bg-primary-950/40 ring-1 ring-primary-100 dark:ring-primary-800/50"
                     >
                         {!readOnly && (
                             <button
@@ -156,7 +156,7 @@ export function OrderParticipantsPicker({
                             src={getUserAvatarUrl(member.id, member.avatar)}
                             size="lg"
                         />
-                        <span className="text-xs font-semibold text-center text-violet-950 dark:text-violet-100 line-clamp-2 max-w-full">
+                        <span className="text-xs font-semibold text-center text-primary-950 dark:text-primary-100 line-clamp-2 max-w-full">
                             {member.name}
                         </span>
                     </motion.div>

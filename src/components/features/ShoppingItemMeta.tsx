@@ -39,7 +39,7 @@ export function ShoppingItemBrandChip({ brand }: { brand?: string }) {
         kind === 'unset' &&
           'bg-gray-50 text-gray-500 border border-dashed border-gray-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600',
         kind === 'other' &&
-          'bg-violet-50 text-violet-900 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-100 dark:border-violet-700'
+          'bg-primary-50 text-primary-900 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-100 dark:border-primary-700'
       )}
     >
       <span className="material-icons text-[15px] leading-none shrink-0" aria-hidden>

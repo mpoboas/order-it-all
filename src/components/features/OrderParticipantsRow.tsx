@@ -68,7 +68,7 @@ export function OrderParticipantsRow({
           <span
             className={cn(
               'w-5 h-5 -ml-2 rounded-full flex items-center justify-center',
-              'bg-violet-100 dark:bg-violet-900/50 text-[9px] font-bold text-violet-700 dark:text-violet-300',
+              'bg-primary-100 dark:bg-primary-900/50 text-[9px] font-bold text-primary-700 dark:text-primary-300',
               'ring-2 ring-white dark:ring-slate-800'
             )}
           >
@@ -76,11 +76,11 @@ export function OrderParticipantsRow({
           </span>
         )}
       </div>
-      <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 leading-tight shrink-0">
+      <span className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 leading-tight shrink-0">
         {label}
       </span>
       {canOpenSheet && (
-        <span className="material-icons text-sm text-violet-400 dark:text-violet-500 shrink-0">
+        <span className="material-icons text-sm text-primary-400 dark:text-primary-500 shrink-0">
           chevron_right
         </span>
       )}
@@ -90,7 +90,7 @@ export function OrderParticipantsRow({
   const rowClass = cn(
     'flex items-center gap-2 mt-1.5 min-w-0 max-w-full',
     canOpenSheet &&
-      'cursor-pointer rounded-lg -mx-1 px-1 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:scale-[0.99] transition-colors',
+      'cursor-pointer rounded-lg -mx-1 px-1 py-0.5 hover:bg-primary-50 dark:hover:bg-primary-900/20 active:scale-[0.99] transition-colors',
     className
   );
 

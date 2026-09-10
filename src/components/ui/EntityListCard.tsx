@@ -61,7 +61,7 @@ const STATUS_PILL_STYLES: Record<
   },
   admin: {
     className:
-      'bg-violet-50 text-violet-700 dark:bg-violet-900/35 dark:text-violet-300',
+      'bg-primary-50 text-primary-700 dark:bg-primary-900/35 dark:text-primary-300',
     icon: 'admin_panel_settings',
   },
 };
@@ -117,7 +117,7 @@ export function EntityCardFooter({
 export function EntityCardChevron() {
   return (
     <span
-      className="material-icons text-[22px] text-[var(--text-muted)] group-hover:text-violet-500 transition-colors p-2"
+      className="material-icons text-[22px] text-[var(--text-muted)] group-hover:text-primary-500 transition-colors p-2"
       aria-hidden
     >
       chevron_right
@@ -200,7 +200,7 @@ export function EntityCardTitle({
   return (
     <h3
       className={cn(
-        'text-lg font-bold text-[var(--text-primary)] line-clamp-2 leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors',
+        'text-lg font-bold text-[var(--text-primary)] line-clamp-2 leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors',
         className
       )}
     >
@@ -215,7 +215,7 @@ export function EntityCardAsideTotal({ value }: { value: string }) {
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         Total
       </p>
-      <p className="text-xl font-bold text-violet-600 dark:text-violet-400 tabular-nums leading-tight mt-0.5">
+      <p className="text-xl font-bold text-primary-600 dark:text-primary-400 tabular-nums leading-tight mt-0.5">
         {value}
       </p>
     </div>

@@ -216,7 +216,7 @@ export default function GroupSplitsPage() {
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                             placeholder="ex. Jantar de Grupo"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
                             autoFocus
                             required
                         />
@@ -230,7 +230,7 @@ export default function GroupSplitsPage() {
                             onChange={e => setEditDesc(e.target.value)}
                             placeholder="Adiciona detalhes sobre o que está a ser dividido..."
                             rows={3}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
                         />
                     </div>
                 </form>

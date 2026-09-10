@@ -115,7 +115,7 @@ export function SplitParticipantNameInput({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => selectMember(member)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors flex items-center gap-2.5"
+                    className="w-full text-left px-3 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors flex items-center gap-2.5"
                   >
                     <Avatar
                       name={name}
@@ -167,7 +167,7 @@ export function SplitParticipantNameInput({
               }
             }}
             placeholder={placeholder}
-            className="w-full h-10 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
+            className="w-full h-10 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={Boolean(showMenu)}
@@ -178,7 +178,7 @@ export function SplitParticipantNameInput({
           onMouseDown={(e) => e.preventDefault()}
           onClick={submit}
           disabled={!value.trim()}
-          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-violet-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
+          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-primary-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
           aria-label="Adicionar participante"
         >
           +

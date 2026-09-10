@@ -126,7 +126,7 @@ export function OrderParticipantsSheet({
                         disabled={selectedIds.length === 0 || submitting}
                         onClick={handleSave}
                         className={cn(
-                            "btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50",
+                            "btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50",
                             submitting && "btn-loading",
                         )}
                     >
@@ -151,7 +151,7 @@ export function OrderParticipantsSheet({
                                     className={cn(
                                         'flex flex-col items-center gap-1.5 shrink-0 w-16 py-2 rounded-2xl transition',
                                         selected
-                                            ? 'bg-violet-50/90 dark:bg-violet-950/40 ring-2 ring-primary-500 dark:ring-primary-400'
+                                            ? 'bg-primary-50/90 dark:bg-primary-950/40 ring-2 ring-primary-500 dark:ring-primary-400'
                                             : 'ring-1 ring-transparent hover:ring-gray-200 dark:hover:ring-slate-700'
                                     )}
                                     aria-pressed={selected}
@@ -165,7 +165,7 @@ export function OrderParticipantsSheet({
                                         className={cn(
                                             'text-[11px] font-semibold text-center line-clamp-1 max-w-full',
                                             selected
-                                                ? 'text-violet-950 dark:text-violet-100'
+                                                ? 'text-primary-950 dark:text-primary-100'
                                                 : 'text-gray-600 dark:text-gray-300'
                                         )}
                                     >
@@ -186,7 +186,7 @@ export function OrderParticipantsSheet({
                     <button
                         type="button"
                         onClick={toggleAllParticipants}
-                        className="text-[10px] font-bold text-violet-600 hover:underline bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md"
+                        className="text-[10px] font-bold text-primary-600 hover:underline bg-primary-100 dark:bg-primary-900/30 px-2 py-0.5 rounded-md"
                     >
                         {allParticipantsSelected ? 'Ninguém' : 'Todos'}
                     </button>

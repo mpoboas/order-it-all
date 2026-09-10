@@ -119,7 +119,7 @@ export function SplitItemAllocationSheet({
           className={cn(
             'w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-colors',
             checked
-              ? 'bg-violet-600 border-violet-600 text-white'
+              ? 'bg-primary-600 border-primary-600 text-white'
               : 'border-[var(--border)] bg-[var(--bg-primary)]'
           )}
           aria-pressed={checked}
@@ -155,7 +155,7 @@ export function SplitItemAllocationSheet({
         <div className="flex-1 min-w-0">
           <p className="font-medium text-[var(--text-primary)] truncate">{name}</p>
           {active && mode !== 'unequal' && (
-            <p className="text-xs text-violet-600 dark:text-violet-400">
+            <p className="text-xs text-primary-600 dark:text-primary-400">
               {formatCurrency(amount)}
             </p>
           )}
@@ -172,7 +172,7 @@ export function SplitItemAllocationSheet({
             value={value === 0 ? '' : value}
             onChange={(e) => setAllocationValue(name, e.target.value)}
             placeholder="0"
-            className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-[var(--border)] focus:border-violet-500 outline-none py-1"
+            className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-[var(--border)] focus:border-primary-500 outline-none py-1"
           />
         </div>
       </li>
@@ -282,7 +282,7 @@ export function SplitItemAllocationSheet({
                 className={cn(
                   'shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap',
                   mode === tab
-                    ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                    ? 'border-primary-600 text-primary-600 dark:text-primary-400'
                     : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 )}
               >

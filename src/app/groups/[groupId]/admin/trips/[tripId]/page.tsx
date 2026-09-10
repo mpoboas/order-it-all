@@ -472,7 +472,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const getPriceFilterConfig = (status: typeof priceFilter) => {
         switch (status) {
             case 'all': return { label: 'Todos', color: 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300' };
-            case 'with_price': return { label: 'Com Preço', color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50' };
+            case 'with_price': return { label: 'Com Preço', color: 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-900/50' };
             case 'no_price': return { label: 'Sem Preço', color: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-600' };
         }
     };
@@ -663,8 +663,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             className={cn(
                                 "!h-10 !w-10 !p-0 rounded-full flex items-center justify-center shadow-sm transition-colors",
                                 compactView
-                                    ? "bg-violet-600 text-white hover:bg-violet-700"
-                                    : "bg-white dark:bg-slate-800 border border-[var(--border)] text-[var(--text-muted)] hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700"
+                                    ? "bg-primary-600 text-white hover:bg-primary-700"
+                                    : "bg-white dark:bg-slate-800 border border-[var(--border)] text-[var(--text-muted)] hover:text-primary-600 dark:hover:text-primary-400 hover:border-primary-200 dark:hover:border-primary-700"
                             )}
                             title={compactView ? "Ver detalhado" : "Ver resumo"}
                         >
@@ -673,7 +673,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                         <Button
                             onClick={() => setShowScanSheet(true)}
                             variant="secondary"
-                            className="!h-10 !w-10 !p-0 rounded-full flex items-center justify-center bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-colors"
+                            className="!h-10 !w-10 !p-0 rounded-full flex items-center justify-center bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-colors"
                             title="Scan da fatura (Gemini)"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -729,7 +729,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 <div className="space-y-6">
                     {orderCards.length === 0 ? (
                         <div className="text-center py-20 flex flex-col items-center">
-                            <div className="w-20 h-20 mb-4 rounded-full bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-3xl">
+                            <div className="w-20 h-20 mb-4 rounded-full bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-3xl">
                                 🛒
                             </div>
                             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">Lista Vazia</h3>
@@ -759,13 +759,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                     <div key={orderCard.orderId} className={cn(
                                         "cv-auto rounded-[24px] shadow-sm overflow-hidden",
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600 dark:from-primary-500 dark:to-primary-500") : "bg-white dark:bg-slate-800"
                                     )}>
                                         <div className={cn("bg-white dark:bg-slate-800 overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
                                             {allProcessed && (
                                                 <div className={cn(
                                                     "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
-                                                    allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                                    allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600"
                                                 )}>
                                                     {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
                                                     {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}

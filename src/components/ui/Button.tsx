@@ -44,11 +44,11 @@ export function Button({
       focus:ring-emerald-500
     `,
         secondary: `
-      bg-gradient-to-r from-indigo-500 to-indigo-600
+      bg-gradient-to-r from-primary-500 to-primary-600
       text-white rounded-full shadow-lg
-      hover:from-indigo-600 hover:to-indigo-700
+      hover:from-primary-600 hover:to-primary-700
       hover:shadow-xl hover:-translate-y-0.5
-      focus:ring-indigo-500
+      focus:ring-primary-500
     `,
         danger: `
       bg-gradient-to-r from-red-500 to-red-600

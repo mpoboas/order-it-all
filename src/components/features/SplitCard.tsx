@@ -67,7 +67,7 @@ export function SplitCard({
       {canEdit && onEdit && (
         <EntityCardActionIcon
           title="Editar divisão"
-          className="hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+          className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
           onActivate={(e) => onEdit(e as React.MouseEvent)}
         >
           <span className="material-icons text-[22px]" aria-hidden>

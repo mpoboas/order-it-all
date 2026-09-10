@@ -31,23 +31,9 @@ export function getRelativeTime(dateString: string): string {
   return 'Agora mesmo';
 }
 
-/**
- * Format currency in Euro
- */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
-/**
- * Parse currency string to number
- */
-export function parseCurrency(str: string): number {
-  return parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-}
+// Dinheiro: a implementação vive em `@/lib/money`. Reexportado aqui para não
+// mexer nos ~30 imports existentes de `formatCurrency`.
+export { formatEUR as formatCurrency, parseEUR as parseCurrency } from './money';
 
 /**
  * Sanitize string for display (prevent XSS)

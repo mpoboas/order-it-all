@@ -564,7 +564,7 @@ export function OrderFormSheet({
                         type="button"
                         disabled={selectedParticipantIds.length === 0}
                         onClick={() => { trigger(); navigateToStep('items'); }}
-                        className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+                        className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50"
                     >
                         {isSingleMemberPick ? 'Confirmar' : 'Continuar'}
                     </button>
@@ -584,7 +584,7 @@ export function OrderFormSheet({
                         disabled={submitting}
                         onClick={handleSubmit}
                         className={cn(
-                            "btn btn-primary py-4 text-lg font-semibold shadow-lg shadow-violet-200/50",
+                            "btn btn-primary py-4 text-lg font-semibold shadow-lg shadow-primary-200/50",
                             mode === 'single' ? "flex-[2]" : "w-full",
                             submitting && "btn-loading",
                         )}
@@ -806,13 +806,13 @@ export function OrderFormSheet({
                                             value={item.unit_price || ''}
                                             onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
                                             placeholder="0.00"
-                                            className="w-full font-mono text-sm font-medium focus:outline-none dark:text-gray-200 bg-transparent"
+                                            className="w-full tabular-nums text-sm font-medium focus:outline-none dark:text-gray-200 bg-transparent"
                                         />
                                     </div>
                                     <div className="w-px h-10 bg-gray-100 dark:bg-slate-700" />
                                     <div className="text-right">
                                         <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Total</p>
-                                        <p className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">
+                                        <p className="tabular-nums text-sm font-bold text-gray-900 dark:text-gray-100">
                                             {formatCurrency(item.quantity * item.unit_price)}
                                         </p>
                                     </div>

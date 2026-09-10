@@ -236,7 +236,7 @@ export default function ProfileSetupPage() {
         <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
             </div>
 
             <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
@@ -283,7 +283,7 @@ export default function ProfileSetupPage() {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500/80 to-indigo-600/80">
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-500/80 to-primary-600/80">
                                         {name ? (
                                             <span className="text-white font-bold text-4xl">
                                                 {name[0].toUpperCase()}
@@ -321,7 +321,7 @@ export default function ProfileSetupPage() {
                                 <button
                                     type="button"
                                     onClick={handleCapture}
-                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-violet-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
+                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-primary-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
                                 >
                                     <span className="material-icons text-lg">camera</span>
                                     Capturar
@@ -385,7 +385,7 @@ export default function ProfileSetupPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
+                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
                         >
                             Concluir
                         </button>

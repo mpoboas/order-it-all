@@ -412,7 +412,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('trips')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Viagens
@@ -421,7 +421,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('members')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Membros
@@ -430,7 +430,7 @@ function AdminDashboardContent() {
                         onClick={() => setActiveTab('settings')}
                         className={cn(
                             "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                     >
                         Definições
@@ -491,7 +491,7 @@ function AdminDashboardContent() {
                                                 <p className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
                                                     {member.name}
                                                     {isMemberCreator && <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded ml-1">Dono</span>}
-                                                    {isMemberAdmin && !isMemberCreator && <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded ml-1">Admin</span>}
+                                                    {isMemberAdmin && !isMemberCreator && <span className="text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded ml-1">Admin</span>}
                                                 </p>
                                                 <p className="text-xs text-[var(--text-muted)]">{member.email}</p>
                                             </div>
@@ -513,7 +513,7 @@ function AdminDashboardContent() {
                                                     ) : (
                                                         <button
                                                             onClick={() => handlePromoteMember(member.id)}
-                                                            className="text-xs px-2 py-1 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded text-violet-700 dark:text-violet-300"
+                                                            className="text-xs px-2 py-1 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded text-primary-700 dark:text-primary-300"
                                                             title="Promover a Admin"
                                                         >
                                                             ⬆️ Admin
@@ -586,7 +586,7 @@ function AdminDashboardContent() {
                             value={newTripName}
                             onChange={e => setNewTripName(e.target.value)}
                             placeholder="ex. Compras de Verão"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
                             autoFocus
                             required
                         />
@@ -596,7 +596,7 @@ function AdminDashboardContent() {
                         <textarea
                             value={newTripDescription}
                             onChange={e => setNewTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
                             rows={3}
                         />
                     </div>
@@ -625,7 +625,7 @@ function AdminDashboardContent() {
                             type="text"
                             value={editTripName}
                             onChange={e => setEditTripName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
                             required
                         />
                     </div>
@@ -634,7 +634,7 @@ function AdminDashboardContent() {
                         <textarea
                             value={editTripDescription}
                             onChange={e => setEditTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
                             rows={3}
                         />
                     </div>

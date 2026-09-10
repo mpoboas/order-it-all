@@ -61,7 +61,7 @@ export function SplitAllowedModesToggleList({
               onClick={() => onToggle(mode)}
               className={cn(
                 'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-                isEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+                isEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-700'
               )}
               aria-pressed={isEnabled}
             >

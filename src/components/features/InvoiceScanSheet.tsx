@@ -416,7 +416,7 @@ export function InvoiceScanSheet({
 
       {!hasApiKey ? (
         <div className="flex flex-col items-center text-center max-w-sm mx-auto py-4 space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 flex items-center justify-center">
             <span className="material-icons text-3xl">key</span>
           </div>
           <div>
@@ -426,7 +426,7 @@ export function InvoiceScanSheet({
             <p className="text-sm text-[var(--text-muted)] mb-4">
               Usa a tua chave gratuita do Google AI Studio. Fica guardada no teu perfil.
             </p>
-            <p className="text-xs text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 border border-violet-100 dark:border-violet-800 rounded-xl p-3 mb-4">
+            <p className="text-xs text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/50 border border-primary-100 dark:border-primary-800 rounded-xl p-3 mb-4">
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
@@ -492,7 +492,7 @@ export function InvoiceScanSheet({
                             Lista
                           </p>
                           <select
-                            className="text-sm font-bold text-[var(--text-primary)] bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-violet-500 focus:ring-0 py-0.5 pr-6 pl-0 cursor-pointer max-w-full"
+                            className="text-sm font-bold text-[var(--text-primary)] bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-primary-500 focus:ring-0 py-0.5 pr-6 pl-0 cursor-pointer max-w-full"
                             value={m.itemId}
                             onChange={(e) => handleUpdateMatch(i, e.target.value)}
                           >
@@ -676,7 +676,7 @@ export function InvoiceScanSheet({
                   <span className="bg-[var(--bg-primary)] px-2">ou</span>
                 </p>
               </div>
-              <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-violet-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+              <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                 <span className="material-icons text-lg">photo_library</span>
                 Galeria
                 <input

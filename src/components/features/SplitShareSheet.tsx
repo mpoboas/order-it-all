@@ -163,7 +163,7 @@ export function SplitShareSheet({
             onClick={handleToggle}
             className={cn(
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-              shareActive ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+              shareActive ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-700'
             )}
           >
             <span
@@ -208,7 +208,7 @@ export function SplitShareSheet({
                 type="button"
                 onClick={() => void handleShare()}
                 disabled={!shareUrl || !shareActive}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
                 <span className="material-icons text-[18px]" aria-hidden>
                   share

@@ -298,12 +298,12 @@ export function SplitMemberItemAllocationSheet({
             </p>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 px-4 py-3">
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 px-4 py-3">
                 <div>
                   <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
                     Tipo de divisão
                   </p>
-                  <p className="text-sm font-bold text-violet-600 dark:text-violet-400">
+                  <p className="text-sm font-bold text-primary-600 dark:text-primary-400">
                     {SPLIT_ITEM_MODE_LABELS[mode]}
                   </p>
                 </div>
@@ -312,7 +312,7 @@ export function SplitMemberItemAllocationSheet({
                     <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
                       A tua parte
                     </p>
-                    <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                    <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
                       {formatCurrency(myAmount)}
                     </p>
                   </div>
@@ -332,7 +332,7 @@ export function SplitMemberItemAllocationSheet({
                       className={cn(
                         'flex items-center gap-3 p-3 rounded-xl border',
                         isActive
-                          ? 'bg-violet-50 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800'
+                          ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800'
                           : 'bg-[var(--bg-secondary)] border-[var(--border)] opacity-50'
                       )}
                     >
@@ -353,7 +353,7 @@ export function SplitMemberItemAllocationSheet({
                         className={cn(
                           'text-sm font-semibold shrink-0',
                           isActive
-                            ? 'text-violet-600 dark:text-violet-400'
+                            ? 'text-primary-600 dark:text-primary-400'
                             : 'text-[var(--text-muted)]'
                         )}
                       >
@@ -405,7 +405,7 @@ export function SplitMemberItemAllocationSheet({
         className={cn(
           'rounded-xl border',
           isPrimary
-            ? 'p-4 border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/20'
+            ? 'p-4 border-2 border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20'
             : 'p-3 border-[var(--border)] bg-[var(--bg-secondary)]',
           !active && !isPrimary && 'opacity-70'
         )}
@@ -431,7 +431,7 @@ export function SplitMemberItemAllocationSheet({
               )}
             </p>
             {(active || isPrimary) && (
-              <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold">
+              <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
                 {isPrimary ? `A tua parte: ${formatCurrency(amount)}` : formatCurrency(amount)}
               </p>
             )}
@@ -450,7 +450,7 @@ export function SplitMemberItemAllocationSheet({
                 className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
                   isPinned
-                    ? 'bg-violet-600 text-white'
+                    ? 'bg-primary-600 text-white'
                     : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
                 )}
               >
@@ -484,8 +484,8 @@ export function SplitMemberItemAllocationSheet({
               className={cn(
                 'text-right font-bold bg-transparent border-b-2 outline-none py-1',
                 isPrimary
-                  ? 'w-24 text-xl border-violet-400 focus:border-violet-600'
-                  : 'w-20 text-base border-[var(--border)] focus:border-violet-500',
+                  ? 'w-24 text-xl border-primary-400 focus:border-primary-600'
+                  : 'w-20 text-base border-[var(--border)] focus:border-primary-500',
                 inputDisabled && 'opacity-60 cursor-not-allowed'
               )}
             />
@@ -532,7 +532,7 @@ export function SplitMemberItemAllocationSheet({
           )}
 
           {locked ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-violet-600 dark:text-violet-400">
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary-600 dark:text-primary-400">
               <span className="material-icons text-[16px]" aria-hidden>
                 lock
               </span>
@@ -550,7 +550,7 @@ export function SplitMemberItemAllocationSheet({
                   className={cn(
                     'shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap',
                     draftMode === tab
-                      ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                      ? 'border-primary-600 text-primary-600 dark:text-primary-400'
                       : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                   )}
                 >
@@ -562,14 +562,14 @@ export function SplitMemberItemAllocationSheet({
 
           {draftMode === 'equal' ? (
             <>
-              <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/20 p-4 flex items-center gap-3">
+              <div className="rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-4 flex items-center gap-3">
                 <Avatar name={myName} src={participantAvatar(myName)} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-[var(--text-primary)]">
                     {myName}
                   </p>
                   {equalParticipants.has(myName) && (
-                    <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold">
+                    <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
                       A tua parte: {formatCurrency(myShare)}
                     </p>
                   )}
@@ -581,7 +581,7 @@ export function SplitMemberItemAllocationSheet({
                   className={cn(
                     'w-12 h-12 rounded-xl border-2 flex items-center justify-center transition-colors shrink-0',
                     equalParticipants.has(myName)
-                      ? 'bg-violet-600 border-violet-600 text-white'
+                      ? 'bg-primary-600 border-primary-600 text-white'
                       : 'border-[var(--border)] bg-[var(--bg-primary)]',
                     locked && 'opacity-60 cursor-not-allowed'
                   )}
@@ -645,7 +645,7 @@ export function SplitMemberItemAllocationSheet({
                               className={cn(
                                 'w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0',
                                 checked
-                                  ? 'bg-violet-600 border-violet-600 text-white'
+                                  ? 'bg-primary-600 border-primary-600 text-white'
                                   : 'border-[var(--border)] bg-[var(--bg-primary)]',
                                 locked && 'opacity-60 cursor-not-allowed'
                               )}
@@ -705,13 +705,13 @@ export function SplitMemberItemAllocationSheet({
           ) : (
             // Shares: each person sets their own count.
             <>
-              <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/20 p-4 flex items-center gap-3">
+              <div className="rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-4 flex items-center gap-3">
                 <Avatar name={myName} src={participantAvatar(myName)} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-[var(--text-primary)]">
                     {myName}
                   </p>
-                  <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold">
+                  <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
                     A tua parte: {formatCurrency(myShare)}
                   </p>
                 </div>
@@ -727,7 +727,7 @@ export function SplitMemberItemAllocationSheet({
                     placeholder="0"
                     autoFocus
                     className={cn(
-                      'w-24 text-right text-xl font-bold bg-transparent border-b-2 border-violet-400 focus:border-violet-600 outline-none py-1',
+                      'w-24 text-right text-xl font-bold bg-transparent border-b-2 border-primary-400 focus:border-primary-600 outline-none py-1',
                       locked && wasParticipating && 'opacity-60 cursor-not-allowed'
                     )}
                   />
@@ -787,7 +787,7 @@ export function SplitMemberItemAllocationSheet({
                               onChange={(e) => setParticipantValue(name, e.target.value)}
                               placeholder="0"
                               className={cn(
-                                'w-16 text-right font-semibold bg-transparent border-b-2 border-[var(--border)] focus:border-violet-500 outline-none py-1',
+                                'w-16 text-right font-semibold bg-transparent border-b-2 border-[var(--border)] focus:border-primary-500 outline-none py-1',
                                 locked && 'opacity-60 cursor-not-allowed'
                               )}
                             />

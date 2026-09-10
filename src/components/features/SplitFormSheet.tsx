@@ -184,7 +184,7 @@ export function SplitFormSheet({
             type="button"
             disabled={!name.trim()}
             onClick={handleDetailsNext}
-            className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+            className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50"
           >
             Continuar
           </button>
@@ -194,7 +194,7 @@ export function SplitFormSheet({
             disabled={selectedParticipantIds.length === 0 || submitting}
             onClick={() => handleSubmit()}
             className={cn(
-              'btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50',
+              'btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50',
               submitting && 'btn-loading',
             )}
           >
@@ -220,7 +220,7 @@ export function SplitFormSheet({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="ex. Jantar de Grupo"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
                 autoFocus
                 required
               />
@@ -234,7 +234,7 @@ export function SplitFormSheet({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Adiciona detalhes sobre o que está a ser dividido..."
                 rows={3}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
               />
             </div>
             <div>

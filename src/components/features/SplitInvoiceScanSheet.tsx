@@ -299,7 +299,7 @@ export function SplitInvoiceScanSheet({
 
       {!hasApiKey ? (
         <div className="flex flex-col items-center text-center max-w-sm mx-auto py-4 space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 flex items-center justify-center">
             <span className="material-icons text-3xl">key</span>
           </div>
           <div>
@@ -309,7 +309,7 @@ export function SplitInvoiceScanSheet({
             <p className="text-sm text-[var(--text-muted)] mb-4">
               Usa a tua chave gratuita do Google AI Studio. Fica guardada no teu perfil.
             </p>
-            <p className="text-xs text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 border border-violet-100 dark:border-violet-800 rounded-xl p-3 mb-4">
+            <p className="text-xs text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/50 border border-primary-100 dark:border-primary-800 rounded-xl p-3 mb-4">
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
@@ -357,7 +357,7 @@ export function SplitInvoiceScanSheet({
                     value={item.name}
                     onChange={(e) => updateDraftItem(item.id, 'name', e.target.value)}
                     placeholder="Nome do item"
-                    className="flex-1 min-w-0 px-3 py-2 text-sm font-medium bg-gray-50 dark:bg-slate-900/50 border border-transparent focus:border-violet-500 rounded-lg dark:text-gray-100 focus:outline-none transition-colors"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm font-medium bg-gray-50 dark:bg-slate-900/50 border border-transparent focus:border-primary-500 rounded-lg dark:text-gray-100 focus:outline-none transition-colors"
                   />
                   <input
                     type="number"
@@ -366,7 +366,7 @@ export function SplitInvoiceScanSheet({
                     value={item.price}
                     onChange={(e) => updateDraftItem(item.id, 'price', e.target.value)}
                     placeholder="0.00"
-                    className="w-20 shrink-0 px-2 py-2 text-sm font-mono text-right bg-gray-50 dark:bg-slate-900/50 border border-transparent focus:border-violet-500 rounded-lg dark:text-gray-100 focus:outline-none transition-colors"
+                    className="w-20 shrink-0 px-2 py-2 text-sm tabular-nums text-right bg-gray-50 dark:bg-slate-900/50 border border-transparent focus:border-primary-500 rounded-lg dark:text-gray-100 focus:outline-none transition-colors"
                   />
                   <button
                     type="button"
@@ -461,7 +461,7 @@ export function SplitInvoiceScanSheet({
                   <span className="bg-[var(--bg-primary)] px-2">ou</span>
                 </p>
               </div>
-              <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-violet-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+              <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                 <span className="material-icons text-lg">photo_library</span>
                 Galeria
                 <input

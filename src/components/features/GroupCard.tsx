@@ -76,7 +76,7 @@ export function GroupCard({
         style={style}
       >
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/40 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
             {avatarUrl && isGroupImageAvatar(group.avatar) ? (
               <img
                 src={avatarUrl}
@@ -129,7 +129,7 @@ export function GroupCard({
             onTouchStart={(e) => e.stopPropagation()}
             onFocus={(e) => e.stopPropagation()}
             aria-label={`Ver ${memberCount} membros`}
-            className="inline-flex self-start items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-violet-900/20"
+            className="inline-flex self-start items-center gap-2 -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-primary-50 active:scale-[0.99] dark:hover:bg-primary-900/20"
           >
             <span className="flex items-center shrink-0">
               {visibleMembers.map((member, index) => (
@@ -143,16 +143,16 @@ export function GroupCard({
                 />
               ))}
               {overflowMembers > 0 && (
-                <span className="-ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[9px] font-bold text-violet-700 ring-2 ring-white dark:bg-violet-900/50 dark:text-violet-300 dark:ring-slate-800">
+                <span className="-ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-700 ring-2 ring-white dark:bg-primary-900/50 dark:text-primary-300 dark:ring-slate-800">
                   +{overflowMembers}
                 </span>
               )}
             </span>
-            <span className="text-xs font-semibold text-violet-600 dark:text-violet-400">
+            <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
               Ver {memberCount} {memberCount === 1 ? 'membro' : 'membros'}
             </span>
             <span
-              className="material-icons text-sm text-violet-400 shrink-0 dark:text-violet-500"
+              className="material-icons text-sm text-primary-400 shrink-0 dark:text-primary-500"
               aria-hidden
             >
               chevron_right

@@ -66,7 +66,7 @@ export function GroupMembersSheet({ isOpen, onClose, group }: GroupMembersSheetP
                                         </span>
                                     )}
                                     {isMemberAdmin && !isMemberCreator && (
-                                        <span className="shrink-0 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                        <span className="shrink-0 rounded bg-primary-100 px-1.5 py-0.5 text-xs text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
                                             Admin
                                         </span>
                                     )}

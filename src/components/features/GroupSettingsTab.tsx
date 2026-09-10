@@ -231,7 +231,7 @@ export function GroupSettingsTab({
                 resetProfileDraft();
                 setIsEditingProfile(true);
               }}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
             >
               <span className="material-icons text-[18px]" aria-hidden>
                 edit
@@ -248,7 +248,7 @@ export function GroupSettingsTab({
                 'w-20 h-20 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border-2',
                 viewImageUrl
                   ? 'bg-[var(--bg-tertiary)] border-[var(--border)]'
-                  : 'bg-violet-50 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800'
+                  : 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800'
               )}
             >
               {viewImageUrl ? (
@@ -275,7 +275,7 @@ export function GroupSettingsTab({
                     'w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center border-2',
                     editImagePreviewUrl
                       ? 'bg-[var(--bg-tertiary)] border-[var(--border)]'
-                      : 'bg-violet-50 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800'
+                      : 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800'
                   )}
                 >
                   {editImagePreviewUrl ? (
@@ -292,7 +292,7 @@ export function GroupSettingsTab({
                 <button
                   type="button"
                   onClick={handlePickGallery}
-                  className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-violet-600 text-white shadow-md flex items-center justify-center hover:bg-violet-700 transition-colors border-2 border-white dark:border-slate-900"
+                  className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-primary-600 text-white shadow-md flex items-center justify-center hover:bg-primary-700 transition-colors border-2 border-white dark:border-slate-900"
                   title="Escolher da galeria"
                 >
                   <span className="material-icons text-[18px]" aria-hidden>
@@ -316,7 +316,7 @@ export function GroupSettingsTab({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border)] bg-[var(--bg-secondary)] focus:border-violet-500 focus:ring-0 outline-none text-[var(--text-primary)]"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border)] bg-[var(--bg-secondary)] focus:border-primary-500 focus:ring-0 outline-none text-[var(--text-primary)]"
                   autoFocus
                 />
               </div>
@@ -335,7 +335,7 @@ export function GroupSettingsTab({
                     className={cn(
                       'w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition border',
                       selectedEmoji === emoji && !galleryFile
-                        ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-500 ring-2 ring-violet-500/20 scale-105'
+                        ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 ring-2 ring-primary-500/20 scale-105'
                         : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:bg-[var(--bg-tertiary)]'
                     )}
                   >
@@ -382,7 +382,7 @@ export function GroupSettingsTab({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span className="material-icons text-violet-600 text-xl" aria-hidden>
+              <span className="material-icons text-primary-600 text-xl" aria-hidden>
                 link
               </span>
               Convites
@@ -396,7 +396,7 @@ export function GroupSettingsTab({
             onClick={() => handleToggleInvite(!group.invite_active)}
             className={cn(
               'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
-              group.invite_active ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+              group.invite_active ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-700'
             )}
             aria-pressed={group.invite_active}
           >
@@ -431,7 +431,7 @@ export function GroupSettingsTab({
               <button
                 type="button"
                 onClick={() => void handleShareInvite()}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
               >
                 <span className="material-icons text-[18px]" aria-hidden>
                   share
@@ -459,7 +459,7 @@ export function GroupSettingsTab({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span className="material-icons text-violet-600 text-xl" aria-hidden>
+              <span className="material-icons text-primary-600 text-xl" aria-hidden>
                 visibility
               </span>
               Pedidos de todos
@@ -473,7 +473,7 @@ export function GroupSettingsTab({
             onClick={() => handleToggleShowAllOrders(!group.show_all_orders)}
             className={cn(
               'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
-              group.show_all_orders ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+              group.show_all_orders ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-700'
             )}
             aria-pressed={group.show_all_orders}
           >

@@ -405,8 +405,8 @@ export default function GroupTripDetailPage() {
                 {totalItems > 0 && (
                     <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in-up">
                         <div className="card p-4 text-center">
-                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                                <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                 </svg>
                             </div>
@@ -432,7 +432,7 @@ export default function GroupTripDetailPage() {
                             className={cn(
                                 'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                 ordersTab === 'mine'
-                                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                    ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
                                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                             )}
                         >
@@ -447,7 +447,7 @@ export default function GroupTripDetailPage() {
                             className={cn(
                                 'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                 ordersTab === 'participating'
-                                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                    ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
                                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                             )}
                         >
@@ -463,7 +463,7 @@ export default function GroupTripDetailPage() {
                                 className={cn(
                                     'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                     ordersTab === 'others'
-                                        ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm'
+                                        ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
                                         : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                                 )}
                             >
@@ -489,7 +489,7 @@ export default function GroupTripDetailPage() {
                 {/* Orders */}
                 {orders.length === 0 && otherOrders.length === 0 ? (
                     <div className="text-center py-16 animate-fade-in-up">
-                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/40 dark:to-purple-900/40 flex items-center justify-center">
+                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/40 flex items-center justify-center">
                             <span className="text-4xl">📝</span>
                         </div>
                         <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Ainda sem pedidos</h4>
@@ -525,7 +525,7 @@ export default function GroupTripDetailPage() {
                                     className={cn(
                                         'rounded-[24px] shadow-sm overflow-hidden animate-fade-in-up',
                                         allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800",
+                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600 dark:from-primary-500 dark:to-primary-500") : "bg-white dark:bg-slate-800",
                                         canEdit && !allProcessed && "ring-2 ring-amber-400"
                                     )}
                                     style={{ animationDelay: `${idx * 0.05}s` }}
@@ -534,7 +534,7 @@ export default function GroupTripDetailPage() {
                                         {allProcessed && (
                                             <div className={cn(
                                                 "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
-                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600"
                                             )}>
                                                 {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
                                                 {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
@@ -543,7 +543,7 @@ export default function GroupTripDetailPage() {
                                         {/* Order Header */}
                                         <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-white dark:ring-slate-700">
+                                                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-white dark:ring-slate-700">
                                                     🛒
                                                 </div>
                                                 <div>
@@ -551,7 +551,7 @@ export default function GroupTripDetailPage() {
                                                         Pedido {displayedOrders.length - idx}
                                                     </h3>
                                                     {!isCreator && (
-                                                        <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mb-0.5">
+                                                        <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-0.5">
                                                             Pedido por {creatorName}
                                                         </p>
                                                     )}

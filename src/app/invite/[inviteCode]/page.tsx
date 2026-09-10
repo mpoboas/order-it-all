@@ -117,7 +117,7 @@ export default function InvitePage() {
             {/* Decorative elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
             </div>
 
             <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 text-center animate-fade-in-up">
@@ -150,7 +150,7 @@ export default function InvitePage() {
                         </div>
                         <button
                             onClick={() => router.push(`/groups/${group.id}/trips`)}
-                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition"
+                            className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition"
                         >
                             Ver Grupo
                         </button>
@@ -160,7 +160,7 @@ export default function InvitePage() {
                         <button
                             onClick={handleJoin}
                             disabled={joining}
-                            className={`w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
+                            className={`w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
                         >
                             {isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite'}
                         </button>
