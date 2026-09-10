@@ -1,12 +1,12 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useTransitionRouter } from 'next-view-transitions';
 import { useCallback } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
 import { parentPath, previousVisit } from '@/lib/navHierarchy';
 import { navStart } from '@/lib/navProgress';
+import { useSmartRouter } from '@/hooks/useSmartRouter';
 
 type NavOpts = { haptic?: boolean };
 
@@ -16,6 +16,10 @@ type NavOpts = { haptic?: boolean };
  *   — o ecrã antigo fica congelado (screenshot) até o novo estar pronto, depois
  *   funde. Sem "flash" de fundo entre páginas. O Header e a BottomNav têm
  *   `view-transition-name` próprio em `globals.css`, por isso não fundem.
+ *   **Exceção:** em ligação lenta (`isSlowConnection`) navegamos sem transição —
+ *   o `next-view-transitions` segura o screenshot antigo até a rota nova montar,
+ *   e em 3G isso são segundos de ecrã congelado sem barra nem skeleton. Sem
+ *   transição, o `loading.tsx` e a barra de topo aparecem assim que puderem.
  * - **haptic** ao navegar.
  * - **guarda de rascunhos** por gravar (`UnsavedDraftContext`).
  *
@@ -25,7 +29,7 @@ type NavOpts = { haptic?: boolean };
  * `push(pai)`.
  */
 export function useAppNavigate() {
-  const router = useTransitionRouter();
+  const router = useSmartRouter();
   const plainRouter = useRouter();
   const pathname = usePathname();
   const tryNavigate = useTryNavigate();

@@ -682,7 +682,9 @@ header {
 /* ===== FASE 6 — feedback visual ===== */
 
 /* Barra de progresso de navegação (topo). Só aparece se a navegação demorar
-   > 250 ms (ver navProgress.ts). */
+   > 120 ms (ver navProgress.ts). Em ligação lenta a nav não passa pelo View
+   Transitions (ver useAppNavigate) — sem isso a barra ficava presa dentro do
+   screenshot congelado do ecrã antigo. */
 .nav-progress-track {
   position: fixed;
   top: 0;
@@ -695,7 +697,7 @@ header {
 .nav-progress-bar {
   height: 100%;
   width: 100%;
-  transform: scaleX(0);
+  transform: scaleX(0.08);
   transform-origin: left center;
   background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
   box-shadow: 0 0 10px 0 var(--primary-400);
@@ -709,8 +711,9 @@ header {
   transition: transform 150ms ease-out, opacity 260ms ease-out 140ms;
 }
 @keyframes nav-progress-fill {
-  0% { transform: scaleX(0); }
-  40% { transform: scaleX(0.55); }
+  /* Salto imediato para um sliver visível, depois metade da barra em ~1,5 s. */
+  0%   { transform: scaleX(0.08); }
+  18%  { transform: scaleX(0.5); }
   100% { transform: scaleX(0.92); }
 }
 @media (prefers-reduced-motion: reduce) {

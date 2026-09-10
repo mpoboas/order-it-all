@@ -5,11 +5,14 @@
  * demorar mais de `DELAY_MS` — as navegações a quente (Fase 4: View Transitions
  * + prefetch) são instantâneas e não a piscam.
  *
+ * `DELAY_MS` é curto de propósito: numa ligação lenta o feedback tem de aparecer
+ * quase já, e mesmo a nav a quente com o Router Cache frio passa dos ~120 ms.
+ *
  * Toda a máquina de estados (delay, animação, fade) vive aqui — o componente só
  * lê `phase` via `useSyncExternalStore`.
  */
 
-const DELAY_MS = 250;
+const DELAY_MS = 120;
 const MAX_MS = 12_000;
 const FADE_MS = 450;
 
