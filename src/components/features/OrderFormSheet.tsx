@@ -4,7 +4,9 @@ import { AnimatedStep } from '@/components/ui/AnimatedStep';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { OrderParticipantsPicker } from '@/components/features/OrderParticipantsPicker';
-import { formatCurrency, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { Money } from '@/components/ui/Money';
+import { PriceInput } from '@/components/ui/PriceInput';
 import { Item, User } from '@/lib/types';
 import {
     OrderAudienceType,
@@ -505,7 +507,7 @@ export function OrderFormSheet({
                 "flex flex-col items-center justify-center p-2 rounded-xl border-2 transition gap-1 flex-1",
                 currentStatus === status
                     ? color + " border-current"
-                    : "bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 hover:border-gray-200 dark:hover:border-slate-600"
+                    : "bg-surface border-hairline text-ink-faint hover:border-hairline-strong"
             )}
         >
             <Icon name={icon} className="text-lg" />
@@ -529,15 +531,15 @@ export function OrderFormSheet({
             type="button"
             onClick={onClick}
             className={cn(
-                'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700',
-                'bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 dark:hover:border-primary-600',
+                'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-hairline',
+                'bg-surface-sunken hover:border-primary-300 dark:hover:border-primary-600',
                 'hover:bg-primary-50/50 dark:hover:bg-primary-900/20',
                 'active:scale-[0.98] transition-[transform,background-color,border-color]',
                 className
             )}
         >
             <Icon name={icon} className="text-4xl text-primary-600 dark:text-primary-400" />
-            <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
+            <span className="font-bold text-ink">{label}</span>
         </button>
     );
 
@@ -575,7 +577,7 @@ export function OrderFormSheet({
                         <button
                             type="button"
                             onClick={() => { trigger('error'); onDelete(); }}
-                            className="flex-1 py-4 text-sm font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+                            className="flex-1 py-4 text-sm font-bold text-danger bg-danger-bg rounded-xl hover:brightness-95 transition-colors"
                         >
                             Eliminar
                         </button>
@@ -633,7 +635,7 @@ export function OrderFormSheet({
                 {/* Admin: legacy user combobox (only when wizard is off) */}
                 {isAdmin && mode === 'multi' && !useCreateWizard && (
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">
+                        <label className="block text-xs font-bold text-ink-faint uppercase tracking-wide mb-2 px-1">
                             Para quem é este pedido?
                         </label>
                         <input
@@ -646,14 +648,14 @@ export function OrderFormSheet({
                             }}
                             onFocus={() => setComboboxOpen(true)}
                             placeholder="Selecione ou escreva um nome..."
-                            className="input w-full pl-12 h-12 rounded-lg border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors"
+                            className="input w-full pl-12 h-12 rounded-lg border-hairline bg-surface-sunken  focus:bg-surface transition-colors"
                         />
                         {comboboxOpen && userName.trim() && (() => {
                             const matches = users.filter(m =>
                                 m.name.toLowerCase().includes(userName.toLowerCase())
                             );
                             return matches.length > 0 ? (
-                                <ul className="mt-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-y-auto max-h-[min(40dvh,280px)] py-1">
+                                <ul className="mt-3 rounded-xl border border-hairline bg-surface shadow-lg overflow-y-auto max-h-[min(40dvh,280px)] py-1">
                                     {matches.map((m) => (
                                         <li key={m.id}>
                                             <button
@@ -664,10 +666,10 @@ export function OrderFormSheet({
                                                     setUserId(m.id);
                                                     setComboboxOpen(false);
                                                 }}
-                                                className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-3"
+                                                className="w-full text-left px-4 py-3 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors flex items-center gap-3"
                                             >
                                                 <Avatar name={m.name} src={getUserAvatarUrl(m.id, m.avatar)} size="sm" />
-                                                <span className="font-semibold text-gray-800 dark:text-gray-100">{m.name}</span>
+                                                <span className="font-semibold text-ink">{m.name}</span>
                                             </button>
                                         </li>
                                     ))}
@@ -684,17 +686,17 @@ export function OrderFormSheet({
                         ref={(el) => {
                             itemCardRefs.current[i] = el;
                         }}
-                        className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-primary-200 dark:focus-within:border-primary-800 focus-within:shadow-sm transition"
+                        className="p-4 rounded-2xl border border-hairline bg-surface-sunken focus-within:bg-surface focus-within:border-primary-300 focus-within:shadow-sm transition"
                     >
                         {mode === 'multi' && items.length > 1 && (
                             <div className="flex items-center justify-between gap-2 mb-3">
-                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+                                <p className="text-[10px] font-bold text-ink-faint uppercase tracking-wide">
                                     Produto {i + 1}
                                 </p>
                                 <button
                                     type="button"
                                     onClick={() => { trigger('nudge'); removeItem(i); }}
-                                    className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-red-500 hover:text-red-600 py-0.5 px-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-danger hover:brightness-90 py-0.5 px-1.5 rounded-md hover:bg-danger-bg transition-colors"
                                     aria-label={`Remover produto ${i + 1}`}
                                 >
                                     <Icon name="close" className="text-[14px]" />
@@ -706,7 +708,7 @@ export function OrderFormSheet({
                         {/* Nome + quantidade */}
                         <div className="flex gap-3 mb-4">
                             <div className="flex-1 min-w-0">
-                                <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">
+                                <label className="block text-sm font-bold text-ink mb-1.5">
                                     O quê?
                                 </label>
                                 <input
@@ -714,19 +716,19 @@ export function OrderFormSheet({
                                     value={item.name}
                                     onChange={e => updateItem(i, 'name', e.target.value)}
                                     placeholder="ex. Leite, Bananas…"
-                                    className="w-full px-4 py-3.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl font-medium text-base dark:text-gray-100 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                    className="w-full px-4 py-3.5 bg-surface border-2 border-hairline rounded-xl font-medium text-base  focus:outline-none focus:border-primary-500 transition-colors placeholder:text-ink-faint "
                                     required
                                 />
                             </div>
                             <div className="shrink-0 w-[88px]">
-                                <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5 text-center">
+                                <label className="block text-sm font-bold text-ink mb-1.5 text-center">
                                     Qtd
                                 </label>
-                                <div className="flex items-center border-2 border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 h-[52px]">
+                                <div className="flex items-center border-2 border-hairline rounded-xl bg-surface h-[52px]">
                                     <button
                                         type="button"
                                         onClick={() => { trigger(); updateItem(i, 'quantity', Math.max(1, item.quantity - 1)); }}
-                                        className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-xl touch-manipulation"
+                                        className="w-9 h-full flex items-center justify-center text-ink-faint hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-l-xl touch-manipulation"
                                         aria-label="Menos"
                                     >
                                         <Icon name="remove" className="text-lg" />
@@ -737,7 +739,7 @@ export function OrderFormSheet({
                                     <button
                                         type="button"
                                         onClick={() => { trigger(); updateItem(i, 'quantity', item.quantity + 1); }}
-                                        className="w-9 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-xl touch-manipulation"
+                                        className="w-9 h-full flex items-center justify-center text-ink-faint hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-r-xl touch-manipulation"
                                         aria-label="Mais"
                                     >
                                         <Icon name="add" className="text-lg" />
@@ -748,7 +750,7 @@ export function OrderFormSheet({
 
                         {/* Marca — escolha principal */}
                         <div className="mb-4">
-                            <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">
+                            <label className="block text-sm font-bold text-ink mb-2">
                                 Que marca?
                             </label>
                             <div className="grid grid-cols-2 gap-2">
@@ -763,12 +765,12 @@ export function OrderFormSheet({
                                                 'flex items-center justify-center text-center p-3 rounded-xl border-2 transition touch-manipulation min-h-[48px]',
                                                 selected
                                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 shadow-sm'
-                                                    : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-300'
+                                                    : 'border-hairline bg-surface hover:border-primary-300'
                                             )}
                                         >
                                             <span className={cn(
                                                 'text-sm font-bold leading-tight',
-                                                selected ? 'text-primary-700 dark:text-primary-300' : 'text-gray-800 dark:text-gray-200'
+                                                selected ? 'text-primary-700 dark:text-primary-300' : 'text-ink'
                                             )}>
                                                 {choice.label}
                                             </span>
@@ -780,42 +782,40 @@ export function OrderFormSheet({
 
                         {/* Notas — secundário */}
                         <div className="mb-3">
-                            <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">
-                                Outro detalhe? <span className="font-normal text-gray-500 dark:text-gray-400">(opcional)</span>
+                            <label className="block text-sm font-bold text-ink mb-1.5">
+                                Outro detalhe? <span className="font-normal text-ink-faint">(opcional)</span>
                             </label>
                             <textarea
                                 value={item.notes}
                                 onChange={e => updateItem(i, 'notes', e.target.value)}
                                 placeholder="Ex: sem lactose, embalagem grande…"
                                 rows={3}
-                                className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl resize-none text-sm dark:text-gray-200 focus:outline-none focus:border-primary-500 placeholder:text-gray-400 whitespace-pre-wrap break-words"
+                                className="w-full px-3 py-2.5 bg-surface border-2 border-hairline rounded-xl resize-none text-sm  focus:outline-none focus:border-primary-500 placeholder:text-ink-faint whitespace-pre-wrap break-words"
                             />
                         </div>
 
                         {/* Preço — opcional / admin */}
                         {showPriceForItem(i, item) ? (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-gray-100 dark:border-slate-700 mb-1">
+                            <div className="bg-surface rounded-xl p-3 border border-hairline mb-1">
                                 <div className="flex items-center gap-3">
                                     <div className="flex-1">
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                                        <label className="block text-xs font-bold text-ink-faint mb-1">
                                             Preço uni. (€)
                                         </label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            step={0.01}
-                                            value={item.unit_price || ''}
-                                            onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
-                                            placeholder="0.00"
-                                            className="w-full tabular-nums text-sm font-medium focus:outline-none dark:text-gray-200 bg-transparent"
+                                        <PriceInput
+                                            value={item.unit_price || 0}
+                                            onValueChange={(v) => updateItem(i, 'unit_price', v)}
+                                            className="w-full text-sm font-medium focus:outline-none bg-transparent"
                                         />
                                     </div>
-                                    <div className="w-px h-10 bg-gray-100 dark:bg-slate-700" />
+                                    <div className="w-px h-10 bg-surface-sunken" />
                                     <div className="text-right">
-                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Total</p>
-                                        <p className="tabular-nums text-sm font-bold text-gray-900 dark:text-gray-100">
-                                            {formatCurrency(item.quantity * item.unit_price)}
-                                        </p>
+                                        <p className="text-xs font-bold text-ink-faint mb-1">Total</p>
+                                        <Money
+                                            as="p"
+                                            value={item.quantity * item.unit_price}
+                                            className="text-sm font-bold text-ink"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -838,15 +838,15 @@ export function OrderFormSheet({
 
                         {/* Row 4: Status (Only for Admin Single Mode) */}
                         {isAdmin && mode === 'single' && (
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Estado</label>
+                            <div className="mt-4 pt-4 border-t border-hairline">
+                                <label className="block text-xs font-bold text-ink-faint uppercase tracking-wide mb-2">Estado</label>
                                 <div className="flex gap-2">
                                     <StatusButton
                                         status="pending"
                                         currentStatus={item.found_status}
                                         label="Por comprar"
                                         icon="hourglass_empty"
-                                        color="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
+                                        color="bg-warning-bg text-warning-fg border-warning-fg/25"
                                         onClick={() => updateItem(i, 'found_status', 'pending')}
                                     />
                                     <StatusButton
@@ -854,7 +854,7 @@ export function OrderFormSheet({
                                         currentStatus={item.found_status}
                                         label="Comprado"
                                         icon="check"
-                                        color="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                                        color="bg-success-bg text-success-fg border-success-fg/25"
                                         onClick={() => updateItem(i, 'found_status', 'found')}
                                     />
                                     <StatusButton
@@ -862,7 +862,7 @@ export function OrderFormSheet({
                                         currentStatus={item.found_status}
                                         label="Não tinha"
                                         icon="close"
-                                        color="bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                                        color="bg-danger-bg text-danger-fg border-danger-fg/25"
                                         onClick={() => updateItem(i, 'found_status', 'not_available')}
                                     />
                                 </div>
@@ -870,7 +870,7 @@ export function OrderFormSheet({
                         )}
 
                         {isAdmin && mode === 'single' && onMoveToOtherOrder && (
-                            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                            <div className="mt-4 pt-4 border-t border-hairline">
                             <button
                                 type="button"
                                 onClick={() => { trigger(); onMoveToOtherOrder(); }}
@@ -889,7 +889,7 @@ export function OrderFormSheet({
                 {mode === 'multi' && (
                     <button
                         onClick={() => addEmptyItem()}
-                        className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center justify-center gap-2 group"
+                        className="w-full py-3 border-2 border-dashed border-hairline rounded-xl text-ink-faint font-bold hover:bg-surface-sunken hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center justify-center gap-2 group"
                     >
                         <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
                             <Icon name="add" className="text-sm" />
@@ -900,8 +900,8 @@ export function OrderFormSheet({
 
                 {/* Search Section */}
                 {ENABLE_PRODUCT_SEARCH && (
-                <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                <div className="pt-4 border-t border-hairline">
+                    <h3 className="text-sm font-bold text-ink mb-3 flex items-center gap-2">
                         <span>🔍</span> Pesquisar Produtos
                     </h3>
 
@@ -912,7 +912,7 @@ export function OrderFormSheet({
                             onChange={e => setSearchQuery(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchProducts())}
                             placeholder="Pesquisar (ex: Super Bock)..."
-                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="input w-full pl-12 pr-12 h-12 rounded-xl bg-surface-sunken   border-transparent focus:bg-surface focus:border-primary-500 transition placeholder:text-ink-faint "
                         />
                         {searchQuery && (
                             <button
@@ -935,9 +935,9 @@ export function OrderFormSheet({
                                         key={p.id}
                                         type="button"
                                         onClick={() => addFromSearch(p)}
-                                        className="w-full p-2.5 bg-white dark:bg-slate-800 rounded-xl flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700 transition text-left group"
+                                        className="w-full p-2.5 bg-surface rounded-xl flex items-center gap-3 hover:bg-surface-sunken border border-hairline transition text-left group"
                                     >
-                                        <div className={cn("w-12 h-12 shrink-0 rounded-lg border border-gray-100 p-1 flex items-center justify-center overflow-hidden", p.imageURL ? "bg-white" : "bg-white dark:bg-slate-900 dark:border-slate-800")}>
+                                        <div className={cn("w-12 h-12 shrink-0 rounded-lg border border-hairline p-1 flex items-center justify-center overflow-hidden", p.imageURL ? "bg-surface" : "bg-surface ")}>
                                             {p.imageURL ? (
                                                 <img src={p.imageURL} alt={p.name} className="w-full h-full object-contain mix-blend-multiply" />
                                             ) : (
@@ -945,12 +945,12 @@ export function OrderFormSheet({
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight mb-1 truncate">{p.name}</p>
+                                            <p className="font-semibold text-ink text-sm leading-tight mb-1 truncate">{p.name}</p>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{p.marca}</span>
+                                                <span className="text-[10px] font-bold text-ink-faint bg-surface-sunken px-1.5 py-0.5 rounded">{p.marca}</span>
                                                 {price.price > 0 && (
-                                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
-                                                        {formatCurrency(price.price)}
+                                                    <span className="text-[10px] font-bold text-success-fg bg-success-bg px-1.5 py-0.5 rounded">
+                                                        <Money value={price.price} />
                                                     </span>
                                                 )}
                                             </div>

@@ -31,7 +31,7 @@ import {
 } from '@/lib/orderParticipants';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
-import { formatRelativeOrDate, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
+import { formatRelativeOrDate, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Sheet } from '@/components/ui/Sheet';
@@ -44,6 +44,7 @@ import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheet
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -344,15 +345,15 @@ export default function GroupTripDetailPage() {
     };
 
     const ITEM_STATUS: Record<Item['found_status'], { label: string; bg: string; icon: IconName }> = {
-        pending: { label: 'Por comprar', bg: 'bg-amber-500 text-white', icon: 'hourglass_empty' },
-        found: { label: 'Comprado', bg: 'bg-emerald-500 text-white', icon: 'check' },
-        not_available: { label: 'Não tinha', bg: 'bg-red-500 text-white', icon: 'close' },
+        pending: { label: 'Por comprar', bg: 'bg-status-pending text-white', icon: 'hourglass_empty' },
+        found: { label: 'Comprado', bg: 'bg-status-bought text-white', icon: 'check' },
+        not_available: { label: 'Não tinha', bg: 'bg-status-missing text-white', icon: 'close' },
     };
 
     if (!isLoggedIn) return null;
     if (loading) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)]">
+            <div className="min-h-screen bg-app">
                 <Header showBack groupId={groupId} />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
@@ -361,7 +362,7 @@ export default function GroupTripDetailPage() {
 
     if (!trip) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)]">
+            <div className="min-h-screen bg-app">
                 <Header showBack groupId={groupId} />
                 <div className="text-center py-20">
                     <div className="text-6xl mb-4">😕</div>
@@ -379,13 +380,13 @@ export default function GroupTripDetailPage() {
         (participantsSheetSession === 'minimized' && participantsSheetDraftActive);
 
     return (
-        <div className={cn('min-h-screen bg-[var(--bg-primary)]', isAdmin && 'has-bottom-nav')}>
+        <div className={cn('min-h-screen bg-app', isAdmin && 'has-bottom-nav')}>
             <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
 
             {trip.status !== 'open' && (
                 <div className={cn(
                     "sticky top-[72px] md:top-[80px] z-30 w-full px-4 py-3 shadow-md flex items-center justify-center gap-2 font-bold text-sm animate-in slide-in-from-top-2",
-                    trip.status === 'in_progress' ? "bg-amber-500 text-white" : "bg-red-500 text-white"
+                    trip.status === 'in_progress' ? "bg-status-pending text-white" : "bg-status-missing text-white"
                 )}>
                     {trip.status === 'in_progress' ? (
                         <>
@@ -407,34 +408,32 @@ export default function GroupTripDetailPage() {
                     <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in-up">
                         <div className="card p-4 text-center">
                             <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                                <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
+                                <Icon name="shopping_bag" className="text-xl text-primary-600 dark:text-primary-400" />
                             </div>
-                            <p className="text-xs text-[var(--text-muted)] mb-0.5">Produtos</p>
-                            <p className="text-xl font-bold text-[var(--text-primary)]">{totalItems}</p>
+                            <p className="text-xs text-ink-faint mb-0.5">Produtos</p>
+                            <p className="text-xl font-bold text-ink">{totalItems}</p>
                         </div>
                         <div className="card p-4 text-center">
-                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                                <span className="text-amber-600 dark:text-amber-400">€</span>
+                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-warning-bg flex items-center justify-center">
+                                <Icon name="attach_money" className="text-warning-fg text-lg" />
                             </div>
-                            <p className="text-xs text-[var(--text-muted)] mb-0.5">Estimado</p>
-                            <p className="text-xl font-bold text-[var(--text-primary)]">{formatCurrency(estimatedCost)}</p>
+                            <p className="text-xs text-ink-faint mb-0.5">Estimado</p>
+                            <p className="text-xl font-bold text-ink"><Money value={estimatedCost} /></p>
                         </div>
                     </div>
                 )}
 
                 {/* Orders tabs */}
                 <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 flex p-1 bg-[var(--bg-tertiary)] rounded-xl">
+                    <div className="flex-1 flex p-1 bg-surface-sunken rounded-xl">
                         <button
                             type="button"
                             onClick={() => setOrdersTab('mine')}
                             className={cn(
                                 'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                 ordersTab === 'mine'
-                                    ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
-                                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                    ? 'bg-surface text-primary-600 shadow-sm'
+                                    : 'text-ink-faint hover:text-ink'
                             )}
                         >
                             Os teus pedidos
@@ -448,8 +447,8 @@ export default function GroupTripDetailPage() {
                             className={cn(
                                 'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                 ordersTab === 'participating'
-                                    ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
-                                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                    ? 'bg-surface text-primary-600 shadow-sm'
+                                    : 'text-ink-faint hover:text-ink'
                             )}
                         >
                             Em que participas
@@ -464,8 +463,8 @@ export default function GroupTripDetailPage() {
                                 className={cn(
                                     'flex-1 py-2 px-2 text-sm font-medium rounded-lg transition-colors',
                                     ordersTab === 'others'
-                                        ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm'
-                                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                        ? 'bg-surface text-primary-600 shadow-sm'
+                                        : 'text-ink-faint hover:text-ink'
                                 )}
                             >
                                 Pedidos de outros
@@ -478,12 +477,10 @@ export default function GroupTripDetailPage() {
                     <button
                         type="button"
                         onClick={() => void catchUp()}
-                        className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors shrink-0"
+                        className="p-2 rounded-lg hover:bg-surface-sunken transition-colors shrink-0"
                         aria-label="Atualizar pedidos"
                     >
-                        <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
+                        <Icon name="refresh" className="text-xl text-ink-faint" />
                     </button>
                 </div>
 
@@ -493,12 +490,12 @@ export default function GroupTripDetailPage() {
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/40 flex items-center justify-center">
                             <span className="text-4xl">📝</span>
                         </div>
-                        <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Ainda sem pedidos</h4>
-                        <p className="text-[var(--text-secondary)] mb-4">Toca no + para fazer o primeiro!</p>
+                        <h4 className="text-lg font-semibold text-ink mb-2">Ainda sem pedidos</h4>
+                        <p className="text-ink-soft mb-4">Toca no + para fazer o primeiro!</p>
                     </div>
                 ) : displayedOrders.length === 0 ? (
                     <div className="text-center py-12 animate-fade-in-up">
-                        <p className="text-[var(--text-secondary)] text-sm">
+                        <p className="text-ink-soft text-sm">
                             {ordersTab === 'mine'
                                 ? 'Ainda não criaste pedidos nesta viagem.'
                                 : ordersTab === 'participating'
@@ -525,30 +522,30 @@ export default function GroupTripDetailPage() {
                                     key={order.id}
                                     className={cn(
                                         'rounded-[24px] shadow-sm overflow-hidden animate-fade-in-up',
-                                        allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600 dark:from-primary-500 dark:to-primary-500") : "bg-white dark:bg-slate-800",
-                                        canEdit && !allProcessed && "ring-2 ring-amber-400"
+                                        allProcessed ? "p-[3px]" : "border border-hairline",
+                                        allProcessed ? (allMissing ? "bg-danger" : "bg-primary-600") : "bg-surface",
+                                        canEdit && !allProcessed && "ring-2 ring-warning-fg/50"
                                     )}
                                     style={{ animationDelay: `${idx * 0.05}s` }}
                                 >
-                                    <div className={cn("bg-white dark:bg-slate-800 overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                    <div className={cn("bg-surface overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
                                         {allProcessed && (
                                             <div className={cn(
                                                 "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
-                                                allMissing ? "bg-red-500" : "bg-gradient-to-r from-primary-600 to-primary-600"
+                                                allMissing ? "bg-danger" : "bg-primary-600"
                                             )}>
                                                 {allMissing ? <span className="text-sm">💀</span> : <Icon name="check_circle" className="text-sm" />}
                                                 {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                             </div>
                                         )}
                                         {/* Order Header */}
-                                        <div className="p-4 border-b border-gray-100 dark:border-slate-700/50 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
+                                        <div className="p-4 border-b border-hairline/50 flex items-center justify-between bg-surface-sunken relative z-10">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-white dark:ring-slate-700">
+                                                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xl shrink-0 ring-2 ring-surface">
                                                     🛒
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                    <h3 className="font-bold text-ink text-lg leading-none mb-1">
                                                         Pedido {displayedOrders.length - idx}
                                                     </h3>
                                                     {!isCreator && (
@@ -556,7 +553,7 @@ export default function GroupTripDetailPage() {
                                                             Pedido por {creatorName}
                                                         </p>
                                                     )}
-                                                    <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                    <p className="text-xs text-ink-faint font-medium">
                                                         {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {formatRelativeOrDate(order.created)}
                                                     </p>
                                                     <OrderParticipantsRow
@@ -571,9 +568,9 @@ export default function GroupTripDetailPage() {
                                             </div>
                                             <div className="flex flex-col items-end gap-1">
                                                 <div className="text-right">
-                                                    <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                                    <p className="text-sm font-black text-[var(--text-primary)]">
-                                                        {formatCurrency(orderTotal)}
+                                                    <p className="text-xs text-ink-faint font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                    <p className="text-sm font-black text-ink">
+                                                        <Money value={orderTotal} />
                                                     </p>
                                                 </div>
 
@@ -581,16 +578,16 @@ export default function GroupTripDetailPage() {
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className={cn(
                                                             'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
-                                                            isWarning ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 animate-pulse' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                                                            isWarning ? 'bg-danger-bg text-danger-fg animate-pulse' : 'bg-warning-bg text-warning-fg'
                                                         )}>
                                                             ⏱️ {formatTime(remaining)}
                                                         </span>
                                                         <div className="flex gap-1">
-                                                            <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40">
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                            <button onClick={() => handleEdit(order)} className="p-1.5 rounded-lg bg-warning-bg text-warning-fg hover:brightness-95">
+                                                                <Icon name="edit" className="text-[15px]" />
                                                             </button>
-                                                            <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40">
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            <button onClick={() => handleDelete(order.id)} className="p-1.5 rounded-lg bg-danger-bg text-danger-fg hover:brightness-95">
+                                                                <Icon name="delete_outline" className="text-[15px]" />
                                                             </button>
                                                         </div>
                                                     </div>
@@ -599,7 +596,7 @@ export default function GroupTripDetailPage() {
                                         </div>
 
                                         {/* Items */}
-                                        <div className="bg-gray-50 dark:bg-slate-900/30 p-2 gap-2 flex flex-col">
+                                        <div className="bg-surface-sunken p-2 gap-2 flex flex-col">
                                             {order.items.map((item) => {
                                                 const statusConfig = ITEM_STATUS[item.found_status];
 
@@ -607,14 +604,14 @@ export default function GroupTripDetailPage() {
                                                     <div
                                                         key={item.id}
                                                         className={cn(
-                                                            "relative group transition duration-200 rounded-[20px] overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm",
-                                                            item.found_status === 'found' ? "bg-emerald-50/30 dark:bg-emerald-900/10" :
-                                                                item.found_status === 'not_available' ? "bg-red-50/30 dark:bg-red-900/10" : "bg-white dark:bg-slate-800"
+                                                            "relative group transition duration-200 rounded-[20px] overflow-hidden border border-hairline shadow-sm",
+                                                            item.found_status === 'found' ? "bg-success-bg/30" :
+                                                                item.found_status === 'not_available' ? "bg-danger-bg/30" : "bg-surface"
                                                         )}
                                                     >
                                                         <div className="flex gap-4 items-start p-4">
                                                             {/* Icon Placeholder */}
-                                                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-gray-100 dark:border-slate-700", item.image_url ? "bg-white" : "bg-[var(--bg-primary)]")}>
+                                                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-hairline", item.image_url ? "bg-surface" : "bg-app")}>
                                                                 {item.image_url ? (
                                                                     <RemoteImage
                                                                         src={item.image_url}
@@ -631,18 +628,18 @@ export default function GroupTripDetailPage() {
                                                             <div className="flex-1 min-w-0 flex flex-col justify-center">
                                                                 <div className="flex justify-between items-start gap-2 mb-1">
                                                                     <h4 className={cn(
-                                                                        "font-bold text-[var(--text-primary)] text-base leading-tight",
+                                                                        "font-bold text-ink text-base leading-tight",
                                                                         item.found_status !== 'pending' && "opacity-50"
                                                                     )}>
                                                                         {item.name}
                                                                     </h4>
                                                                     <div className="text-right flex flex-col items-end">
-                                                                        <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                                                            {item.price > 0 ? formatCurrency(item.price) : `${formatCurrency(0)}`}
+                                                                        <span className="font-bold text-ink whitespace-nowrap">
+                                                                            <Money value={item.price > 0 ? item.price : 0} />
                                                                         </span>
                                                                         {item.price > 0 && item.quantity > 1 && (
-                                                                            <span className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
-                                                                                p./uni {formatCurrency(item.price / item.quantity)}
+                                                                            <span className="text-[10px] text-ink-faint font-medium leading-none mt-0.5">
+                                                                                p./uni <Money value={item.price / item.quantity} />
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -654,7 +651,7 @@ export default function GroupTripDetailPage() {
 
                                                         {/* Wall-to-wall Notes */}
                                                         {item.notes && (
-                                                            <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100 text-sm py-2 px-4 border-l-4 border-yellow-400 dark:border-yellow-600 flex items-start gap-2 w-full">
+                                                            <div className="bg-warning-bg text-warning-fg text-sm py-2 px-4 border-l-4 border-warning-fg/50 flex items-start gap-2 w-full">
                                                                 <span className="font-bold shrink-0">Notas:</span>
                                                                 <span className="italic">{item.notes}</span>
                                                             </div>
@@ -686,15 +683,13 @@ export default function GroupTripDetailPage() {
                     <button
                         onClick={openNewOrder}
                         className={cn(
-                            'fab !bg-none !bg-blue-600 hover:!bg-blue-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
+                            'fab !bg-none !bg-primary-600 hover:!bg-primary-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
                             !online && 'opacity-50'
                         )}
                         style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
                         aria-label="Novo pedido"
                     >
-                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                        </svg>
+                        <Icon name="add" className="text-3xl" />
                     </button>
                 )
             }
