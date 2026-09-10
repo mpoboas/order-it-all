@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
@@ -22,7 +22,16 @@ import { getAllowedMemberModes, getSplitItemMode } from '@/lib/splitItemAllocati
 import type { SplitItem, SplitItemMode } from '@/lib/types';
 import { useRefreshHandler } from '@/context/RefreshContext';
 
-const POLL_MS = 4000;
+/**
+ * Poll adaptativo: a página pública não tem realtime do PocketBase (é aberta por
+ * gente não autenticada), por isso sincroniza por poll. Em repouso é lento; a
+ * seguir a uma interação local, ou ao voltar ao separador, acelera durante uns
+ * segundos — é aí que as marcações do organizador / de outros participantes
+ * costumam chegar. Ver `PLANONATIVEFEEL.md` › Fase 6.
+ */
+const POLL_IDLE_MS = 4000;
+const POLL_ACTIVE_MS = 1200;
+const ACTIVE_WINDOW_MS = 10_000;
 
 type Step = 'identity' | 'items';
 
@@ -119,6 +128,16 @@ export default function PublicSplitPage() {
   );
   const [loadError, setLoadError] = useState(false);
 
+  // Poll adaptativo (ver constantes no topo).
+  const activeUntilRef = useRef(0);
+  const togglingRef = useRef(false);
+  const bumpPolling = useCallback(() => {
+    activeUntilRef.current = Date.now() + ACTIVE_WINDOW_MS;
+  }, []);
+  useEffect(() => {
+    togglingRef.current = togglingIdx !== null;
+  }, [togglingIdx]);
+
   const load = useCallback(async () => {
     try {
       const data = await fetchPublicSplit(shareCode);
@@ -165,17 +184,51 @@ export default function PublicSplitPage() {
   }, [shareCode, split?.participants, isLoggedIn, suggested]);
 
   useEffect(() => {
-    if (step !== 'items' || notFound || !split) return;
-    const id = setInterval(async () => {
-      try {
-        const data = await fetchPublicSplit(shareCode);
-        if (data) setSplit({ ...data, status: normalizeSplitStatus(data) });
-      } catch {
-        /* ignore poll errors */
+    if (step !== 'items' || notFound) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = async () => {
+      if (cancelled) return;
+      // Não faz poll enquanto há uma escrita local a decorrer (evita reverter o
+      // optimista) nem com o separador em segundo plano.
+      if (!togglingRef.current && document.visibilityState === 'visible') {
+        try {
+          const data = await fetchPublicSplit(shareCode);
+          if (!cancelled && data) {
+            setSplit({ ...data, status: normalizeSplitStatus(data) });
+          }
+        } catch {
+          /* ignore poll errors */
+        }
       }
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [step, notFound, split, shareCode]);
+      if (cancelled) return;
+      const fast = Date.now() < activeUntilRef.current;
+      timer = setTimeout(tick, fast ? POLL_ACTIVE_MS : POLL_IDLE_MS);
+    };
+
+    // Entrar no ecrã conta como atividade — arranca em modo rápido.
+    bumpPolling();
+    timer = setTimeout(tick, POLL_ACTIVE_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        bumpPolling();
+        clearTimeout(timer);
+        timer = setTimeout(tick, 0);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', bumpPolling);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', bumpPolling);
+    };
+  }, [step, notFound, shareCode, bumpPolling]);
 
   useEffect(() => {
     if (step !== 'identity' || !suggested || selectedName) return;
@@ -250,6 +303,7 @@ export default function PublicSplitPage() {
       }
     } finally {
       setTogglingIdx(null);
+      bumpPolling();
     }
   };
 
@@ -281,6 +335,7 @@ export default function PublicSplitPage() {
       }
     } finally {
       setTogglingIdx(null);
+      bumpPolling();
     }
   };
 

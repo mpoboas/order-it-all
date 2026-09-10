@@ -1,15 +1,12 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useTransitionRouter } from 'next-view-transitions';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 import { cn } from '@/lib/utils';
-import { useWebHaptics } from 'web-haptics/react';
-import { useTryNavigate } from '@/context/UnsavedDraftContext';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 interface HeaderProps {
@@ -22,12 +19,9 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, showBack, transparent = false, groupId, icon }: HeaderProps) {
-    const { user, logout, isLoggedIn } = useUser();
+    const { user, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
-    const router = useTransitionRouter();
     const pathname = usePathname();
-    const tryNavigate = useTryNavigate();
-    const { trigger } = useWebHaptics();
     const nav = useAppNavigate();
     const userName = user?.name || user?.email || '??';
 
@@ -109,10 +103,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                             <button
                                 type="button"
                                 aria-label={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
-                                onClick={() => {
-                                    trigger();
-                                    tryNavigate(() => router.push(toggleHref!));
-                                }}
+                                onClick={() => nav.push(toggleHref!)}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
                             >
                                 {isInTrips ? (
@@ -145,10 +136,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                             <button
                                 type="button"
                                 aria-label="Meu perfil"
-                                onClick={() => {
-                                    trigger();
-                                    tryNavigate(() => router.push('/profile'));
-                                }}
+                                onClick={() => nav.push('/profile')}
                                 className="relative group"
                             >
                                 <Avatar
@@ -172,16 +160,11 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 }
 
 function NavLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
-    const router = useTransitionRouter();
-    const tryNavigate = useTryNavigate();
-    const { trigger } = useWebHaptics();
+    const nav = useAppNavigate();
 
     return (
         <button
-            onClick={() => {
-                trigger();
-                tryNavigate(() => router.push(href));
-            }}
+            onClick={() => nav.push(href)}
             className={cn(
                 'px-4 py-2 rounded-lg text-sm font-medium transition',
                 current

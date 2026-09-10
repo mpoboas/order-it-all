@@ -47,7 +47,6 @@ export default function ProfilePage() {
 
         try {
             await updateProfile(formData);
-            showToast('Foto de perfil atualizada!', 'success');
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar foto', 'error');
@@ -63,7 +62,6 @@ export default function ProfilePage() {
         setIsSaving(true);
         try {
             await updateProfile({ name });
-            showToast('Nome atualizado!', 'success');
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar nome', 'error');
@@ -78,7 +76,6 @@ export default function ProfilePage() {
         setIsSavingKey(true);
         try {
             await updateProfile({ geminiApiKey: key });
-            showToast('Chave Gemini atualizada!', 'success');
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar chave', 'error');
@@ -162,12 +159,14 @@ export default function ProfilePage() {
                                 disabled={isSaving || name === user.name}
                                 className={cn(
                                     "px-4 rounded-xl font-semibold transition",
-                                    isSaving || name === user.name
-                                        ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                                        : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"
+                                    isSaving
+                                        ? "bg-primary-600 text-white btn-loading"
+                                        : name === user.name
+                                            ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
                                 )}
                             >
-                                {isSaving ? '...' : 'Guardar'}
+                                Guardar
                             </button>
                         </div>
                     </div>
@@ -209,14 +208,15 @@ export default function ProfilePage() {
                                     }
                                     className={cn(
                                         "px-4 rounded-xl font-semibold transition",
-                                        isSavingKey ||
-                                            !geminiKeyInput.trim() ||
-                                            geminiKeyInput.trim() === currentGeminiKey
-                                            ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30"
+                                        isSavingKey
+                                            ? "bg-primary-600 text-white btn-loading"
+                                            : !geminiKeyInput.trim() ||
+                                                geminiKeyInput.trim() === currentGeminiKey
+                                                ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                                : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
                                     )}
                                 >
-                                    {isSavingKey ? '...' : 'Guardar'}
+                                    Guardar
                                 </button>
                             </div>
                         </div>

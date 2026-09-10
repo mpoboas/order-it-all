@@ -300,7 +300,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 patch,
                 commit: () => itemsApi.update(selectedItem.id, patch),
             });
-            showToast('Produto atualizado!', 'success');
             setShowEditItemModal(false);
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Falha ao atualizar produto'), 'error');
@@ -327,8 +326,8 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast(
                 siblingsLeft <= 0
-                    ? 'Produto removido e pedido vazio eliminado'
-                    : 'Produto eliminado!',
+                    ? 'Produto eliminado — pedido vazio removido'
+                    : 'Produto eliminado',
                 'success',
             );
             setShowEditItemModal(false);
@@ -364,7 +363,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 patch: updatePayload,
                 commit: () => ordersApi.update(participantsSheetOrder.orderId, updatePayload),
             });
-            showToast('Pedido atualizado', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
         } catch (error) {
@@ -446,7 +444,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             await db.orders.put(order);
             if (createdItems.length) await db.items.bulkPut(createdItems);
 
-            showToast('Pedido adicionado!', 'success');
             setNewOrderSession('closed');
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Falha ao criar pedido'), 'error');
@@ -571,7 +568,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 patch: { status: 'in_progress' },
                 commit: () => tripsApi.update(tripId, { status: 'in_progress' }),
             });
-            showToast('Viagem em progresso! Hora das compras 🛍️', 'success');
+            showToast('Viagem fechada a novos pedidos', 'success');
 
             // Notify Users
             await fetch('/api/notify', {

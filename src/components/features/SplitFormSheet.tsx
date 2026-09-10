@@ -125,7 +125,6 @@ export function SplitFormSheet({
         allowed_modes: Array.from(allowedModes),
       });
 
-      showToast('Divisão criada!', 'success');
       onCreated(created);
     } catch (error) {
       console.error('Error creating split:', error);
@@ -194,9 +193,12 @@ export function SplitFormSheet({
             type="button"
             disabled={selectedParticipantIds.length === 0 || submitting}
             onClick={() => handleSubmit()}
-            className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+            className={cn(
+              'btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50',
+              submitting && 'btn-loading',
+            )}
           >
-            {submitting ? 'A criar...' : 'Criar Divisão'}
+            Criar Divisão
           </button>
         )
       }

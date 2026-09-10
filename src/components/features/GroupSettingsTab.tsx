@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { groupsApi } from '@/lib/pocketbase';
+import { navStart } from '@/lib/navProgress';
 import type { Group } from '@/lib/types';
 import {
   GROUP_EMOJIS,
@@ -125,7 +126,6 @@ export function GroupSettingsTab({
         name: trimmed,
         ...(avatarBlob ? { avatar: avatarBlob } : {}),
       });
-      showToast('Grupo atualizado', 'success');
       setIsEditingProfile(false);
       onGroupUpdated();
     } catch (error) {
@@ -172,6 +172,7 @@ export function GroupSettingsTab({
     try {
       await groupsApi.delete(groupId);
       showToast('Grupo eliminado', 'success');
+      navStart();
       router.push('/groups');
     } catch (error) {
       console.error('Error deleting group:', error);

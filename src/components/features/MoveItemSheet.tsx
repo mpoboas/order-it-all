@@ -257,27 +257,36 @@ export function MoveItemSheet({
         type="button"
         disabled={!targetOrderId || submitting}
         onClick={handleConfirmExisting}
-        className="btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50"
+        className={cn(
+          'btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50',
+          submitting && 'btn-loading',
+        )}
       >
-        {submitting ? 'A mover…' : 'Mover para este pedido'}
+        Mover para este pedido
       </button>
     ) : step === 'new-participants' && audienceType === 'all' ? (
       <button
         type="button"
         disabled={submitting}
         onClick={handleConfirmNew}
-        className="btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50"
+        className={cn(
+          'btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50',
+          submitting && 'btn-loading',
+        )}
       >
-        {submitting ? 'A criar…' : 'Criar pedido e mover'}
+        Criar pedido e mover
       </button>
     ) : step === 'new-participants' ? (
       <button
         type="button"
         disabled={selectedParticipantIds.length === 0 || submitting}
         onClick={handleConfirmNew}
-        className="btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50"
+        className={cn(
+          'btn btn-primary w-full py-4 text-lg font-semibold disabled:opacity-50',
+          submitting && 'btn-loading',
+        )}
       >
-        {submitting ? 'A criar…' : isSingleMemberPick ? 'Confirmar' : 'Criar pedido e mover'}
+        {isSingleMemberPick ? 'Confirmar' : 'Criar pedido e mover'}
       </button>
     ) : undefined;
 

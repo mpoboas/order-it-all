@@ -130,34 +130,41 @@ export function EntityCardActionIcon({
   className,
   onActivate,
   hapticError,
+  busy,
   children,
 }: {
   title: string;
   className?: string;
   onActivate: (e: React.MouseEvent | React.KeyboardEvent) => void;
   hapticError?: boolean;
+  /** Ação em curso — mostra spinner e ignora novos toques (anti duplo-submit). */
+  busy?: boolean;
   children: React.ReactNode;
 }) {
   const { trigger } = useWebHaptics();
+
+  const activate = (e: React.MouseEvent | React.KeyboardEvent) => {
+    if (busy) return;
+    if (hapticError) trigger('error');
+    else trigger();
+    onActivate(e);
+  };
 
   return (
     <span
       role="button"
       tabIndex={0}
       aria-label={title}
+      aria-busy={busy || undefined}
       onClick={(e) => {
         e.stopPropagation();
-        if (hapticError) trigger('error');
-        else trigger();
-        onActivate(e);
+        activate(e);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
-          if (hapticError) trigger('error');
-          else trigger();
-          onActivate(e);
+          activate(e);
         }
       }}
       // Não deixar o toque/hover subir ao card — senão dispara o
@@ -167,10 +174,18 @@ export function EntityCardActionIcon({
       onFocus={(e) => e.stopPropagation()}
       className={cn(
         'p-2 rounded-lg transition-colors text-[var(--text-muted)]',
+        busy && 'opacity-70 pointer-events-none',
         className
       )}
     >
-      {children}
+      {busy ? (
+        <span
+          className="block w-[22px] h-[22px] rounded-full border-2 border-current border-t-transparent animate-spin"
+          aria-hidden
+        />
+      ) : (
+        children
+      )}
     </span>
   );
 }

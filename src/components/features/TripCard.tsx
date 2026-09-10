@@ -24,6 +24,8 @@ interface TripCardProps {
   onDelete?: (e: React.MouseEvent, tripId: string) => void;
   onClose?: (e: React.MouseEvent, tripId: string) => void;
   onSplit?: (e: React.MouseEvent, trip: Trip) => void;
+  /** Divisão a ser gerada a partir desta viagem — mostra spinner no ícone. */
+  isSplitting?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -47,6 +49,7 @@ export function TripCard({
   onDelete,
   onClose,
   onSplit,
+  isSplitting = false,
   className,
   style,
 }: TripCardProps) {
@@ -81,6 +84,7 @@ export function TripCard({
       {trip.status === 'closed' && onSplit && (
         <EntityCardActionIcon
           title="Gerar divisão"
+          busy={isSplitting}
           className="hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
           onActivate={(e) => onSplit(e as React.MouseEvent, trip)}
         >

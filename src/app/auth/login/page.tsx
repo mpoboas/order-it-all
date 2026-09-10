@@ -6,6 +6,7 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { pb } from '@/lib/pocketbase';
+import { navStart } from '@/lib/navProgress';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -23,7 +24,7 @@ export default function LoginPage() {
         setLoading(true);
         try {
             await login(email, password);
-            showToast('Bem-vindo de volta!', 'success');
+            navStart();
             const record = pb.authStore.model as { name?: string } | null;
             if (!record?.name?.trim()) {
                 router.push(
@@ -121,9 +122,9 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
+                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
                         >
-                            {loading ? 'A entrar...' : 'Entrar'}
+                            Entrar
                         </button>
                     </div>
                 </form>

@@ -68,7 +68,6 @@ export default function GroupsPage() {
             setShowCreateModal(false);
             setNewGroupName('');
             setSelectedEmoji('👥');
-            showToast('Grupo criado com sucesso!', 'success');
         } catch (error) {
             console.error('Error creating group:', error);
             showToast(mutationErrorMessage(error, 'Erro ao criar grupo'), 'error');

@@ -877,3 +877,96 @@ header {
   content-visibility: auto;
   contain-intrinsic-size: auto 420px;
 }
+
+/* ===== FASE 6 — feedback visual ===== */
+
+/* Barra de progresso de navegação (topo). Só aparece se a navegação demorar
+   > 250 ms (ver navProgress.ts). */
+.nav-progress-track {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 200;
+  pointer-events: none;
+}
+.nav-progress-bar {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
+  box-shadow: 0 0 10px 0 var(--primary-400);
+}
+.nav-progress-bar--loading {
+  animation: nav-progress-fill 8s cubic-bezier(0.08, 0.7, 0.2, 1) forwards;
+}
+.nav-progress-bar--done {
+  transform: scaleX(1);
+  opacity: 0;
+  transition: transform 150ms ease-out, opacity 260ms ease-out 140ms;
+}
+@keyframes nav-progress-fill {
+  0% { transform: scaleX(0); }
+  40% { transform: scaleX(0.55); }
+  100% { transform: scaleX(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress-bar--loading {
+    animation: none;
+    transform: scaleX(0.6);
+    opacity: 0.9;
+  }
+  .nav-progress-bar--done {
+    transition: opacity 120ms linear;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Press feedback — os botões `.btn` "encolhem" ao toque (o bottom nav, os cards
+   e os botões do header já têm `active:scale-*` via Tailwind). */
+.btn:active:not(:disabled),
+.btn-primary:active:not(:disabled),
+.btn-accent:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Botão em loading: spinner por cima, texto/ícones invisíveis (largura e
+   posição mantidas), engole cliques. Basta juntar a classe `btn-loading` — não
+   é preciso trocar o texto do botão. */
+.btn-loading {
+  position: relative;
+  pointer-events: none;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+.btn-loading > * {
+  opacity: 0;
+}
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.15em;
+  height: 1.15em;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-top-color: transparent;
+  border-radius: 9999px;
+  animation: spin 0.7s linear infinite;
+}
+/* Botões de fundo claro (ghost / secundários) → spinner escuro. */
+.btn-ghost.btn-loading::after,
+.btn-loading.btn-loading--dark::after {
+  border-color: rgba(71, 85, 105, 0.9);
+  border-top-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-loading::after {
+    animation-duration: 1.2s;
+  }
+}

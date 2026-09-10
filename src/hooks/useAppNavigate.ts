@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTryNavigate } from '@/context/UnsavedDraftContext';
 import { parentPath, previousVisit } from '@/lib/navHierarchy';
+import { navStart } from '@/lib/navProgress';
 
 type NavOpts = { haptic?: boolean };
 
@@ -33,7 +34,10 @@ export function useAppNavigate() {
   const push = useCallback(
     (href: string, opts?: NavOpts) => {
       if (opts?.haptic !== false) trigger();
-      tryNavigate(() => router.push(href));
+      tryNavigate(() => {
+        navStart();
+        router.push(href);
+      });
     },
     [router, tryNavigate, trigger],
   );
@@ -41,7 +45,10 @@ export function useAppNavigate() {
   const replace = useCallback(
     (href: string, opts?: NavOpts) => {
       if (opts?.haptic !== false) trigger();
-      tryNavigate(() => router.replace(href));
+      tryNavigate(() => {
+        navStart();
+        router.replace(href);
+      });
     },
     [router, tryNavigate, trigger],
   );
@@ -49,7 +56,10 @@ export function useAppNavigate() {
   const back = useCallback(
     (opts?: NavOpts) => {
       if (opts?.haptic !== false) trigger();
-      tryNavigate(() => plainRouter.back());
+      tryNavigate(() => {
+        navStart();
+        plainRouter.back();
+      });
     },
     [plainRouter, tryNavigate, trigger],
   );
@@ -59,6 +69,7 @@ export function useAppNavigate() {
       if (opts?.haptic !== false) trigger();
       const parent = parentPath(pathname);
       tryNavigate(() => {
+        navStart();
         if (!parent) {
           plainRouter.back();
         } else if (previousVisit() === parent) {

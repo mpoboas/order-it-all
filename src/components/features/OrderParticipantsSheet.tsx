@@ -125,9 +125,12 @@ export function OrderParticipantsSheet({
                         type="button"
                         disabled={selectedIds.length === 0 || submitting}
                         onClick={handleSave}
-                        className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+                        className={cn(
+                            "btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50",
+                            submitting && "btn-loading",
+                        )}
                     >
-                        {submitting ? 'A guardar...' : 'Guardar'}
+                        Guardar
                     </button>
                 )
             }

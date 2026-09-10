@@ -11,6 +11,7 @@ import {
     loadGoogleAvatarFromUrl,
     urlToAvatarFile,
 } from '@/lib/googleAuth';
+import { navStart } from '@/lib/navProgress';
 
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
@@ -214,7 +215,7 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             clearOAuthProfileHints();
-            showToast('Perfil configurado!', 'success');
+            navStart();
             if (redirect) {
                 router.push(redirect);
             } else {
@@ -384,9 +385,9 @@ export default function ProfileSetupPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
+                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
                         >
-                            {loading ? 'A guardar...' : 'Concluir'}
+                            Concluir
                         </button>
                     </div>
                 </form>
