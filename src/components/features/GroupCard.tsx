@@ -15,7 +15,7 @@ import {
   guessGroupEmoji,
   isGroupImageAvatar,
 } from '@/lib/groupAvatars';
-import { getRelativeTime, cn } from '@/lib/utils';
+import { formatRelativeOrDate, cn } from '@/lib/utils';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { Avatar } from '@/components/ui/Avatar';
 import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
@@ -103,7 +103,7 @@ export function GroupCard({
           )}
           {group.created && (
             <EntityMetaItem icon="schedule">
-              {getRelativeTime(group.created)}
+              {formatRelativeOrDate(group.created)}
             </EntityMetaItem>
           )}
         </div>

@@ -563,29 +563,6 @@ body {
   }
 }
 
-/* ===== BOTTOM SHEET ===== */
-.bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
-  padding-bottom: var(--safe-bottom);
-  z-index: 50;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.bottom-sheet-handle {
-  width: 40px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 12px auto;
-}
-
 /* ===== FORM ELEMENTS ===== */
 .input {
   width: 100%;

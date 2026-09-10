@@ -9,7 +9,7 @@ export const entityListCardClassName =
   'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
 
 export function EntityCardDivider() {
-  return <div className="h-px w-full bg-gray-100 dark:bg-slate-700/60" />;
+  return <div className="h-px w-full bg-hairline" />;
 }
 
 export function EntityMetaItem({
@@ -85,18 +85,56 @@ export function EntityStatusPill({
   );
 }
 
+export type CardActionTone = 'default' | 'primary' | 'danger' | 'warning';
+
+export interface CardAction {
+  icon: IconName;
+  /** Rótulo acessível (aria-label). */
+  label: string;
+  onActivate: (e: React.MouseEvent | React.KeyboardEvent) => void;
+  tone?: CardActionTone;
+  /** Ação em curso — spinner + ignora toques. */
+  busy?: boolean;
+  /** Não renderiza — açúcar para `hidden: !onEdit` no call-site. */
+  hidden?: boolean;
+}
+
+const ACTION_TONE: Record<CardActionTone, string> = {
+  default: 'hover:text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]',
+  primary:
+    'hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20',
+  danger:
+    'hover:text-danger hover:bg-danger-bg',
+  warning:
+    'hover:text-warning-fg hover:bg-warning-bg',
+};
+
 export function EntityCardFooter({
   left,
-  right,
+  actions,
 }: {
-  left: React.ReactNode;
-  right?: React.ReactNode;
+  left?: React.ReactNode;
+  /** Ícones de ação à direita, antes do chevron. Declarativo — sem JSX solto. */
+  actions?: CardAction[];
 }) {
   return (
     <div className="flex items-center justify-between gap-3 min-h-[32px]">
       <div className="flex flex-wrap items-center gap-2 min-w-0">{left}</div>
       <div className="flex items-center shrink-0">
-        {right}
+        {actions
+          ?.filter((a) => !a.hidden)
+          .map((a) => (
+            <EntityCardActionIcon
+              key={a.label}
+              title={a.label}
+              busy={a.busy}
+              hapticError={a.tone === 'danger'}
+              className={ACTION_TONE[a.tone ?? 'default']}
+              onActivate={a.onActivate}
+            >
+              <Icon name={a.icon} className="text-[22px]" />
+            </EntityCardActionIcon>
+          ))}
         <EntityCardChevron />
       </div>
     </div>

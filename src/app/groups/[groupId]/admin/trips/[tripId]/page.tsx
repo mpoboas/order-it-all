@@ -18,7 +18,7 @@ import {
 } from '@/lib/db/mutations';
 import { useOnline } from '@/hooks/useOnline';
 import { useWebHaptics } from 'web-haptics/react';
-import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
+import { getInitials, formatCurrency, cn, formatRelativeOrDate } from '@/lib/utils';
 import {
     getOtherParticipants,
     deriveOrderUserName,
@@ -805,7 +805,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                                 Por {orderCard.creatorName} • {filteredItems.length}{' '}
                                                                 {filteredItems.length === 1 ? 'item' : 'itens'}
                                                                 {statusFilter !== 'all' && ' visíveis'} •{' '}
-                                                                {getRelativeTime(orderCard.orderCreated)}
+                                                                {formatRelativeOrDate(orderCard.orderCreated)}
                                                             </p>
                                                             <OrderParticipantsRow
                                                                 participantIds={orderCard.participantIds}

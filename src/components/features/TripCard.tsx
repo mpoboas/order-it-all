@@ -8,12 +8,11 @@ import {
   EntityMetaItem,
   EntityCardTitle,
   EntityStatusPill,
-  EntityCardActionIcon,
+  type CardAction,
 } from '@/components/ui/EntityListCard';
-import { getRelativeTime, cn } from '@/lib/utils';
+import { formatRelativeOrDate, cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
-import { Icon } from '@/components/ui/Icon';
 
 interface TripCardProps {
   trip: Trip;
@@ -58,48 +57,39 @@ export function TripCard({
   const prefetch = usePrefetchOnIntent(href);
   const description = trip.description?.trim();
 
-  const adminActions = isAdmin ? (
-    <>
-      {onEdit && (
-        <EntityCardActionIcon
-          title="Editar viagem"
-          className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
-          onActivate={(e) => onEdit(e as React.MouseEvent, trip)}
-        >
-          <Icon name="edit" className="text-[22px]" />
-        </EntityCardActionIcon>
-      )}
-      {trip.status === 'in_progress' && onClose && (
-        <EntityCardActionIcon
-          title="Terminar viagem"
-          className="hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-          onActivate={(e) => onClose(e as React.MouseEvent, trip.id)}
-        >
-          <Icon name="done" className="text-[22px]" />
-        </EntityCardActionIcon>
-      )}
-      {trip.status === 'closed' && onSplit && (
-        <EntityCardActionIcon
-          title="Gerar divisão"
-          busy={isSplitting}
-          className="hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
-          onActivate={(e) => onSplit(e as React.MouseEvent, trip)}
-        >
-          <Icon name="calculate" className="text-[22px]" />
-        </EntityCardActionIcon>
-      )}
-      {onDelete && (
-        <EntityCardActionIcon
-          title="Eliminar viagem"
-          hapticError
-          className="hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-          onActivate={(e) => onDelete(e as React.MouseEvent, trip.id)}
-        >
-          <Icon name="delete_outline" className="text-[22px]" />
-        </EntityCardActionIcon>
-      )}
-    </>
-  ) : null;
+  const adminActions: CardAction[] = isAdmin
+    ? [
+        {
+          icon: 'edit',
+          label: 'Editar viagem',
+          tone: 'primary',
+          onActivate: (e) => onEdit?.(e as React.MouseEvent, trip),
+          hidden: !onEdit,
+        },
+        {
+          icon: 'done',
+          label: 'Terminar viagem',
+          tone: 'warning',
+          onActivate: (e) => onClose?.(e as React.MouseEvent, trip.id),
+          hidden: trip.status !== 'in_progress' || !onClose,
+        },
+        {
+          icon: 'calculate',
+          label: 'Gerar divisão',
+          tone: 'primary',
+          busy: isSplitting,
+          onActivate: (e) => onSplit?.(e as React.MouseEvent, trip),
+          hidden: trip.status !== 'closed' || !onSplit,
+        },
+        {
+          icon: 'delete_outline',
+          label: 'Eliminar viagem',
+          tone: 'danger',
+          onActivate: (e) => onDelete?.(e as React.MouseEvent, trip.id),
+          hidden: !onDelete,
+        },
+      ]
+    : [];
 
   return (
     <button
@@ -121,7 +111,7 @@ export function TripCard({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <EntityMetaItem icon="schedule">
-          {getRelativeTime(trip.created)}
+          {formatRelativeOrDate(trip.created)}
         </EntityMetaItem>
       </div>
 
@@ -129,7 +119,7 @@ export function TripCard({
 
       <EntityCardFooter
         left={<TripStatusPill status={trip.status} />}
-        right={adminActions}
+        actions={adminActions}
       />
     </button>
   );

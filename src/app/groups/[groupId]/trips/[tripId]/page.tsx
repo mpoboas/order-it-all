@@ -31,7 +31,7 @@ import {
 } from '@/lib/orderParticipants';
 import { OrderParticipantsRow } from '@/components/features/OrderParticipantsRow';
 import { OrderParticipantsSheet } from '@/components/features/OrderParticipantsSheet';
-import { getRelativeTime, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
+import { formatRelativeOrDate, formatCurrency, isOrderEditable, getRemainingEditTime, formatTime, cn, getProductEmoji } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Sheet } from '@/components/ui/Sheet';
@@ -557,7 +557,7 @@ export default function GroupTripDetailPage() {
                                                         </p>
                                                     )}
                                                     <p className="text-xs text-[var(--text-muted)] font-medium">
-                                                        {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {getRelativeTime(order.created)}
+                                                        {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {formatRelativeOrDate(order.created)}
                                                     </p>
                                                     <OrderParticipantsRow
                                                         participantIds={order.participants ?? []}

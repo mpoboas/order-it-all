@@ -25,7 +25,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
-import { cn, getRelativeTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
     getSplitParticipantNames,
     participantIdsToNames,
