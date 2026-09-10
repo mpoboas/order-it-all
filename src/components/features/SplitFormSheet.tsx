@@ -14,6 +14,7 @@ import type { Split, SplitItemMode, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { useToast } from '@/context/ToastContext';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 type SplitFormStep = 'details' | 'audience' | 'participants';
 type SplitAudienceType = 'me' | 'several' | 'all';
@@ -184,7 +185,7 @@ export function SplitFormSheet({
             type="button"
             disabled={!name.trim()}
             onClick={handleDetailsNext}
-            className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50"
+            className="btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50"
           >
             Continuar
           </button>
@@ -194,7 +195,7 @@ export function SplitFormSheet({
             disabled={selectedParticipantIds.length === 0 || submitting}
             onClick={() => handleSubmit()}
             className={cn(
-              'btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-violet-200/50 disabled:opacity-50',
+              'btn btn-primary w-full py-4 text-lg font-semibold shadow-lg shadow-primary-200/50 disabled:opacity-50',
               submitting && 'btn-loading',
             )}
           >
@@ -212,7 +213,7 @@ export function SplitFormSheet({
         {step === 'details' && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
+              <label className="block text-sm font-bold text-ink mb-2">
                 Nome da Divisão
               </label>
               <input
@@ -220,13 +221,13 @@ export function SplitFormSheet({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="ex. Jantar de Grupo"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
+                className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 focus:ring-0 transition-colors bg-surface-sunken focus:bg-surface text-lg "
                 autoFocus
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
+              <label className="block text-sm font-bold text-ink mb-2">
                 Descrição (opcional)
               </label>
               <textarea
@@ -234,7 +235,7 @@ export function SplitFormSheet({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Adiciona detalhes sobre o que está a ser dividido..."
                 rows={3}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
+                className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 focus:ring-0 transition-colors bg-surface-sunken focus:bg-surface resize-none "
               />
             </div>
             <div>
@@ -243,21 +244,20 @@ export function SplitFormSheet({
                 onClick={() => setShowAdvanced((v) => !v)}
                 className="flex items-center justify-between w-full text-left py-1"
               >
-                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                <span className="text-sm font-bold text-ink">
                   Definições avançadas
                 </span>
-                <span
+                <Icon
+                  name="expand_more"
                   className={cn(
-                    'material-icons text-gray-400 transition-transform',
+                    'text-xl text-ink-faint transition-transform',
                     showAdvanced && 'rotate-180'
                   )}
-                >
-                  expand_more
-                </span>
+                />
               </button>
               {showAdvanced && (
                 <div className="mt-3">
-                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                  <p className="text-xs text-ink-faint mb-3">
                     Escolhe que modos de divisão os participantes podem usar
                   </p>
                   <SplitAllowedModesToggleList
@@ -313,7 +313,7 @@ function AudienceCard({
   onClick,
   className,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   onClick: () => void;
   className?: string;
@@ -323,15 +323,15 @@ function AudienceCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700',
-        'bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 dark:hover:border-primary-600',
+        'flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-hairline',
+        'bg-surface-sunken hover:border-primary-300',
         'hover:bg-primary-50/50 dark:hover:bg-primary-900/20',
         'active:scale-[0.98] transition-[transform,background-color,border-color]',
         className
       )}
     >
-      <span className="material-icons text-4xl text-primary-600 dark:text-primary-400">{icon}</span>
-      <span className="font-bold text-gray-900 dark:text-gray-100">{label}</span>
+      <Icon name={icon} className="text-4xl text-primary-600 dark:text-primary-400" />
+      <span className="font-bold text-ink">{label}</span>
     </button>
   );
 }

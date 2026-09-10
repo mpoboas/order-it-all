@@ -4,8 +4,9 @@ import {
   normalizeItemBrand,
   type NormalizedItemBrand,
 } from '@/lib/itemBrand';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
-const BRAND_CHIP_ICONS: Record<NormalizedItemBrand, string> = {
+const BRAND_CHIP_ICONS: Record<NormalizedItemBrand, IconName> = {
   official: 'verified',
   'off-brand': 'storefront',
   unset: 'help_outline',
@@ -15,7 +16,7 @@ const BRAND_CHIP_ICONS: Record<NormalizedItemBrand, string> = {
 export function ShoppingItemQuantityBadge({ quantity }: { quantity: number }) {
   return (
     <span
-      className="inline-flex items-center justify-center min-w-[2.5rem] h-8 px-2.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-sm font-black text-white dark:text-slate-900 tabular-nums shadow-sm"
+      className="inline-flex items-center justify-center min-w-[2.5rem] h-8 px-2.5 rounded-lg bg-ink text-sm font-black text-app tabular-nums shadow-sm"
       aria-label={`Quantidade: ${quantity}`}
     >
       ×{quantity}
@@ -35,16 +36,14 @@ export function ShoppingItemBrandChip({ brand }: { brand?: string }) {
         kind === 'off-brand' &&
           'bg-amber-100 text-amber-950 border-2 border-amber-400 shadow-sm dark:bg-amber-950/50 dark:text-amber-50 dark:border-amber-500',
         kind === 'official' &&
-          'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-700/50 dark:text-slate-200 dark:border-slate-600',
+          'bg-surface-sunken text-ink-soft border border-hairline',
         kind === 'unset' &&
-          'bg-gray-50 text-gray-500 border border-dashed border-gray-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600',
+          'bg-surface-sunken text-ink-faint border border-dashed border-hairline-strong',
         kind === 'other' &&
-          'bg-violet-50 text-violet-900 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-100 dark:border-violet-700'
+          'bg-primary-50 text-primary-900 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-100 dark:border-primary-700'
       )}
     >
-      <span className="material-icons text-[15px] leading-none shrink-0" aria-hidden>
-        {icon}
-      </span>
+      <Icon name={icon} className="text-[15px] leading-none shrink-0" />
       {label}
     </span>
   );

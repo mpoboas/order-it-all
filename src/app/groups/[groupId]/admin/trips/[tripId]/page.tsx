@@ -18,7 +18,7 @@ import {
 } from '@/lib/db/mutations';
 import { useOnline } from '@/hooks/useOnline';
 import { useWebHaptics } from 'web-haptics/react';
-import { getInitials, formatCurrency, cn, getRelativeTime } from '@/lib/utils';
+import { cn, formatRelativeOrDate } from '@/lib/utils';
 import {
     getOtherParticipants,
     deriveOrderUserName,
@@ -43,6 +43,9 @@ import { OrderFormSheet, ItemFormData } from '@/components/features/OrderFormShe
 import { AdminShoppingItemCard } from '@/components/features/AdminShoppingItemCard';
 import dynamic from 'next/dynamic';
 import { StickyActionCard } from '@/components/ui/StickyActionCard';
+import { Icon } from '@/components/ui/Icon';
+import { StatCard } from '@/components/ui/StatCard';
+import { Money } from '@/components/ui/Money';
 const InvoiceScanSheet = dynamic(
     () => import('@/components/features/InvoiceScanSheet').then((m) => m.InvoiceScanSheet),
     { ssr: false }
@@ -454,12 +457,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
 
 
+    const NEUTRAL_PILL = 'bg-surface border-hairline text-ink-soft';
     const getStatusFilterConfig = (status: typeof statusFilter) => {
         switch (status) {
-            case 'all': return { label: 'Todos', color: 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300' };
-            case 'pending': return { label: 'Por comprar', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50' };
-            case 'found': return { label: 'Comprados', color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' };
-            case 'not_available': return { label: 'Não tinha', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50' };
+            case 'all': return { label: 'Todos', color: NEUTRAL_PILL };
+            case 'pending': return { label: 'Por comprar', color: 'bg-warning-bg text-warning-fg border-warning-fg/25' };
+            case 'found': return { label: 'Comprados', color: 'bg-success-bg text-success-fg border-success-fg/25' };
+            case 'not_available': return { label: 'Não tinha', color: 'bg-danger-bg text-danger-fg border-danger-fg/25' };
         }
     };
 
@@ -471,9 +475,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
 
     const getPriceFilterConfig = (status: typeof priceFilter) => {
         switch (status) {
-            case 'all': return { label: 'Todos', color: 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300' };
-            case 'with_price': return { label: 'Com Preço', color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50' };
-            case 'no_price': return { label: 'Sem Preço', color: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-600' };
+            case 'all': return { label: 'Todos', color: NEUTRAL_PILL };
+            case 'with_price': return { label: 'Com Preço', color: 'bg-info-bg text-info-fg border-info-fg/25' };
+            case 'no_price': return { label: 'Sem Preço', color: 'bg-surface-sunken text-ink-soft border-hairline' };
         }
     };
 
@@ -482,42 +486,6 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         const nextIndex = (order.indexOf(priceFilter) + 1) % order.length;
         setPriceFilter(order[nextIndex]);
     };
-    // Helper for Segmented Control
-    const SegmentedControl = ({
-        options,
-        value,
-        onChange,
-        className = ""
-    }: {
-        options: { value: string; label: string; icon?: string; color?: string }[],
-        value: string,
-        onChange: (val: any) => void,
-        className?: string
-    }) => (
-        <div className={cn("flex bg-gray-100 p-1 rounded-lg w-full", className)}>
-            {options.map((opt) => {
-                const isActive = value === opt.value;
-                return (
-                    <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => onChange(opt.value)}
-                        className={cn(
-                            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-sm font-bold rounded-md transition",
-                            isActive
-                                ? "bg-white dark:bg-slate-700 text-[var(--text-primary)] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-600/50",
-                            isActive && opt.color // Apply specific color if active and defined
-                        )}
-                        style={isActive && opt.color ? { color: opt.color, backgroundColor: 'var(--bg-secondary)' } : {}}
-                    >
-                        {opt.icon && <span className="material-icons text-base">{opt.icon}</span>}
-                        {opt.label}
-                    </button>
-                )
-            })}
-        </div>
-    );
 
     // Calculate totals
     const allItems = orderCards.flatMap(o => o.items);
@@ -622,7 +590,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         (participantsSheetSession === 'minimized' && participantsSheetDraftActive);
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+        <div className="min-h-screen bg-app has-bottom-nav">
             {stickyCardProps && (
                 <StickyActionCard
                     visible={true}
@@ -632,58 +600,40 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     stackAboveMinimized={hasMinimizedDock}
                 />
             )}
-            <Header title="Admin Panel" subtitle={trip.name} showBack />
+            <Header title={trip.name} subtitle="Admin" showBack />
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">
                 <div className="grid grid-cols-3 gap-3 mb-8">
-                    <div className="card p-3 flex flex-col items-center justify-center text-center">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Total Produtos</p>
-                        <p className="text-xl font-black text-[var(--text-primary)]">{stats.total}</p>
-                    </div>
-
-                    <div className="card p-3 flex flex-col items-center justify-center text-center">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Por comprar</p>
-                        <p className="text-xl font-black text-amber-500">{stats.pending}</p>
-                    </div>
-
-                    <div className="card p-3 flex flex-col items-center justify-center text-center">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold mb-1">Gasto Atual</p>
-                        <p className="text-xl font-black text-emerald-600">{formatCurrency(boughtCost)}</p>
-                    </div>
+                    <StatCard label="Total Produtos" value={stats.total} />
+                    <StatCard label="Por comprar" value={stats.pending} tone="warning" />
+                    <StatCard label="Gasto Atual" value={<Money value={boughtCost} />} tone="success" />
                 </div>
 
                 <div className="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h2>
-                    </div>
+                    <h2 className="text-2xl font-bold text-ink">Pedidos</h2>
                     <div className="flex gap-2">
-                        <Button
+                        <button
+                            type="button"
                             onClick={() => setCompactView(v => !v)}
-                            variant="secondary"
                             className={cn(
-                                "!h-10 !w-10 !p-0 rounded-full flex items-center justify-center shadow-sm transition-colors",
+                                'h-10 w-10 rounded-full flex items-center justify-center shadow-sm transition-colors active:scale-95',
                                 compactView
-                                    ? "bg-violet-600 text-white hover:bg-violet-700"
-                                    : "bg-white dark:bg-slate-800 border border-[var(--border)] text-[var(--text-muted)] hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-700"
+                                    ? 'bg-primary-600 text-white hover:bg-primary-700'
+                                    : 'bg-surface border border-hairline text-ink-faint hover:text-primary-600 hover:border-primary-300',
                             )}
-                            title={compactView ? "Ver detalhado" : "Ver resumo"}
+                            title={compactView ? 'Ver detalhado' : 'Ver resumo'}
                         >
-                            <span className="material-icons text-xl">{compactView ? 'view_agenda' : 'checklist'}</span>
-                        </Button>
-                        <Button
+                            <Icon name={compactView ? 'view_agenda' : 'checklist'} className="text-xl" />
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => setShowScanSheet(true)}
-                            variant="secondary"
-                            className="!h-10 !w-10 !p-0 rounded-full flex items-center justify-center bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition-colors"
+                            className="h-10 w-10 rounded-full flex items-center justify-center bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-colors active:scale-95"
                             title="Scan da fatura (Gemini)"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11H15M9 7H13M9 15H15M5 6.2V21L7.5 19L10 21L12 19L14 21L16.5 19L19 21V6.2C19 5.0799 19 4.51984 18.782 4.09202C18.5903 3.71569 18.2843 3.40973 17.908 3.21799C17.4802 3 16.9201 3 15.8 3H8.2C7.0799 3 6.51984 3 6.09202 3.21799C5.71569 3.40973 5.40973 3.71569 5.21799 4.09202C5 4.51984 5 5.0799 5 6.2Z" />
-                            </svg>
-                        </Button>
-                        <Button
-                            onClick={openNewOrder}
-                            className="btn-primary h-10 px-4 text-sm"
-                        >
+                            <Icon name="receipt_long" className="text-xl" />
+                        </button>
+                        <Button size="sm" onClick={openNewOrder}>
                             + Novo Pedido
                         </Button>
                     </div>
@@ -694,9 +644,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     {/* Sort Pill */}
                     <button
                         onClick={() => setSortOrder(current => current === 'desc' ? 'asc' : 'desc')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap bg-surface border-hairline text-ink-soft hover:bg-surface-sunken active:scale-95"
                     >
-                        <span className="material-icons text-sm">schedule</span>
+                        <Icon name="schedule" className="text-sm" />
                         {sortOrder === 'desc' ? 'Mais recentes' : 'Mais antigos'}
                     </button>
 
@@ -708,7 +658,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             getStatusFilterConfig(statusFilter).color
                         )}
                     >
-                        <span className="material-icons text-sm">filter_list</span>
+                        <Icon name="filter_list" className="text-sm" />
                         {getStatusFilterConfig(statusFilter).label}
                     </button>
 
@@ -720,7 +670,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                             getPriceFilterConfig(priceFilter).color
                         )}
                     >
-                        <span className="material-icons text-sm">attach_money</span>
+                        <Icon name="attach_money" className="text-sm" />
                         {getPriceFilterConfig(priceFilter).label}
                     </button>
                 </div>
@@ -729,11 +679,11 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 <div className="space-y-6">
                     {orderCards.length === 0 ? (
                         <div className="text-center py-20 flex flex-col items-center">
-                            <div className="w-20 h-20 mb-4 rounded-full bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center text-3xl">
-                                🛒
+                            <div className="w-20 h-20 mb-4 rounded-full bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-500">
+                                <Icon name="shopping_cart" className="text-3xl" />
                             </div>
-                            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">Lista Vazia</h3>
-                            <p className="text-[var(--text-secondary)] text-sm mb-6">Nenhum produto pedido para esta viagem.</p>
+                            <h3 className="text-lg font-bold text-ink mb-1">Lista Vazia</h3>
+                            <p className="text-ink-soft text-sm mb-6">Nenhum produto pedido para esta viagem.</p>
                         </div>
                     ) : (
                         sortedOrderCards
@@ -758,38 +708,38 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                 return (
                                     <div key={orderCard.orderId} className={cn(
                                         "cv-auto rounded-[24px] shadow-sm overflow-hidden",
-                                        allProcessed ? "p-[3px]" : "border border-[var(--border)]",
-                                        allProcessed ? (allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500") : "bg-white dark:bg-slate-800"
+                                        allProcessed ? "p-[3px]" : "border border-hairline",
+                                        allProcessed ? (allMissing ? "bg-danger" : "bg-primary-600") : "bg-surface"
                                     )}>
-                                        <div className={cn("bg-white dark:bg-slate-800 overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
+                                        <div className={cn("bg-surface overflow-hidden h-full flex flex-col", allProcessed ? "rounded-[21px]" : "")}>
                                             {allProcessed && (
                                                 <div className={cn(
                                                     "py-1.5 px-4 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase tracking-wider select-none",
-                                                    allMissing ? "bg-red-500" : "bg-gradient-to-r from-violet-600 to-purple-600"
+                                                    allMissing ? "bg-danger" : "bg-primary-600"
                                                 )}>
-                                                    {allMissing ? <span className="text-sm">💀</span> : <span className="material-icons text-sm">check_circle</span>}
+                                                    {allMissing ? <span className="text-sm">💀</span> : <Icon name="check_circle" className="text-sm" />}
                                                     {allMissing ? "Não havia um caralho do que tu querias" : "Pedido concluído"}
                                                 </div>
                                             )}
                                             {/* Order header */}
                                             {compactView ? (
-                                                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900/50 relative z-10">
+                                                <div className="px-4 py-2 border-b border-hairline flex items-center justify-between gap-2 bg-surface-sunken relative z-10">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}
                                                             src={orderCard.creatorAvatar}
                                                             size="sm"
                                                         />
-                                                        <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                                        <p className="text-sm font-bold text-ink truncate">
                                                             Por {orderCard.creatorName}
                                                         </p>
                                                     </div>
-                                                    <p className="text-sm font-black text-[var(--text-primary)] shrink-0">
-                                                        {formatCurrency(filteredItems.reduce((acc, item) => acc + (item.price || 0), 0))}
+                                                    <p className="text-sm font-black text-ink shrink-0">
+                                                        <Money value={filteredItems.reduce((acc, item) => acc + (item.price || 0), 0)} />
                                                     </p>
                                                 </div>
                                             ) : (
-                                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50 dark:bg-slate-900/50 relative z-10">
+                                                <div className="p-4 border-b border-hairline flex items-center justify-between bg-surface-sunken relative z-10">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <Avatar
                                                             name={orderCard.creatorName}
@@ -797,14 +747,14 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                             size="md"
                                                         />
                                                         <div className="min-w-0">
-                                                            <h3 className="font-bold text-[var(--text-primary)] text-lg leading-none mb-1">
+                                                            <h3 className="font-bold text-ink text-lg leading-none mb-1">
                                                                 Pedido {orderNumber}
                                                             </h3>
-                                                            <p className="text-xs text-[var(--text-muted)] font-medium">
+                                                            <p className="text-xs text-ink-faint font-medium">
                                                                 Por {orderCard.creatorName} • {filteredItems.length}{' '}
                                                                 {filteredItems.length === 1 ? 'item' : 'itens'}
                                                                 {statusFilter !== 'all' && ' visíveis'} •{' '}
-                                                                {getRelativeTime(orderCard.orderCreated)}
+                                                                {formatRelativeOrDate(orderCard.orderCreated)}
                                                             </p>
                                                             <OrderParticipantsRow
                                                                 participantIds={orderCard.participantIds}
@@ -825,16 +775,16 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-wider mb-0.5">Total</p>
-                                                        <p className="text-sm font-black text-[var(--text-primary)]">
-                                                            {formatCurrency(filteredItems.reduce((acc, item) => acc + (item.price || 0), 0))}
+                                                        <p className="text-xs text-ink-faint font-bold uppercase tracking-wider mb-0.5">Total</p>
+                                                        <p className="text-sm font-black text-ink">
+                                                            <Money value={filteredItems.reduce((acc, item) => acc + (item.price || 0), 0)} />
                                                         </p>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Items List */}
-                                            <div className="bg-gray-50 dark:bg-slate-900/30 p-2 gap-2 flex flex-col">
+                                            <div className="bg-surface-sunken p-2 gap-2 flex flex-col">
                                                 {filteredItems.map((item) => (
                                                     <AdminShoppingItemCard
                                                         key={item.id}

@@ -12,6 +12,7 @@ import {
     urlToAvatarFile,
 } from '@/lib/googleAuth';
 import { navStart } from '@/lib/navProgress';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
@@ -236,7 +237,7 @@ export default function ProfileSetupPage() {
         <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl" />
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
             </div>
 
             <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
@@ -263,9 +264,7 @@ export default function ProfileSetupPage() {
                             >
                                 {avatarLoading ? (
                                     <div className="w-full h-full flex items-center justify-center bg-black/40">
-                                        <span className="material-icons text-white/70 animate-pulse text-3xl">
-                                            photo
-                                        </span>
+                                        <Icon name="photo" className="text-white/70 animate-pulse text-3xl" />
                                     </div>
                                 ) : isCameraActive ? (
                                     <video
@@ -283,15 +282,13 @@ export default function ProfileSetupPage() {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500/80 to-indigo-600/80">
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-500/80 to-primary-600/80">
                                         {name ? (
                                             <span className="text-white font-bold text-4xl">
                                                 {name[0].toUpperCase()}
                                             </span>
                                         ) : (
-                                            <span className="material-icons text-white/80 text-5xl">
-                                                person
-                                            </span>
+                                            <Icon name="person" className="text-white/80 text-5xl" />
                                         )}
                                     </div>
                                 )}
@@ -321,9 +318,9 @@ export default function ProfileSetupPage() {
                                 <button
                                     type="button"
                                     onClick={handleCapture}
-                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-violet-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
+                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-primary-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
                                 >
-                                    <span className="material-icons text-lg">camera</span>
+                                    <Icon name="camera" className="text-lg" />
                                     Capturar
                                 </button>
                             </div>
@@ -336,7 +333,7 @@ export default function ProfileSetupPage() {
                                         disabled={avatarLoading}
                                         className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
-                                        <span className="material-icons text-lg">photo_library</span>
+                                        <Icon name="photo_library" className="text-lg" />
                                         Galeria
                                     </button>
                                     <button
@@ -345,7 +342,7 @@ export default function ProfileSetupPage() {
                                         disabled={avatarLoading}
                                         className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
-                                        <span className="material-icons text-lg">photo_camera</span>
+                                        <Icon name="photo_camera" className="text-lg" />
                                         Câmara
                                     </button>
                                 </div>
@@ -385,7 +382,7 @@ export default function ProfileSetupPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
+                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
                         >
                             Concluir
                         </button>

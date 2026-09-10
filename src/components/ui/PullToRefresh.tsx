@@ -152,7 +152,7 @@ export function PullToRefresh({ onRefresh, canRefresh }: PullToRefreshProps) {
                     : 'transform 250ms ease-out, opacity 250ms ease-out',
             }}
         >
-            <div className="mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-black/5 bg-white shadow-lg dark:border-white/10 dark:bg-slate-700">
+            <div className="mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-black/5 bg-surface shadow-lg dark:border-white/10">
                 <svg
                     className={cn('h-5 w-5 text-primary-600 dark:text-primary-300', refreshing && 'animate-spin')}
                     style={refreshing ? undefined : { transform: `rotate(${progress * 270}deg)` }}

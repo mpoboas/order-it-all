@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { useWebHaptics } from 'web-haptics/react';
+import { Icon } from '@/components/ui/Icon';
 
 export interface MoveItemOrderOption {
   orderId: string;
@@ -314,19 +315,19 @@ export function MoveItemSheet({
         <AnimatedStep stepKey={step} direction={stepDirection} className="flex flex-col gap-4 overflow-visible">
           {step === 'choose' && item && (
             <>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-ink-soft">
                 Este produto passa para outro pedido. Os participantes do pedido de destino definem para quem é a compra.
               </p>
               <div className="grid grid-cols-1 gap-3">
                 <button
                   type="button"
                   onClick={() => { trigger(); navigateToStep('existing'); }}
-                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
+                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-hairline bg-surface-sunken hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
                 >
-                  <span className="material-icons text-3xl text-primary-600">swap_horiz</span>
+                  <Icon name="swap_horiz" className="text-3xl text-primary-600" />
                   <div>
-                    <p className="font-bold text-gray-900 dark:text-gray-100">Pedido existente</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="font-bold text-ink">Pedido existente</p>
+                    <p className="text-xs text-ink-faint mt-0.5">
                       {otherOrders.length > 0
                         ? `${otherOrders.length} pedido${otherOrders.length === 1 ? '' : 's'} nesta viagem`
                         : 'Nenhum outro pedido — cria um novo'}
@@ -336,12 +337,12 @@ export function MoveItemSheet({
                 <button
                   type="button"
                   onClick={() => { trigger(); navigateToStep('new-audience'); }}
-                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
+                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-hairline bg-surface-sunken hover:border-primary-300 hover:bg-primary-50/40 text-left transition-colors"
                 >
-                  <span className="material-icons text-3xl text-primary-600">add_circle</span>
+                  <Icon name="add_circle" className="text-3xl text-primary-600" />
                   <div>
-                    <p className="font-bold text-gray-900 dark:text-gray-100">Novo pedido</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="font-bold text-ink">Novo pedido</p>
+                    <p className="text-xs text-ink-faint mt-0.5">
                       Escolhe quem participa e move o produto
                     </p>
                   </div>
@@ -353,7 +354,7 @@ export function MoveItemSheet({
           {step === 'existing' && (
             <>
               {otherOrders.length === 0 ? (
-                <p className="text-sm text-center text-gray-500 py-8">
+                <p className="text-sm text-center text-ink-faint py-8">
                   Não há outros pedidos. Usa &quot;Novo pedido&quot; para criar um.
                 </p>
               ) : (
@@ -369,10 +370,10 @@ export function MoveItemSheet({
                             'w-full text-left p-4 rounded-2xl border-2 transition',
                             selected
                               ? 'border-primary-500 bg-primary-50/60 dark:bg-primary-950/30'
-                              : 'border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-primary-200'
+                              : 'border-hairline bg-surface hover:border-primary-200'
                           )}
                         >
-                          <p className="font-bold text-gray-900 dark:text-gray-100 mb-1">{order.label}</p>
+                          <p className="font-bold text-ink mb-1">{order.label}</p>
                           <OrderParticipantsRow
                             participantIds={order.participantIds}
                             members={groupMembers}
@@ -381,7 +382,7 @@ export function MoveItemSheet({
                             namedPerspective
                             className="mt-0 pointer-events-none"
                           />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          <p className="text-xs text-ink-faint mt-2">
                             {order.itemCount} {order.itemCount === 1 ? 'item' : 'itens'}
                           </p>
                         </button>
@@ -398,32 +399,32 @@ export function MoveItemSheet({
               <button
                 type="button"
                 onClick={() => selectAudience('me')}
-                className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
+                className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-hairline bg-surface-sunken hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">person</span>
+                <Icon name="person" className="text-4xl text-primary-600" />
                 <span className="font-bold">Um membro</span>
               </button>
               <button
                 type="button"
                 onClick={() => selectAudience('several')}
-                className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
+                className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-hairline bg-surface-sunken hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">group</span>
+                <Icon name="group" className="text-4xl text-primary-600" />
                 <span className="font-bold">Vários</span>
               </button>
               <button
                 type="button"
                 onClick={() => selectAudience('all')}
-                className="col-span-2 flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/50 hover:border-primary-300 hover:bg-primary-50/50"
+                className="col-span-2 flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-hairline bg-surface-sunken hover:border-primary-300 hover:bg-primary-50/50"
               >
-                <span className="material-icons text-4xl text-primary-600">groups</span>
+                <Icon name="groups" className="text-4xl text-primary-600" />
                 <span className="font-bold">Todos</span>
               </button>
             </div>
           )}
 
           {step === 'new-participants' && audienceType === 'all' && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 py-4">
+            <p className="text-sm text-ink-soft py-4">
               O produto vai para um pedido para <strong>todo o grupo</strong>.
             </p>
           )}

@@ -9,14 +9,14 @@ interface CardProps {
     style?: React.CSSProperties;
 }
 
-export function Card({ children, className, hover = true, onClick, style }: CardProps) {
+export function Card({ children, className, hover = false, onClick, style }: CardProps) {
     return (
         <div
             className={cn(
-                'bg-white rounded-2xl shadow-lg transition duration-300',
-                hover && 'hover:-translate-y-0.5 hover:shadow-xl',
+                'bg-surface border border-hairline rounded-2xl shadow-sm transition duration-200',
+                hover && 'hover:-translate-y-0.5 hover:shadow-md',
                 onClick && 'cursor-pointer',
-                className
+                className,
             )}
             onClick={onClick}
             style={style}
@@ -26,41 +26,21 @@ export function Card({ children, className, hover = true, onClick, style }: Card
     );
 }
 
-interface CardHeaderProps {
+interface SectionProps {
     children: React.ReactNode;
     className?: string;
 }
 
-export function CardHeader({ children, className }: CardHeaderProps) {
+export function CardHeader({ children, className }: SectionProps) {
+    return <div className={cn('p-5 pb-3', className)}>{children}</div>;
+}
+
+export function CardBody({ children, className }: SectionProps) {
+    return <div className={cn('p-5 pt-0', className)}>{children}</div>;
+}
+
+export function CardFooter({ children, className }: SectionProps) {
     return (
-        <div className={cn('p-6 pb-4', className)}>
-            {children}
-        </div>
-    );
-}
-
-interface CardBodyProps {
-    children: React.ReactNode;
-    className?: string;
-}
-
-export function CardBody({ children, className }: CardBodyProps) {
-    return (
-        <div className={cn('p-6 pt-0', className)}>
-            {children}
-        </div>
-    );
-}
-
-interface CardFooterProps {
-    children: React.ReactNode;
-    className?: string;
-}
-
-export function CardFooter({ children, className }: CardFooterProps) {
-    return (
-        <div className={cn('p-6 pt-4 border-t border-gray-100', className)}>
-            {children}
-        </div>
+        <div className={cn('p-5 pt-4 border-t border-hairline', className)}>{children}</div>
     );
 }

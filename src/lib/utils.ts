@@ -31,23 +31,31 @@ export function getRelativeTime(dateString: string): string {
   return 'Agora mesmo';
 }
 
-/**
- * Format currency in Euro
- */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
+// O `month: 'short'` do Intl em pt-PT devolve numérico ("7/09") — parece uma
+// data truncada. Mês por extenso curto, à mão.
+const MONTHS_PT = [
+  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+  'jul', 'ago', 'set', 'out', 'nov', 'dez',
+];
 
 /**
- * Parse currency string to number
+ * Tempo relativo enquanto é recente (< 7 dias — "há 3 horas"), **data absoluta**
+ * a partir daí ("7 set." este ano, "7 set. 2025" antes). "há 228 dias" não diz
+ * nada a ninguém.
  */
-export function parseCurrency(str: string): number {
-  return parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+export function formatRelativeOrDate(dateString: string): string {
+  const date = new Date(dateString);
+  const diffDays = (Date.now() - date.getTime()) / 86_400_000;
+  if (diffDays < 7) return getRelativeTime(dateString);
+  const day = date.getDate();
+  const month = MONTHS_PT[date.getMonth()];
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return sameYear ? `${day} ${month}.` : `${day} ${month}. ${date.getFullYear()}`;
 }
+
+// Dinheiro: a implementação vive em `@/lib/money`. Reexportado aqui para não
+// mexer nos ~30 imports existentes de `formatCurrency`.
+export { formatEUR as formatCurrency, parseEUR as parseCurrency } from './money';
 
 /**
  * Sanitize string for display (prevent XSS)

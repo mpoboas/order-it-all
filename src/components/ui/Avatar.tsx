@@ -31,7 +31,7 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
     };
 
     const ringClass = stacked
-        ? 'ring-2 ring-white dark:ring-slate-800'
+        ? 'ring-2 ring-surface'
         : 'ring-1 ring-black/15 dark:ring-white/20';
 
     const sizeClass = sizes[size];
@@ -45,7 +45,7 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
 
     if (showImage) {
         return (
-            <span className={cn(shellClass, 'inline-block bg-gray-200')}>
+            <span className={cn(shellClass, 'inline-block bg-hairline-strong')}>
                 <img
                     src={imageSrc}
                     alt={displayName}

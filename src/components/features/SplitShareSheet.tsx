@@ -10,6 +10,7 @@ import type { Split } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { Icon } from '@/components/ui/Icon';
 
 interface SplitShareSheetProps {
   isOpen: boolean;
@@ -143,18 +144,18 @@ export function SplitShareSheet({
       size="medium"
     >
       <div className="space-y-5 px-1">
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-ink-soft">
           Cada pessoa escolhe o seu nome na lista e marca os itens que participou.
         </p>
 
         {splitClosed && (
-          <p className="text-sm text-amber-700 dark:text-amber-400 font-medium rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 border border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-warning-fg font-medium rounded-lg bg-warning-bg px-3 py-2 border border-warning-fg/25">
             Divisão fechada. Reabre a divisão para voltar a permitir alterações pelo link.
           </p>
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-[var(--text-secondary)]">
+          <span className="text-sm font-medium text-ink-soft">
             Link público ativo
           </span>
           <button
@@ -163,12 +164,12 @@ export function SplitShareSheet({
             onClick={handleToggle}
             className={cn(
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-              shareActive ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+              shareActive ? "bg-primary-600" : "bg-hairline-strong"
             )}
           >
             <span
               className={cn(
-                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ml-1',
+                'inline-block h-4 w-4 transform rounded-full bg-surface transition-transform ml-1',
                 shareActive && 'translate-x-5'
               )}
             />
@@ -183,13 +184,13 @@ export function SplitShareSheet({
           <>
             {shareActive && (
               <div className="flex flex-col items-center gap-3 py-2">
-                <div className="p-4 bg-white rounded-xl shadow-sm border border-[var(--border)]">
+                <div className="p-4 bg-surface rounded-xl shadow-sm border border-hairline">
                   <QRCode value={shareUrl} size={160} />
                 </div>
               </div>
             )}
 
-            <code className="block w-full px-3 py-2.5 rounded-xl text-xs bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-secondary)] truncate">
+            <code className="block w-full px-3 py-2.5 rounded-xl text-xs bg-surface-sunken border border-hairline text-ink-soft truncate">
               {shareUrl || '…'}
             </code>
             <div className="flex gap-2">
@@ -197,28 +198,24 @@ export function SplitShareSheet({
                 type="button"
                 onClick={() => void handleCopy()}
                 disabled={!shareUrl || !shareActive}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-surface border border-hairline text-sm font-semibold text-ink hover:bg-surface-sunken transition-colors disabled:opacity-50"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  content_copy
-                </span>
+                <Icon name="content_copy" className="text-[18px]" />
                 Copiar link
               </button>
               <button
                 type="button"
                 onClick={() => void handleShare()}
                 disabled={!shareUrl || !shareActive}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
-                <span className="material-icons text-[18px]" aria-hidden>
-                  share
-                </span>
+                <Icon name="share" className="text-[18px]" />
                 Partilhar
               </button>
             </div>
 
             {!shareActive && (
-              <p className="text-sm text-amber-600 dark:text-amber-500">
+              <p className="text-sm text-warning-fg">
                 Ativa o link para o QR e o URL funcionarem.
               </p>
             )}
@@ -227,7 +224,7 @@ export function SplitShareSheet({
               type="button"
               onClick={handleRegenerate}
               disabled={loading}
-              className="text-sm text-amber-600 dark:text-amber-500 hover:underline"
+              className="text-sm text-warning-fg hover:underline"
             >
               Gerar novo código
             </button>

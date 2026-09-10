@@ -8,6 +8,7 @@ import { RemoteImage } from '@/components/ui/RemoteImage';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 import { cn } from '@/lib/utils';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { Icon } from '@/components/ui/Icon';
 
 interface HeaderProps {
     title?: string;
@@ -32,7 +33,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
     const isInGroup = !!groupId || pathname.startsWith('/groups/');
 
     const displayTitle = title || currentGroup?.name || 'Order It All!';
-    const displaySubtitle = subtitle || (isInAdmin ? 'Painel de administração' : 'Tu pedes, nós entregamos!');
+    const displaySubtitle = subtitle;
 
     // Toggle to the other section (trips <-> splits) for non-admin users
     const getToggleHref = () => {
@@ -65,9 +66,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                 onClick={() => nav.up()}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 hover:bg-white/30 transition-colors active:scale-95"
                             >
-                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
+                                <Icon name="chevron_left" className="text-xl text-white" />
                             </button>
                         ) : (
                             <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 overflow-hidden">
@@ -92,7 +91,9 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         )}
                         <div className="min-w-0">
                             <h1 className="text-lg md:text-xl font-bold text-white truncate">{displayTitle}</h1>
-                            <p className="text-xs md:text-sm text-white/80 truncate hidden sm:block">{displaySubtitle}</p>
+                            {displaySubtitle && (
+                                <p className="text-xs md:text-sm text-white/80 truncate hidden sm:block">{displaySubtitle}</p>
+                            )}
                         </div>
                     </div>
 
@@ -106,17 +107,11 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                 onClick={() => nav.push(toggleHref!)}
                                 className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
                             >
-                                {isInTrips ? (
-                                    // Calculator icon for splits
-                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                ) : (
-                                    // Shopping bag icon for trips
-                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                    </svg>
-                                )}
+                                <Icon
+                                    name={isInTrips ? 'calculate' : 'shopping_bag'}
+                                    className="text-xl text-white"
+                                    strokeWidth={1.75}
+                                />
                             </button>
                         )}
 
@@ -127,7 +122,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                     Admin
                                 </NavLink>
                                 <NavLink href={`/groups/${groupId}/splits`} current={isInSplits}>
-                                    Divisor
+                                    Divisões
                                 </NavLink>
                             </nav>
                         )}
@@ -145,10 +140,8 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                     size="md"
                                     className="ring-2 ring-white/30 hover:ring-white/50 transition"
                                 />
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Icon name="logout" size={12} className="text-white" />
                                 </div>
                             </button>
                         )}

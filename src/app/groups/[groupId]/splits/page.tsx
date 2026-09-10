@@ -9,6 +9,7 @@ import { splitsApi } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
+import { Icon } from '@/components/ui/Icon';
 import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
@@ -117,13 +118,13 @@ export default function GroupSplitsPage() {
     return (
         <div
             className={cn(
-                'min-h-screen bg-[var(--bg-primary)] overflow-x-hidden',
+                'min-h-screen bg-app overflow-x-hidden',
                 isAdmin && 'has-bottom-nav'
             )}
         >
             <Header
-                title={currentGroup?.name || 'Divisões'}
-                subtitle="Divide despesas com o grupo"
+                title="Divisões"
+                subtitle={currentGroup?.name}
                 showBack
                 groupId={groupId}
             />
@@ -132,8 +133,8 @@ export default function GroupSplitsPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 animate-fade-in-up">
                     <div>
-                        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Divisões</h2>
-                        <p className="text-sm text-[var(--text-secondary)]">Divide despesas de forma justa</p>
+                        <h2 className="text-2xl font-bold text-ink">Divisões</h2>
+                        <p className="text-sm text-ink-soft">Divide despesas de forma justa</p>
                     </div>
                     <button onClick={() => setShowCreate(true)} className="btn btn-primary px-4 py-2 w-full sm:w-auto">
                         + Nova Divisão
@@ -149,11 +150,11 @@ export default function GroupSplitsPage() {
                     </div>
                 ) : displayedSplits.length === 0 && !showCreate ? (
                     <div className="text-center py-20 animate-fade-in-up">
-                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 flex items-center justify-center">
-                            <span className="text-5xl">🧮</span>
+                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">
+                            <Icon name="calculate" className="text-5xl" />
                         </div>
-                        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Sem divisões</h3>
-                        <p className="text-[var(--text-secondary)] mb-6">Cria uma para dividir despesas do grupo!</p>
+                        <h3 className="text-xl font-semibold text-ink mb-2">Sem divisões</h3>
+                        <p className="text-ink-soft mb-6">Cria uma para dividir despesas do grupo!</p>
                         <button onClick={() => setShowCreate(true)} className="btn btn-primary px-6 py-3">
                             Criar Divisão
                         </button>
@@ -208,7 +209,7 @@ export default function GroupSplitsPage() {
                     }}
                 >
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        <label className="block text-sm font-bold text-ink mb-2">
                             Nome
                         </label>
                         <input
@@ -216,13 +217,13 @@ export default function GroupSplitsPage() {
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                             placeholder="ex. Jantar de Grupo"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 focus:ring-0 transition-colors bg-surface-sunken focus:bg-surface text-lg "
                             autoFocus
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        <label className="block text-sm font-bold text-ink mb-2">
                             Descrição (opcional)
                         </label>
                         <textarea
@@ -230,7 +231,7 @@ export default function GroupSplitsPage() {
                             onChange={e => setEditDesc(e.target.value)}
                             placeholder="Adiciona detalhes sobre o que está a ser dividido..."
                             rows={3}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 resize-none dark:text-white"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 focus:ring-0 transition-colors bg-surface-sunken focus:bg-surface resize-none "
                         />
                     </div>
                 </form>

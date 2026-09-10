@@ -2,29 +2,26 @@
 
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 
 export const entityListCardClassName =
   'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
 
 export function EntityCardDivider() {
-  return <div className="h-px w-full bg-gray-100 dark:bg-slate-700/60" />;
+  return <div className="h-px w-full bg-hairline" />;
 }
 
 export function EntityMetaItem({
   icon,
   children,
 }: {
-  icon: string;
+  icon: IconName;
   children: React.ReactNode;
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] shrink-0">
-      <span
-        className="material-icons text-[18px] text-[var(--text-muted)] leading-none"
-        aria-hidden
-      >
-        {icon}
-      </span>
+      <Icon name={icon} className="text-[18px] text-[var(--text-muted)] leading-none" />
       {children}
     </span>
   );
@@ -39,29 +36,26 @@ export type EntityStatusPillVariant =
 
 const STATUS_PILL_STYLES: Record<
   EntityStatusPillVariant,
-  { className: string; icon: string; compact?: boolean }
+  { className: string; icon: IconName; compact?: boolean }
 > = {
   open: {
-    className:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-300',
+    className: 'bg-success-bg text-success-fg',
     icon: 'lock_open',
   },
   closed: {
-    className: 'bg-red-50 text-red-700 dark:bg-red-900/35 dark:text-red-300',
+    className: 'bg-danger-bg text-danger-fg',
     icon: 'lock',
   },
   in_progress: {
-    className: 'bg-blue-50 text-blue-700 dark:bg-blue-900/35 dark:text-blue-300',
+    className: 'bg-info-bg text-info-fg',
     icon: 'shopping_cart',
   },
   creator: {
-    className:
-      'bg-amber-50 text-amber-700 dark:bg-amber-900/35 dark:text-amber-300',
+    className: 'bg-warning-bg text-warning-fg',
     icon: 'star',
   },
   admin: {
-    className:
-      'bg-violet-50 text-violet-700 dark:bg-violet-900/35 dark:text-violet-300',
+    className: 'bg-primary-50 text-primary-700 dark:bg-primary-900/35 dark:text-primary-300',
     icon: 'admin_panel_settings',
   },
 };
@@ -82,32 +76,62 @@ export function EntityStatusPill({
         style.className
       )}
     >
-      <span
-        className={cn(
-          'material-icons',
-          style.compact ? 'text-[14px]' : 'text-[16px]'
-        )}
-        aria-hidden
-      >
-        {style.icon}
-      </span>
+      <Icon name={style.icon} className={style.compact ? 'text-[14px]' : 'text-[16px]'} />
       {children}
     </span>
   );
 }
 
+export type CardActionTone = 'default' | 'primary' | 'danger' | 'warning';
+
+export interface CardAction {
+  icon: IconName;
+  /** Rótulo acessível (aria-label). */
+  label: string;
+  onActivate: (e: React.MouseEvent | React.KeyboardEvent) => void;
+  tone?: CardActionTone;
+  /** Ação em curso — spinner + ignora toques. */
+  busy?: boolean;
+  /** Não renderiza — açúcar para `hidden: !onEdit` no call-site. */
+  hidden?: boolean;
+}
+
+const ACTION_TONE: Record<CardActionTone, string> = {
+  default: 'hover:text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]',
+  primary:
+    'hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20',
+  danger:
+    'hover:text-danger hover:bg-danger-bg',
+  warning:
+    'hover:text-warning-fg hover:bg-warning-bg',
+};
+
 export function EntityCardFooter({
   left,
-  right,
+  actions,
 }: {
-  left: React.ReactNode;
-  right?: React.ReactNode;
+  left?: React.ReactNode;
+  /** Ícones de ação à direita, antes do chevron. Declarativo — sem JSX solto. */
+  actions?: CardAction[];
 }) {
   return (
     <div className="flex items-center justify-between gap-3 min-h-[32px]">
       <div className="flex flex-wrap items-center gap-2 min-w-0">{left}</div>
       <div className="flex items-center shrink-0">
-        {right}
+        {actions
+          ?.filter((a) => !a.hidden)
+          .map((a) => (
+            <EntityCardActionIcon
+              key={a.label}
+              title={a.label}
+              busy={a.busy}
+              hapticError={a.tone === 'danger'}
+              className={ACTION_TONE[a.tone ?? 'default']}
+              onActivate={a.onActivate}
+            >
+              <Icon name={a.icon} className="text-[22px]" />
+            </EntityCardActionIcon>
+          ))}
         <EntityCardChevron />
       </div>
     </div>
@@ -115,13 +139,14 @@ export function EntityCardFooter({
 }
 
 export function EntityCardChevron() {
+  // O glifo `>` do Lucide vive muito ao centro do seu viewBox — sem o `-ml`
+  // parece "descolado" do ícone anterior (o olho vê o espaço vazio interno
+  // + o padding). Mesmo tamanho (22px) que os EntityCardActionIcon.
   return (
-    <span
-      className="material-icons text-[22px] text-[var(--text-muted)] group-hover:text-violet-500 transition-colors p-2"
-      aria-hidden
-    >
-      chevron_right
-    </span>
+    <Icon
+      name="chevron_right"
+      className="-ml-1 text-[22px] text-[var(--text-muted)] group-hover:text-primary-500 transition-colors box-content p-2"
+    />
   );
 }
 
@@ -200,7 +225,7 @@ export function EntityCardTitle({
   return (
     <h3
       className={cn(
-        'text-lg font-bold text-[var(--text-primary)] line-clamp-2 leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors',
+        'text-lg font-bold text-[var(--text-primary)] line-clamp-2 leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors',
         className
       )}
     >
@@ -209,15 +234,17 @@ export function EntityCardTitle({
   );
 }
 
-export function EntityCardAsideTotal({ value }: { value: string }) {
+export function EntityCardAsideTotal({ value }: { value: number }) {
   return (
     <div className="text-right shrink-0">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         Total
       </p>
-      <p className="text-xl font-bold text-violet-600 dark:text-violet-400 tabular-nums leading-tight mt-0.5">
-        {value}
-      </p>
+      <Money
+        as="p"
+        value={value}
+        className="text-xl font-bold text-primary-600 dark:text-primary-400 leading-tight mt-0.5"
+      />
     </div>
   );
 }

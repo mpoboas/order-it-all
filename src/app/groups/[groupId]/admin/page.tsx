@@ -25,8 +25,10 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Icon } from '@/components/ui/Icon';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
-import { cn, getRelativeTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
     getSplitParticipantNames,
     participantIdsToNames,
@@ -88,8 +90,8 @@ function AdminDashboardContent() {
         }
     }, [isAdmin, groupId, router]);
 
-    const handleCreateTrip = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleCreateTrip = async (e?: React.FormEvent) => {
+        e?.preventDefault();
         if (!newTripName.trim()) return;
         setCreating(true);
         try {
@@ -163,8 +165,8 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleUpdateTrip = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleUpdateTrip = async (e?: React.FormEvent) => {
+        e?.preventDefault();
 
         // Validation for Closing via Edit
         if (editTripStatus === 'closed') {
@@ -389,10 +391,10 @@ function AdminDashboardContent() {
 
     if (loading || !currentGroup) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+            <div className="min-h-screen bg-app has-bottom-nav">
                 <PageHeaderSkeleton />
                 <main className="container mx-auto px-4 py-6 max-w-4xl">
-                    <div className="h-10 w-full mb-6 rounded-xl bg-[var(--bg-tertiary)] animate-pulse" />
+                    <div className="h-10 w-full mb-6 rounded-xl bg-surface-sunken animate-pulse" />
                     <EntityCardSkeletonGrid count={2} className="md:grid-cols-2 lg:grid-cols-2" />
                 </main>
             </div>
@@ -402,55 +404,42 @@ function AdminDashboardContent() {
     const isCreator = currentGroup.creator === user?.id;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
-            <Header title={currentGroup.name} subtitle="Gestão de grupo" showBack groupId={groupId} />
+        <div className="min-h-screen bg-app has-bottom-nav">
+            <Header title="Admin" subtitle={currentGroup.name} showBack groupId={groupId} />
 
             <main className="container mx-auto px-4 py-6 max-w-4xl">
                 {/* Tabs */}
-                <div className="flex p-1 mb-6 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)]">
-                    <button
-                        onClick={() => setActiveTab('trips')}
-                        className={cn(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'trips' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        )}
-                    >
-                        Viagens
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('members')}
-                        className={cn(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'members' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        )}
-                    >
-                        Membros
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('settings')}
-                        className={cn(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-colors",
-                            activeTab === 'settings' ? "bg-white dark:bg-slate-700 text-violet-600 dark:text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        )}
-                    >
-                        Definições
-                    </button>
+                <div className="flex p-1 mb-6 bg-surface-sunken rounded-xl">
+                    {(['trips', 'members', 'settings'] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cn(
+                                'flex-1 py-2 text-sm font-semibold rounded-lg transition-colors',
+                                activeTab === tab
+                                    ? 'bg-surface text-primary-600 dark:text-primary-400 shadow-sm'
+                                    : 'text-ink-soft hover:text-ink',
+                            )}
+                        >
+                            {tab === 'trips' ? 'Viagens' : tab === 'members' ? 'Membros' : 'Definições'}
+                        </button>
+                    ))}
                 </div>
 
                 {/* TRIP MANAGEMENT */}
                 {activeTab === 'trips' && (
                     <div className="animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-[var(--text-primary)]">Viagens</h2>
-                            <Button onClick={() => setShowCreateModal(true)} className="btn-primary py-2 text-sm">
+                            <h2 className="text-xl font-bold text-ink">Viagens</h2>
+                            <Button size="sm" onClick={() => setShowCreateModal(true)}>
                                 + Nova Viagem
                             </Button>
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2">
                             {trips.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-[var(--text-muted)]">
-                                    <span className="text-4xl block mb-2">📋</span>
+                                <div className="col-span-full py-12 text-center text-ink-faint">
+                                    <Icon name="receipt_long" className="text-4xl block mx-auto mb-2 opacity-60" />
                                     <p>Nenhuma viagem encontrada.</p>
                                 </div>
                             ) : (
@@ -476,59 +465,56 @@ function AdminDashboardContent() {
                 {/* MEMBERS MANAGEMENT */}
                 {activeTab === 'members' && (
                     <div className="animate-fade-in-up space-y-4">
-                        <h2 className="text-xl font-bold text-[var(--text-primary)]">Membros ({currentGroup.members.length})</h2>
+                        <h2 className="text-xl font-bold text-ink">Membros ({currentGroup.members.length})</h2>
 
                         <div className="space-y-3">
-                            {currentGroup.expand?.members?.map((member: any) => { // Using any for expand as types might not be perfectly inferred
+                            {currentGroup.expand?.members?.map((member: { id: string; name: string; email?: string; avatar?: string }) => {
                                 const isMemberAdmin = currentGroup.admins.includes(member.id);
                                 const isMemberCreator = currentGroup.creator === member.id;
 
                                 return (
-                                    <div key={member.id} className="card p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
+                                    <div key={member.id} className="card p-3 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
                                             <Avatar name={member.name} src={member.avatar ? `https://pb-orderit.povoas.top/api/files/users/${member.id}/${member.avatar}` : undefined} />
-                                            <div>
-                                                <p className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                                                    {member.name}
-                                                    {isMemberCreator && <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded ml-1">Dono</span>}
-                                                    {isMemberAdmin && !isMemberCreator && <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded ml-1">Admin</span>}
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-ink flex items-center gap-2">
+                                                    <span className="truncate">{member.name}</span>
+                                                    {isMemberCreator && <Badge variant="warning">Dono</Badge>}
+                                                    {isMemberAdmin && !isMemberCreator && <Badge variant="info">Admin</Badge>}
                                                 </p>
-                                                <p className="text-xs text-[var(--text-muted)]">{member.email}</p>
+                                                <p className="text-xs text-ink-faint truncate">{member.email}</p>
                                             </div>
                                         </div>
 
-                                        {/* Actions */}
-                                        {user?.id !== member.id && ( // Cannot manage self
-                                            <div className="flex items-center gap-2">
-                                                {/* Promote/Demote - only Creator can do this */}
+                                        {user?.id !== member.id && (
+                                            <div className="flex items-center gap-2 shrink-0">
                                                 {isCreator && (
                                                     isMemberAdmin ? (
                                                         <button
                                                             onClick={() => handleDemoteMember(member.id)}
-                                                            className="text-xs px-2 py-1 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded text-gray-700 dark:text-gray-300"
-                                                            title="Remover Admin"
+                                                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-surface-sunken text-ink-soft hover:text-ink transition-colors"
+                                                            title="Remover privilégios de admin"
                                                         >
-                                                            ⬇️ Admin
+                                                            <Icon name="keyboard_arrow_down" className="text-sm" /> Admin
                                                         </button>
                                                     ) : (
                                                         <button
                                                             onClick={() => handlePromoteMember(member.id)}
-                                                            className="text-xs px-2 py-1 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded text-violet-700 dark:text-violet-300"
-                                                            title="Promover a Admin"
+                                                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+                                                            title="Promover a admin"
                                                         >
-                                                            ⬆️ Admin
+                                                            <Icon name="keyboard_arrow_up" className="text-sm" /> Admin
                                                         </button>
                                                     )
                                                 )}
 
-                                                {/* Remove Member - Admins can remove non-admins (except creator) */}
                                                 {(!isMemberCreator && (isCreator || !isMemberAdmin)) && (
                                                     <button
                                                         onClick={() => handleRemoveMember(member.id)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        className="p-1.5 rounded-lg text-danger hover:bg-danger-bg transition-colors"
                                                         title="Remover do grupo"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        <Icon name="close" className="text-base" />
                                                     </button>
                                                 )}
                                             </div>
@@ -560,18 +546,17 @@ function AdminDashboardContent() {
                 title="Nova Viagem"
                 footer={
                     <div>
-                        <button
-                            onClick={handleCreateTrip}
-                            disabled={creating || !newTripName.trim() || !online}
-                            className={cn(
-                                "w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2",
-                                creating && "btn-loading",
-                            )}
+                        <Button
+                            block
+                            size="lg"
+                            loading={creating}
+                            disabled={!newTripName.trim() || !online}
+                            onClick={() => handleCreateTrip()}
                         >
                             Criar Viagem
-                        </button>
+                        </Button>
                         {!online && (
-                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                            <p className="mt-2 text-center text-xs text-ink-faint">
                                 Sem ligação — precisas de rede para criar uma viagem.
                             </p>
                         )}
@@ -579,27 +564,20 @@ function AdminDashboardContent() {
                 }
             >
                 <div className="space-y-6 pb-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Nome da Viagem</label>
-                        <input
-                            type="text"
-                            value={newTripName}
-                            onChange={e => setNewTripName(e.target.value)}
-                            placeholder="ex. Compras de Verão"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
-                            autoFocus
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Descrição (opcional)</label>
-                        <textarea
-                            value={newTripDescription}
-                            onChange={e => setNewTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
-                            rows={3}
-                        />
-                    </div>
+                    <Input
+                        label="Nome da Viagem"
+                        value={newTripName}
+                        onChange={e => setNewTripName(e.target.value)}
+                        placeholder="ex. Compras de Verão"
+                        autoFocus
+                        required
+                    />
+                    <Textarea
+                        label="Descrição (opcional)"
+                        value={newTripDescription}
+                        onChange={e => setNewTripDescription(e.target.value)}
+                        rows={3}
+                    />
                 </div>
             </Sheet>
 
@@ -610,73 +588,46 @@ function AdminDashboardContent() {
                 size="large"
                 title="Editar Viagem"
                 footer={
-                    <button
-                        onClick={handleUpdateTrip}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary"
-                    >
+                    <Button block size="lg" onClick={() => handleUpdateTrip()}>
                         Guardar Alterações
-                    </button>
+                    </Button>
                 }
             >
                 <div className="space-y-6 pb-4">
+                    <Input
+                        label="Nome da Viagem"
+                        value={editTripName}
+                        onChange={e => setEditTripName(e.target.value)}
+                        required
+                    />
+                    <Textarea
+                        label="Descrição (opcional)"
+                        value={editTripDescription}
+                        onChange={e => setEditTripDescription(e.target.value)}
+                        rows={3}
+                    />
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Nome da Viagem</label>
-                        <input
-                            type="text"
-                            value={editTripName}
-                            onChange={e => setEditTripName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Descrição (opcional)</label>
-                        <textarea
-                            value={editTripDescription}
-                            onChange={e => setEditTripDescription(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-violet-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 dark:text-white resize-none"
-                            rows={3}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Estado</label>
+                        <label className="block text-sm font-bold text-ink mb-2">Estado</label>
                         <div className="grid grid-cols-3 gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setEditTripStatus('open')}
-                                className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
-                                    editTripStatus === 'open'
-                                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
-                                        : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
-                                )}
-                            >
-                                🟢 Aberta
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setEditTripStatus('in_progress')}
-                                className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
-                                    editTripStatus === 'in_progress'
-                                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                                        : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
-                                )}
-                            >
-                                🔵 Em Progresso
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setEditTripStatus('closed')}
-                                className={cn(
-                                    "p-3 rounded-xl border-2 font-medium transition text-center text-sm",
-                                    editTripStatus === 'closed'
-                                        ? "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                                        : "border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-slate-600"
-                                )}
-                            >
-                                🔴 Terminada
-                            </button>
+                            {([
+                                { v: 'open', label: 'Aberta', on: 'border-success-fg bg-success-bg text-success-fg' },
+                                { v: 'in_progress', label: 'Em compras', on: 'border-primary-500 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300' },
+                                { v: 'closed', label: 'Terminada', on: 'border-danger bg-danger-bg text-danger-fg' },
+                            ] as const).map(({ v, label, on }) => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => setEditTripStatus(v)}
+                                    className={cn(
+                                        'p-3 rounded-xl border-2 font-semibold transition text-center text-sm',
+                                        editTripStatus === v
+                                            ? on
+                                            : 'border-hairline bg-surface text-ink-faint hover:border-hairline-strong',
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

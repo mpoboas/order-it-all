@@ -3,6 +3,7 @@
 import React from 'react';
 import { useToast } from '@/context/ToastContext';
 import { cn } from '@/lib/utils';
+import { Icon } from '@/components/ui/Icon';
 
 export function ToastContainer() {
     const { toasts, removeToast } = useToast();
@@ -19,19 +20,17 @@ export function ToastContainer() {
                     key={toast.id}
                     className={cn(
                         'pointer-events-auto flex w-full items-center justify-between gap-4 px-5 py-4 rounded-2xl shadow-lg border animate-in slide-in-from-top-2 duration-300',
-                        toast.type === 'success' && 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950/90 dark:text-green-100 dark:border-green-800',
-                        toast.type === 'error' && 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/90 dark:text-red-100 dark:border-red-800',
-                        toast.type === 'info' && 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/90 dark:text-blue-100 dark:border-blue-800'
+                        toast.type === 'success' && 'bg-success-bg text-success-fg border-success-fg/25',
+                        toast.type === 'error' && 'bg-danger-bg text-danger-fg border-danger-fg/25',
+                        toast.type === 'info' && 'bg-info-bg text-info-fg border-info-fg/25'
                     )}
                 >
                     <span className="text-sm font-medium">{toast.message}</span>
                     <button
                         onClick={() => removeToast(toast.id)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-ink-faint hover:text-ink-soft transition-colors"
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <Icon name="close" className="text-base" />
                     </button>
                 </div>
             ))}
