@@ -104,6 +104,12 @@
   --danger-fg:  var(--red-800);    --danger-bg:  var(--red-100);   --danger-solid: var(--red-600);
   --info-fg:    var(--primary-700); --info-bg:    var(--primary-50);
 
+  /* Estado de um produto na compra — barras/pastilhas saturadas (texto branco).
+     Fixas nos dois temas. */
+  --status-pending: #f59e0b;
+  --status-bought:  #10b981;
+  --status-missing: #ef4444;
+
   /* ---- 2 · SEMÂNTICOS: dimensão -------------------------------------- */
 
   --safe-top: env(safe-area-inset-top, 0px);
@@ -204,6 +210,10 @@
   --color-danger:     var(--danger-solid);
   --color-info-fg:    var(--info-fg);
   --color-info-bg:    var(--info-bg);
+
+  --color-status-pending: var(--status-pending);
+  --color-status-bought:  var(--status-bought);
+  --color-status-missing: var(--status-missing);
 }
 
 /* ===== BASE STYLES ===== */
