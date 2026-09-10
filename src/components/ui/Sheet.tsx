@@ -142,7 +142,7 @@ export function Sheet({
 
                             <motion.div
                                 className={cn(
-                                    'relative w-full max-w-lg sm:max-w-xl flex flex-col bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-[28px] shadow-2xl pointer-events-auto',
+                                    'relative w-full max-w-lg sm:max-w-xl flex flex-col bg-surface rounded-t-[32px] sm:rounded-[28px] shadow-2xl pointer-events-auto',
                                     sheetSizeClasses[size]
                                 )}
                                 role="dialog"
@@ -152,8 +152,8 @@ export function Sheet({
                                 exit={{ y: '100%' }}
                                 transition={panelTransition}
                             >
-                                <div className="shrink-0 pt-3 pb-2 px-4 sm:px-6 border-b border-gray-100 dark:border-slate-800">
-                                    <div className="w-12 h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full mx-auto mb-4" />
+                                <div className="shrink-0 pt-3 pb-2 px-4 sm:px-6 border-b border-hairline">
+                                    <div className="w-12 h-1.5 bg-hairline-strong rounded-full mx-auto mb-4" />
                                     <div className="flex justify-between items-center mb-2 gap-2">
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                             <AnimatePresence mode="popLayout">
@@ -166,22 +166,20 @@ export function Sheet({
                                                         animate={{ opacity: 1, x: 0 }}
                                                         exit={{ opacity: 0, x: -8 }}
                                                         transition={fadeUpTransition}
-                                                        className="p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
+                                                        className="p-2 -ml-2 text-ink-soft hover:text-ink hover:bg-surface-sunken rounded-full transition-colors shrink-0"
                                                         aria-label="Voltar"
                                                     >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                                        </svg>
+                                                        <Icon name="chevron_left" className="text-xl" />
                                                     </motion.button>
                                                 )}
                                             </AnimatePresence>
                                             <div className="min-w-0 flex-1">
                                                 <AnimatedFade showKey={title}>
-                                                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">{title}</h2>
+                                                    <h2 className="text-xl font-bold text-ink truncate">{title}</h2>
                                                 </AnimatedFade>
                                                 {subtitle && (
                                                     <AnimatedFade showKey={subtitle}>
-                                                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5 truncate">{subtitle}</p>
+                                                        <p className="text-sm text-ink-soft font-medium mt-0.5 truncate">{subtitle}</p>
                                                     </AnimatedFade>
                                                 )}
                                             </div>
@@ -189,16 +187,13 @@ export function Sheet({
                                         <button
                                             type="button"
                                             onClick={headerDismiss}
-                                            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
+                                            className="p-2 -mr-2 text-ink-faint hover:text-ink hover:bg-surface-sunken rounded-full transition-colors shrink-0"
                                             aria-label={shouldMinimize ? 'Minimizar' : 'Fechar'}
                                         >
-                                            {shouldMinimize ? (
-                                                <Icon name="keyboard_arrow_down" className="text-2xl" />
-                                            ) : (
-                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            )}
+                                            <Icon
+                                                name={shouldMinimize ? 'keyboard_arrow_down' : 'close'}
+                                                className="text-2xl"
+                                            />
                                         </button>
                                     </div>
                                 </div>
@@ -219,7 +214,7 @@ export function Sheet({
                                     {footer && (
                                         <motion.div
                                             key={footerKey}
-                                            className="shrink-0 px-4 pt-3 pb-4 sm:px-6 sm:pt-4 sm:pb-6 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 safe-bottom"
+                                            className="shrink-0 px-4 pt-3 pb-4 sm:px-6 sm:pt-4 sm:pb-6 border-t border-hairline bg-surface safe-bottom"
                                             variants={footerVariants}
                                             initial="enter"
                                             animate="center"
@@ -247,16 +242,16 @@ export function Sheet({
                                 role="region"
                                 aria-label={title}
                                 aria-expanded={false}
-                                className="pointer-events-auto w-full max-w-lg sm:max-w-xl flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700"
+                                className="pointer-events-auto w-full max-w-lg sm:max-w-xl flex items-center gap-3 px-4 py-3 bg-surface rounded-2xl shadow-2xl border border-hairline"
                             >
                                 <button
                                     type="button"
                                     onClick={onExpand}
                                     className="flex-1 min-w-0 text-left"
                                 >
-                                    <p className="font-bold text-gray-900 dark:text-gray-100 truncate text-sm">{title}</p>
+                                    <p className="font-bold text-ink truncate text-sm">{title}</p>
                                     {minimizedSummary && (
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                        <div className="text-xs text-ink-soft truncate mt-0.5">
                                             {minimizedSummary}
                                         </div>
                                     )}
@@ -271,7 +266,7 @@ export function Sheet({
                                 <button
                                     type="button"
                                     onClick={handleDiscard}
-                                    className="shrink-0 p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                                    className="shrink-0 p-2 text-ink-faint hover:text-danger rounded-lg transition-colors"
                                     aria-label="Descartar"
                                 >
                                     <Icon name="delete_outline" className="text-xl" />

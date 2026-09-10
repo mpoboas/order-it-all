@@ -402,7 +402,7 @@ function AdminDashboardContent() {
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
-            <Header title={currentGroup.name} subtitle="Gestão de grupo" showBack groupId={groupId} />
+            <Header title="Admin" subtitle={currentGroup.name} showBack groupId={groupId} />
 
             <main className="container mx-auto px-4 py-6 max-w-4xl">
                 {/* Tabs */}

@@ -39,8 +39,8 @@ export default function GroupTripsPage() {
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
             <Header
-                title={currentGroup?.name || 'Viagens'}
-                subtitle="Viagens ativas"
+                title="Viagens"
+                subtitle={currentGroup?.name}
                 showBack
                 groupId={groupId}
             />

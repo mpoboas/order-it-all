@@ -122,8 +122,8 @@ export default function GroupSplitsPage() {
             )}
         >
             <Header
-                title={currentGroup?.name || 'Divisões'}
-                subtitle="Divide despesas com o grupo"
+                title="Divisões"
+                subtitle={currentGroup?.name}
                 showBack
                 groupId={groupId}
             />

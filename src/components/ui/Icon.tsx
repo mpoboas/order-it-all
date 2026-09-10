@@ -1,11 +1,11 @@
 import type { ComponentProps } from 'react';
 import {
-    Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronDown,
+    Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronLeft, ChevronDown,
     ArrowRight, ArrowLeftRight, Pencil, Trash2, Copy, Share2, Link, Link2Off,
-    Lock, LockOpen, Eye, User, Users, Star, ShieldCheck, ShoppingCart, Store,
+    Lock, LockOpen, Eye, User, Users, Star, ShieldCheck, ShoppingCart, ShoppingBag, Store,
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
-    Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert,
+    Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +24,7 @@ const MAP = {
     done: Check,
     check_circle: CheckCircle2,
     chevron_right: ChevronRight,
+    chevron_left: ChevronLeft,
     keyboard_arrow_down: ChevronDown,
     expand_more: ChevronDown,
     arrow_forward: ArrowRight,
@@ -43,6 +44,7 @@ const MAP = {
     star: Star,
     admin_panel_settings: ShieldCheck,
     shopping_cart: ShoppingCart,
+    shopping_bag: ShoppingBag,
     storefront: Store,
     verified: BadgeCheck,
     label: Tag,
@@ -66,6 +68,7 @@ const MAP = {
     drive_file_move: FolderInput,
     attach_money: Euro,
     warning: TriangleAlert,
+    logout: LogOut,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

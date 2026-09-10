@@ -4,7 +4,7 @@ import type { Split } from '@/lib/types';
 import { Avatar } from '@/components/ui/Avatar';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { isSplitClosed } from '@/lib/splitStatus';
-import { formatCurrency, getRelativeTime, cn } from '@/lib/utils';
+import { getRelativeTime, cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 import {
@@ -119,7 +119,7 @@ export function SplitCard({
             </p>
           )}
         </div>
-        <EntityCardAsideTotal value={formatCurrency(total)} />
+        <EntityCardAsideTotal value={total} />
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 
 export const entityListCardClassName =
   'card card-hover text-left w-full group relative flex flex-col p-5 gap-4 animate-fade-in-up active:scale-[0.98] transition hover:shadow-md';
@@ -198,15 +199,17 @@ export function EntityCardTitle({
   );
 }
 
-export function EntityCardAsideTotal({ value }: { value: string }) {
+export function EntityCardAsideTotal({ value }: { value: number }) {
   return (
     <div className="text-right shrink-0">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         Total
       </p>
-      <p className="text-xl font-bold text-primary-600 dark:text-primary-400 tabular-nums leading-tight mt-0.5">
-        {value}
-      </p>
+      <Money
+        as="p"
+        value={value}
+        className="text-xl font-bold text-primary-600 dark:text-primary-400 leading-tight mt-0.5"
+      />
     </div>
   );
 }

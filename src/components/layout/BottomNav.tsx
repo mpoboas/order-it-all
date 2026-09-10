@@ -40,7 +40,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
         },
         {
             href: `${basePath}/splits`,
-            label: 'Divisor',
+            label: 'Divisões',
             icon: (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -63,7 +63,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
     };
 
     return (
-        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 z-50 md:hidden safe-bottom">
+        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-hairline z-50 md:hidden safe-bottom">
             <div className="flex items-center justify-around h-16">
                 {navItems.map((item) => {
                     const active = isActive(item.href);
@@ -77,7 +77,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                                 // criava um transform no botao.
                                 'relative flex flex-col items-center justify-center flex-1 h-full transition duration-200',
                                 'active:scale-95',
-                                active ? 'text-primary-600' : 'text-gray-600 dark:text-gray-400'
+                                active ? 'text-primary-600' : 'text-ink-soft'
                             )}
                         >
                             <div className={cn(

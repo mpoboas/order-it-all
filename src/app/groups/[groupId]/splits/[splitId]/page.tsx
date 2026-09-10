@@ -538,7 +538,7 @@ export default function GroupSplitDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--bg-primary)]">
-                <Header showBack title="Divisor" groupId={groupId} />
+                <Header showBack title="Divisão" groupId={groupId} />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
         );
@@ -547,7 +547,7 @@ export default function GroupSplitDetailPage() {
     if (!split) {
         return (
             <div className="min-h-screen bg-[var(--bg-primary)]">
-                <Header showBack title="Divisor" groupId={groupId} />
+                <Header showBack title="Divisão" groupId={groupId} />
                 <div className="text-center py-20">
                     <div className="text-5xl mb-4">🔍</div>
                     <h2 className="text-xl font-bold mb-2">Divisão não encontrada</h2>
