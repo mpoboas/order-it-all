@@ -9,6 +9,7 @@ import { splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { useSplit } from '@/lib/db/hooks';
 import { optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
+import { navStart } from '@/lib/navProgress';
 import type { Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
@@ -520,6 +521,7 @@ export default function GroupSplitDetailPage() {
                 commit: () => splitsApi.delete(splitId),
             });
             showToast('Divisão eliminada', 'success');
+            navStart();
             router.push(`/groups/${groupId}/splits`);
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao eliminar'), 'error');
@@ -543,7 +545,7 @@ export default function GroupSplitDetailPage() {
                 <div className="text-center py-20">
                     <div className="text-5xl mb-4">🔍</div>
                     <h2 className="text-xl font-bold mb-2">Divisão não encontrada</h2>
-                    <button onClick={() => router.push(`/groups/${groupId}/splits`)} className="btn btn-primary px-6 py-2 mt-4">Voltar</button>
+                    <button onClick={() => { navStart(); router.push(`/groups/${groupId}/splits`); }} className="btn btn-primary px-6 py-2 mt-4">Voltar</button>
                 </div>
             </div>
         );

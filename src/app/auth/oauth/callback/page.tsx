@@ -10,6 +10,7 @@ import {
   saveOAuthProfileHints,
 } from '@/lib/googleAuth';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { navStart } from '@/lib/navProgress';
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
@@ -45,11 +46,10 @@ export default function OAuthCallbackPage() {
         const path = buildPostAuthPath(setup, redirectPath ?? null);
 
         if (setup) {
-          showToast('Completa o teu perfil', 'success');
-        } else {
-          showToast('Bem-vindo!', 'success');
+          showToast('Completa o teu perfil para continuar', 'info');
         }
 
+        navStart();
         router.replace(path);
       } catch (error) {
         console.error('Google OAuth callback:', error);

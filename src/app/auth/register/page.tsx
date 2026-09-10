@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { navStart } from '@/lib/navProgress';
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
@@ -35,7 +36,7 @@ export default function RegisterPage() {
         try {
             await register(email, password, confirmPass);
             await login(email, password);
-            showToast('Conta criada com sucesso!', 'success');
+            navStart();
             router.push(redirect ? `/auth/profile-setup?redirect=${redirect}` : '/auth/profile-setup');
         } catch (error: any) {
             console.error(error);
@@ -138,9 +139,9 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
+                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
                         >
-                            {loading ? 'A criar conta...' : 'Criar conta'}
+                            Criar conta
                         </button>
                     </div>
                 </form>

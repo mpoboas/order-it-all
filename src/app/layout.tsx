@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
 import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
+import { GlobalProgress } from "@/components/layout/GlobalProgress";
 import { ViewTransitions } from "next-view-transitions";
 
 const inter = Inter({
@@ -99,6 +100,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ViewTransitions>
+          <GlobalProgress />
           <UserProvider>
             <SyncProvider>
               <GroupProvider>

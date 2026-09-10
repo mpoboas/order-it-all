@@ -6,6 +6,7 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
+import { navStart } from '@/lib/navProgress';
 
 export default function InvitePage() {
     const params = useParams();
@@ -73,6 +74,7 @@ export default function InvitePage() {
         try {
             await groupsApi.addMember(group.id, user!.id);
             showToast(`Bem-vindo ao grupo ${group.name}!`, 'success');
+            navStart();
             router.push(`/groups/${group.id}/trips`);
         } catch (err) {
             console.error(err);
@@ -158,9 +160,9 @@ export default function InvitePage() {
                         <button
                             onClick={handleJoin}
                             disabled={joining}
-                            className="w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:opacity-70 disabled:cursor-not-allowed"
+                            className={`w-full py-3.5 px-4 bg-white text-violet-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
                         >
-                            {joining ? 'A entrar...' : (isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite')}
+                            {isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite'}
                         </button>
                     </div>
                 )}

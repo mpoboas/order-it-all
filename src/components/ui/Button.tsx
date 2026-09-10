@@ -5,6 +5,8 @@ import { useWebHaptics } from 'web-haptics/react';
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
     size?: 'sm' | 'md' | 'lg';
+    /** Mostra um spinner por cima do conteúdo, desativa e engole cliques. */
+    loading?: boolean;
     children: React.ReactNode;
 }
 
@@ -14,19 +16,22 @@ export function Button({
     className,
     children,
     disabled,
+    loading = false,
     onClick,
     ...props
 }: ButtonProps) {
     const { trigger } = useWebHaptics();
+    const isDisabled = disabled || loading;
 
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (!disabled) trigger();
+        if (isDisabled) return;
+        trigger();
         onClick?.(e);
     };
     const baseStyles = `
     inline-flex items-center justify-center font-semibold
-    transition duration-200 ease-in-out
-    disabled:opacity-50 disabled:cursor-not-allowed
+    transition duration-200 ease-in-out active:scale-[0.97]
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
     focus:outline-none focus:ring-2 focus:ring-offset-2
   `;
 
@@ -74,12 +79,19 @@ export function Button({
 
     return (
         <button
-            className={cn(baseStyles, variants[variant], sizes[size], className)}
-            disabled={disabled}
+            className={cn(
+                baseStyles,
+                variants[variant],
+                sizes[size],
+                loading && 'btn-loading',
+                className,
+            )}
+            disabled={isDisabled}
+            aria-busy={loading || undefined}
             onClick={handleClick}
             {...props}
         >
-            {children}
+            {loading ? <span>{children}</span> : children}
         </button>
     );
 }

@@ -154,7 +154,6 @@ export function SplitInvoiceScanSheet({
     try {
       await updateProfile({ geminiApiKey: apiKeyInput.trim() });
       setApiKeyInput('');
-      showToast('Chave Gemini guardada', 'success');
     } catch {
       showToast('Erro ao guardar chave', 'error');
     } finally {
@@ -269,11 +268,10 @@ export function SplitInvoiceScanSheet({
         <Button
           onClick={handleConfirm}
           className="flex-[2] btn-primary"
-          disabled={submitting || validDraftItems.length === 0}
+          loading={submitting}
+          disabled={validDraftItems.length === 0}
         >
-          {submitting
-            ? 'A adicionar…'
-            : `Adicionar ${validDraftItems.length || ''} item${validDraftItems.length === 1 ? '' : 's'}`}
+          {`Adicionar ${validDraftItems.length || ''} item${validDraftItems.length === 1 ? '' : 's'}`}
         </Button>
       </div>
     ) : scanStep === 'upload' && invoiceFile && hasApiKey ? (
@@ -331,8 +329,8 @@ export function SplitInvoiceScanSheet({
                 placeholder="Cole a API key aqui"
                 required
               />
-              <Button type="submit" disabled={submitting} className="btn-primary w-full">
-                {submitting ? 'A guardar…' : 'Guardar e continuar'}
+              <Button type="submit" loading={submitting} className="btn-primary w-full">
+                Guardar e continuar
               </Button>
             </form>
           </div>

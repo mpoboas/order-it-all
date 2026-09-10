@@ -76,6 +76,9 @@ function AdminDashboardContent() {
     const [editTripDescription, setEditTripDescription] = useState('');
     const [editTripStatus, setEditTripStatus] = useState<'open' | 'in_progress' | 'closed'>('open');
 
+    // Gerar divisão a partir de uma viagem (operação de vários segundos).
+    const [splittingTripId, setSplittingTripId] = useState<string | null>(null);
+
     // Tab State
     const [activeTab, setActiveTab] = useState<'trips' | 'members' | 'settings'>('trips');
 
@@ -96,7 +99,6 @@ function AdminDashboardContent() {
                 description: newTripDescription.trim(),
                 group_id: groupId,
             });
-            showToast('Viagem criada com sucesso!', 'success');
             setNewTripName('');
             setNewTripDescription('');
             setShowCreateModal(false);
@@ -182,7 +184,6 @@ function AdminDashboardContent() {
                 patch,
                 commit: () => tripsApi.update(editTripId, patch),
             });
-            showToast('Viagem atualizada com sucesso!', 'success');
             setShowEditModal(false);
         } catch (error) {
             console.error('Error updating trip:', error);
@@ -200,7 +201,7 @@ function AdminDashboardContent() {
                 id,
                 commit: () => tripsApi.delete(id),
             });
-            showToast('Viagem eliminada com sucesso!', 'success');
+            showToast('Viagem eliminada', 'success');
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Falha ao eliminar viagem'), 'error');
         }
@@ -221,7 +222,7 @@ function AdminDashboardContent() {
                 patch: { status: 'closed' },
                 commit: () => tripsApi.close(id),
             });
-            showToast('Viagem terminada com sucesso!', 'success');
+            showToast('Viagem terminada', 'success');
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Falha ao terminar viagem'), 'error');
         }
@@ -231,11 +232,12 @@ function AdminDashboardContent() {
         e.preventDefault();
         e.stopPropagation();
 
+        if (splittingTripId) return;
         if (!confirm('Gerar uma divisão de contas a partir desta viagem?')) return;
 
+        setSplittingTripId(trip.id);
         try {
             assertOnline();
-            showToast('A gerar divisão...', 'info');
 
             // 1. Fetch Orders and Items
             const orders = await ordersApi.getByTrip(trip.id);
@@ -327,12 +329,13 @@ function AdminDashboardContent() {
                 items: splitItems,
             });
 
-            showToast('Divisão gerada com sucesso!', 'success');
             nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false });
 
         } catch (error) {
             console.error('Error generating split:', error);
             showToast(mutationErrorMessage(error, 'Erro ao gerar divisão'), 'error');
+        } finally {
+            setSplittingTripId(null);
         }
     };
 
@@ -341,12 +344,10 @@ function AdminDashboardContent() {
     const editGroupMembers = async (
         patch: Partial<Group>,
         commit: () => Promise<unknown>,
-        okMsg: string,
         errMsg: string,
     ) => {
         try {
             await optimisticEdit({ table: db.groups, id: groupId, patch, commit });
-            showToast(okMsg, 'success');
             refreshGroup();
         } catch (error) {
             showToast(mutationErrorMessage(error, errMsg), 'error');
@@ -362,7 +363,6 @@ function AdminDashboardContent() {
                 admins: currentGroup.admins.filter((id) => id !== memberId),
             },
             () => groupsApi.removeMember(groupId, memberId),
-            'Membro removido',
             'Erro ao remover membro',
         );
     };
@@ -373,7 +373,6 @@ function AdminDashboardContent() {
         await editGroupMembers(
             { admins: [...currentGroup.admins, memberId] },
             () => groupsApi.promoteToAdmin(groupId, memberId),
-            'Membro promovido',
             'Erro ao promover',
         );
     };
@@ -384,7 +383,6 @@ function AdminDashboardContent() {
         await editGroupMembers(
             { admins: currentGroup.admins.filter((id) => id !== memberId) },
             () => groupsApi.demoteFromAdmin(groupId, memberId),
-            'Administrador despromovido',
             'Erro ao despromover',
         );
     };
@@ -467,6 +465,7 @@ function AdminDashboardContent() {
                                         onClose={handleCloseTrip}
                                         onDelete={handleDeleteTrip}
                                         onSplit={handleCreateSplitFromTrip}
+                                        isSplitting={splittingTripId === trip.id}
                                     />
                                 ))
                             )}
@@ -564,9 +563,12 @@ function AdminDashboardContent() {
                         <button
                             onClick={handleCreateTrip}
                             disabled={creating || !newTripName.trim() || !online}
-                            className="w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2"
+                            className={cn(
+                                "w-full py-4 text-lg font-semibold btn btn-primary flex items-center justify-center gap-2",
+                                creating && "btn-loading",
+                            )}
                         >
-                            {creating ? 'A criar...' : 'Criar Viagem'}
+                            Criar Viagem
                         </button>
                         {!online && (
                             <p className="mt-2 text-center text-xs text-[var(--text-muted)]">

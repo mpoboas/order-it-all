@@ -17,6 +17,7 @@ import {
     optimisticDelete,
     mutationErrorMessage,
 } from '@/lib/db/mutations';
+import { navStart } from '@/lib/navProgress';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import {
@@ -198,7 +199,6 @@ export default function GroupTripDetailPage() {
                     );
                     await db.items.where('order_id').equals(editingOrderId).delete();
                     await db.items.bulkPut(createdItems);
-                    showToast('Pedido atualizado!', 'success');
                 }
             } else {
                 const participantIds = data.participantIds?.length
@@ -230,7 +230,6 @@ export default function GroupTripDetailPage() {
                 // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
                 await db.orders.put(order);
                 if (createdItems.length) await db.items.bulkPut(createdItems);
-                showToast('Pedido criado!', 'success');
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
@@ -308,7 +307,6 @@ export default function GroupTripDetailPage() {
                 patch: updatePayload,
                 commit: () => ordersApi.update(participantsSheetOrder.id, updatePayload),
             });
-            showToast('Participantes atualizados', 'success');
             setParticipantsSheetOrderId(null);
             setParticipantsSheetSession('closed');
         } catch (error) {
@@ -367,7 +365,7 @@ export default function GroupTripDetailPage() {
                 <div className="text-center py-20">
                     <div className="text-6xl mb-4">😕</div>
                     <h2 className="text-xl font-bold mb-4">Viagem não encontrada</h2>
-                    <button onClick={() => router.push(`/groups/${groupId}/trips`)} className="btn btn-primary px-6 py-3">
+                    <button onClick={() => { navStart(); router.push(`/groups/${groupId}/trips`); }} className="btn btn-primary px-6 py-3">
                         Voltar
                     </button>
                 </div>

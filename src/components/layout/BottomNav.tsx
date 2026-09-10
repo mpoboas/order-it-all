@@ -1,11 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useTransitionRouter } from 'next-view-transitions';
 import { cn } from '@/lib/utils';
-import { useWebHaptics } from 'web-haptics/react';
-import { useTryNavigate } from '@/context/UnsavedDraftContext';
 import { usePrefetchRoutes } from '@/hooks/usePrefetch';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 interface NavItem {
     href: string;
@@ -20,9 +18,7 @@ interface BottomNavProps {
 
 export function BottomNav({ groupId }: BottomNavProps) {
     const pathname = usePathname();
-    const router = useTransitionRouter();
-    const tryNavigate = useTryNavigate();
-    const { trigger } = useWebHaptics();
+    const nav = useAppNavigate();
 
     const basePath = `/groups/${groupId}`;
 
@@ -74,10 +70,7 @@ export function BottomNav({ groupId }: BottomNavProps) {
                     return (
                         <button
                             key={item.href}
-                            onClick={() => {
-                                trigger();
-                                tryNavigate(() => router.push(item.href));
-                            }}
+                            onClick={() => nav.push(item.href)}
                             className={cn(
                                 // `relative`: o ponto de ativo e `absolute`. Sem isto ancorava no
                                 // <nav> e so saltava para o sitio certo quando o active:scale-95

@@ -189,7 +189,6 @@ export function InvoiceScanSheet({
     try {
       await updateProfile({ geminiApiKey: apiKeyInput.trim() });
       setApiKeyInput('');
-      showToast('Chave Gemini guardada', 'success');
     } catch {
       showToast('Erro ao guardar chave', 'error');
     } finally {
@@ -387,9 +386,9 @@ export function InvoiceScanSheet({
         <Button
           onClick={handleConfirmReconciliation}
           className="flex-[2] btn-primary"
-          disabled={submitting}
+          loading={submitting}
         >
-          {submitting ? 'A aplicar…' : 'Confirmar'}
+          Confirmar
         </Button>
       </div>
     ) : scanStep === 'upload' && invoiceFile && hasApiKey ? (
@@ -447,8 +446,8 @@ export function InvoiceScanSheet({
                 placeholder="Cole a API key aqui"
                 required
               />
-              <Button type="submit" disabled={submitting} className="btn-primary w-full">
-                {submitting ? 'A guardar…' : 'Guardar e continuar'}
+              <Button type="submit" loading={submitting} className="btn-primary w-full">
+                Guardar e continuar
               </Button>
             </form>
           </div>

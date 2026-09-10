@@ -585,10 +585,11 @@ export function OrderFormSheet({
                         onClick={handleSubmit}
                         className={cn(
                             "btn btn-primary py-4 text-lg font-semibold shadow-lg shadow-violet-200/50",
-                            mode === 'single' ? "flex-[2]" : "w-full"
+                            mode === 'single' ? "flex-[2]" : "w-full",
+                            submitting && "btn-loading",
                         )}
                     >
-                        {submitting ? 'A guardar...' : submitLabel}
+                        {submitLabel}
                     </button>
                 </div>
                 )

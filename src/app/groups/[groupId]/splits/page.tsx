@@ -85,7 +85,6 @@ export default function GroupSplitsPage() {
                 patch,
                 commit: () => splitsApi.update(editingSplit.id, patch),
             });
-            showToast('Divisão atualizada!', 'success');
             closeEdit();
         } catch (error) {
             console.error('Error updating split:', error);
@@ -104,7 +103,7 @@ export default function GroupSplitsPage() {
                 id,
                 commit: () => splitsApi.delete(id),
             });
-            showToast('Divisão eliminada!', 'success');
+            showToast('Divisão eliminada', 'success');
         } catch (error) {
             console.error('Error deleting split:', error);
             showToast(mutationErrorMessage(error, 'Erro ao eliminar'), 'error');
@@ -191,9 +190,12 @@ export default function GroupSplitsPage() {
                         type="submit"
                         form="edit-split-form"
                         disabled={editSubmitting || !editName.trim()}
-                        className="w-full py-4 text-lg font-semibold btn btn-primary"
+                        className={cn(
+                            "w-full py-4 text-lg font-semibold btn btn-primary",
+                            editSubmitting && "btn-loading",
+                        )}
                     >
-                        {editSubmitting ? 'A guardar...' : 'Guardar'}
+                        Guardar
                     </button>
                 }
             >

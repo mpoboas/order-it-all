@@ -11,6 +11,7 @@ import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
 import { useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
+import { navStart } from '@/lib/navProgress';
 
 export default function GroupLayout({
     children,
@@ -86,7 +87,7 @@ export default function GroupLayout({
                     </div>
                     <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{error}</h2>
                     <button
-                        onClick={() => router.push('/groups')}
+                        onClick={() => { navStart(); router.push('/groups'); }}
                         className="mt-4 px-6 py-2 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 transition-colors"
                     >
                         Voltar aos Grupos
