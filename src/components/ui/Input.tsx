@@ -1,6 +1,12 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
+const fieldBase =
+    'w-full px-4 py-3 rounded-xl border-2 border-hairline bg-surface-sunken text-base text-ink ' +
+    'transition-colors placeholder:text-ink-faint ' +
+    'focus:outline-none focus:border-primary-500 focus:bg-surface focus:ring-0';
+const fieldError = 'border-danger/60 focus:border-danger';
+
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
@@ -8,29 +14,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, error, className, id, ...props }: InputProps) {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
-
     return (
         <div className="space-y-2">
             {label && (
-                <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+                <label htmlFor={inputId} className="block text-sm font-bold text-ink">
                     {label}
                 </label>
             )}
             <input
                 id={inputId}
-                className={cn(
-                    'w-full px-4 py-3 border-2 border-gray-200 rounded-xl',
-                    'text-base transition duration-200',
-                    'focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20',
-                    'placeholder:text-gray-400',
-                    error && 'border-red-300 focus:border-red-500 focus:ring-red-500/20',
-                    className
-                )}
+                className={cn(fieldBase, error && fieldError, className)}
                 {...props}
             />
-            {error && (
-                <p className="text-sm text-red-500">{error}</p>
-            )}
+            {error && <p className="text-sm text-danger">{error}</p>}
         </div>
     );
 }
@@ -42,29 +38,19 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export function Textarea({ label, error, className, id, ...props }: TextareaProps) {
     const textareaId = id || label?.toLowerCase().replace(/\s+/g, '-');
-
     return (
         <div className="space-y-2">
             {label && (
-                <label htmlFor={textareaId} className="block text-sm font-medium text-gray-700">
+                <label htmlFor={textareaId} className="block text-sm font-bold text-ink">
                     {label}
                 </label>
             )}
             <textarea
                 id={textareaId}
-                className={cn(
-                    'w-full px-4 py-3 border-2 border-gray-200 rounded-xl',
-                    'text-base transition duration-200 resize-none',
-                    'focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20',
-                    'placeholder:text-gray-400',
-                    error && 'border-red-300 focus:border-red-500 focus:ring-red-500/20',
-                    className
-                )}
+                className={cn(fieldBase, 'resize-none', error && fieldError, className)}
                 {...props}
             />
-            {error && (
-                <p className="text-sm text-red-500">{error}</p>
-            )}
+            {error && <p className="text-sm text-danger">{error}</p>}
         </div>
     );
 }

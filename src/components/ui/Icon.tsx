@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import {
-    Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronLeft, ChevronDown,
+    Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
     ArrowRight, ArrowLeftRight, Pencil, Trash2, Copy, Share2, Link, Link2Off,
     Lock, LockOpen, Eye, User, Users, Star, ShieldCheck, ShoppingCart, ShoppingBag, Store,
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
@@ -26,6 +26,7 @@ const MAP = {
     chevron_right: ChevronRight,
     chevron_left: ChevronLeft,
     keyboard_arrow_down: ChevronDown,
+    keyboard_arrow_up: ChevronUp,
     expand_more: ChevronDown,
     arrow_forward: ArrowRight,
     swap_horiz: ArrowLeftRight,
