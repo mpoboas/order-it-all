@@ -149,7 +149,7 @@ export function SplitMemberDetailView({
 
   if (!myName) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)]">
+      <div className="min-h-screen bg-app">
         <Header
           showBack
           title={split.name}
@@ -158,15 +158,15 @@ export function SplitMemberDetailView({
         />
         <main className="container mx-auto px-4 py-16 max-w-lg text-center">
           <div className="text-5xl mb-4">👤</div>
-          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">
+          <h2 className="text-lg font-bold text-ink mb-2">
             Não participas nesta divisão
           </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-ink-soft">
             O teu nome não está na lista de participantes. Pede a um administrador
             do grupo para te adicionar.
           </p>
           {split.participants.length > 0 && (
-            <p className="text-xs text-[var(--text-muted)] mt-4 break-words">
+            <p className="text-xs text-ink-faint mt-4 break-words">
               Participantes: {split.participants.join(', ')}
             </p>
           )}
@@ -176,20 +176,20 @@ export function SplitMemberDetailView({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
+    <div className="min-h-screen bg-app pb-24">
       <Header
         showBack
         title={split.name}
         subtitle={split.description || 'Divisão'}
         groupId={groupId}
       />
-      <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-        <p className="text-sm text-[var(--text-secondary)] max-w-lg mx-auto">
+      <div className="px-4 py-2.5 border-b border-hairline bg-surface">
+        <p className="text-sm text-ink-soft max-w-lg mx-auto">
           A marcar como:{' '}
-          <strong className="text-[var(--text-primary)]">{myName}</strong>
+          <strong className="text-ink">{myName}</strong>
         </p>
         {!membersCanEdit && (
-          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 max-w-lg mx-auto font-medium">
+          <p className="text-xs text-warning-fg mt-1 max-w-lg mx-auto font-medium">
             Esta divisão está fechada.
           </p>
         )}

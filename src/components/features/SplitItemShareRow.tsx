@@ -1,6 +1,7 @@
 'use client';
 
 import { Avatar } from '@/components/ui/Avatar';
+import { Icon } from "@/components/ui/Icon";
 import {
   computeParticipantAmount,
   getActiveParticipants,
@@ -50,7 +51,7 @@ export function SplitItemShareRow({
       onClick={onClick}
       className={cn(
         'flex items-center gap-2 mt-2.5 min-w-0 max-w-full w-full text-left',
-        'rounded-xl px-3 py-2.5 bg-[var(--bg-tertiary)]/80 border border-[var(--border)]',
+        'rounded-xl px-3 py-2.5 bg-surface-sunken/80 border border-hairline',
         'hover:bg-primary-50 dark:hover:bg-primary-900/20 active:scale-[0.99] transition-colors',
         className
       )}
@@ -72,7 +73,7 @@ export function SplitItemShareRow({
             className={cn(
               'w-5 h-5 -ml-2 rounded-full flex items-center justify-center',
               'bg-primary-100 dark:bg-primary-900/50 text-[9px] font-bold text-primary-700 dark:text-primary-300',
-              'ring-2 ring-white dark:ring-slate-800'
+              'ring-2 ring-surface'
             )}
           >
             +{overflow}
@@ -86,7 +87,7 @@ export function SplitItemShareRow({
           </span>
         )}
         {label && (
-          <span className="block text-xs font-medium text-[var(--text-secondary)] break-words">
+          <span className="block text-xs font-medium text-ink-soft break-words">
             {label}
           </span>
         )}
@@ -97,21 +98,13 @@ export function SplitItemShareRow({
             {formatCurrency(myAmount)}
           </span>
           {active.length > 1 && mode === 'equal' && (
-            <span className="text-[10px] font-medium text-[var(--text-muted)]">
+            <span className="text-[10px] font-medium text-ink-faint">
               /pessoa
             </span>
           )}
         </div>
       )}
-      <svg
-        className="w-4 h-4 text-[var(--text-muted)] shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        aria-hidden
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
+      <Icon name="chevron_right" className="text-base text-ink-faint shrink-0" />
     </button>
   );
 }

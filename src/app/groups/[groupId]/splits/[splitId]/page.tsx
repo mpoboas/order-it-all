@@ -58,7 +58,10 @@ import {
     normalizeSplitRecord,
     openSplitPayload,
 } from '@/lib/splitStatus';
-import { formatCurrency, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { Money } from '@/components/ui/Money';
+import { Collapse } from '@/components/ui/Collapse';
+import { formatPriceInput, parseEUR } from '@/lib/money';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 
@@ -537,7 +540,7 @@ export default function GroupSplitDetailPage() {
     if (!isLoggedIn) return null;
     if (loading) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)]">
+            <div className="min-h-screen bg-app">
                 <Header showBack title="Divisão" groupId={groupId} />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
@@ -546,7 +549,7 @@ export default function GroupSplitDetailPage() {
 
     if (!split) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)]">
+            <div className="min-h-screen bg-app">
                 <Header showBack title="Divisão" groupId={groupId} />
                 <div className="text-center py-20">
                     <div className="text-5xl mb-4">🔍</div>
@@ -581,7 +584,7 @@ export default function GroupSplitDetailPage() {
                 'p-1.5 rounded-lg transition-colors',
                 locked
                     ? 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
+                    : 'text-ink-faint hover:bg-surface-sunken'
             )}
             title={locked ? 'Desbloquear (permite remover participantes)' : 'Bloquear item'}
         >
@@ -590,7 +593,7 @@ export default function GroupSplitDetailPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] pb-32 md:pb-8">
+        <div className="min-h-screen bg-app pb-32 md:pb-8">
             <Header showBack title={split.name} subtitle={split.description || 'Divisão'} groupId={groupId} />
 
             {saving && (
@@ -600,7 +603,7 @@ export default function GroupSplitDetailPage() {
             )}
 
             {splitClosed && (
-                <div className="mx-4 md:mx-8 mt-4 max-w-[99%] lg:mx-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                <div className="mx-4 md:mx-8 mt-4 max-w-[99%] lg:mx-auto rounded-xl border border-warning-fg/25 bg-warning-bg px-4 py-3 text-sm text-warning-fg">
                     <strong>Divisão fechada.</strong> Os participantes já não podem alterar marcações.
                 </div>
             )}
@@ -615,14 +618,14 @@ export default function GroupSplitDetailPage() {
                                 type="text"
                                 value={split.name}
                                 onSave={val => saveSplit({ name: val })}
-                                className="text-2xl font-bold bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg px-2 py-1 text-[var(--text-primary)] w-full"
+                                className="text-2xl font-bold bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg px-2 py-1 text-ink w-full"
                             />
                             <EditableInput
                                 type="text"
                                 value={split.description}
                                 onSave={val => saveSplit({ description: val })}
                                 placeholder="Descrição (opcional)"
-                                className="block text-sm text-[var(--text-muted)] bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg px-2 py-1 w-full max-w-md"
+                                className="block text-sm text-ink-faint bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg px-2 py-1 w-full max-w-md"
                             />
                         </div>
                         <div className="flex flex-wrap gap-3 items-center">
@@ -632,8 +635,8 @@ export default function GroupSplitDetailPage() {
                                 className={cn(
                                     'btn px-4 py-2 flex items-center gap-2',
                                     splitClosed
-                                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
-                                        : 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60'
+                                        ? 'bg-success-bg text-success-fg hover:brightness-95'
+                                        : 'bg-warning-bg text-warning-fg hover:brightness-95'
                                 )}
                             >
                                 <Icon name={splitClosed ? 'lock_open' : 'lock'} className="text-lg" />
@@ -643,25 +646,23 @@ export default function GroupSplitDetailPage() {
                                 type="button"
                                 onClick={() => setShowInviteSheet(true)}
                                 disabled={splitClosed}
-                                className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2 disabled:opacity-50"
+                                className="btn bg-surface-sunken text-ink hover:bg-surface px-4 py-2 flex items-center gap-2 disabled:opacity-50"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                </svg>
+                                <Icon name="link" className="text-base" />
                                 Convidar a marcar
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowAllowedModesSheet(true)}
-                                className="btn bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] px-4 py-2 flex items-center gap-2"
+                                className="btn bg-surface-sunken text-ink hover:bg-surface px-4 py-2 flex items-center gap-2"
                             >
                                 <Icon name="tune" className="text-lg" />
                                 Definições
                             </button>
                             <button onClick={handleShare} disabled={sharing} className="btn btn-primary px-4 py-2 flex items-center gap-2">
-                                {sharing ? <LoadingSpinner size="sm" /> : '📤'} Partilhar
+                                {sharing ? <LoadingSpinner size="sm" /> : <Icon name="share" className="text-base" />} Partilhar
                             </button>
-                            <button onClick={deleteSplit} className="btn bg-red-500 hover:bg-red-600 text-white px-4 py-2">
+                            <button onClick={deleteSplit} className="btn bg-danger hover:brightness-110 text-white px-4 py-2">
                                 🗑️ Eliminar
                             </button>
                         </div>
@@ -678,7 +679,7 @@ export default function GroupSplitDetailPage() {
                     </div>
 
                     {/* Desktop Table Container */}
-                    <div className="card shadow-xl overflow-hidden w-full border-[var(--border)]">
+                    <div className="card shadow-xl overflow-hidden w-full border-hairline">
                         <div className="overflow-x-auto overflow-y-auto w-full max-h-[calc(100vh-220px)] border-collapse px-0.5">
                             <table className="w-full text-sm">
                                 <thead className="bg-gradient-to-r from-primary-600 to-primary-600 text-white sticky top-0 z-30">
@@ -686,7 +687,7 @@ export default function GroupSplitDetailPage() {
                                         <th className="px-4 py-3 text-left font-semibold min-w-[200px]">
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => setIsFullscreen(true)} className="p-1 hover:bg-white/20 rounded transition-colors" title="Ecrã Inteiro">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                    <Icon name="fullscreen" className="text-base" />
                                                 </button>
                                                 <span>Item</span>
                                             </div>
@@ -706,7 +707,7 @@ export default function GroupSplitDetailPage() {
                                                 </div>
                                                 <button
                                                     onClick={() => removeParticipant(p)}
-                                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="absolute -top-1 -right-1 w-5 h-5 bg-danger text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >×</button>
                                             </th>
                                         ))}
@@ -724,7 +725,7 @@ export default function GroupSplitDetailPage() {
                                             <div className="flex items-center justify-end gap-2">
                                                 <span>Por Pessoa</span>
                                                 <button onClick={() => setIsFullscreen(true)} className="p-1 hover:bg-white/20 rounded transition-colors" title="Ecrã Inteiro">
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                    <Icon name="fullscreen" className="text-lg" />
                                                 </button>
                                             </div>
                                         </th>
@@ -744,14 +745,14 @@ export default function GroupSplitDetailPage() {
                                             split.participants.length > 0;
                                         const locked = isItemLocked(item);
                                         return (
-                                            <tr key={idx} className="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                            <tr key={idx} className="hover:bg-surface-sunken transition-colors">
                                                 <td className="px-4 py-3">
                                                     <EditableInput
                                                         type="text"
                                                         value={item.name}
                                                         onSave={val => updateItemName(idx, val)}
                                                         placeholder="Nome do item"
-                                                        className="w-full px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-primary-500 rounded-lg bg-transparent focus:bg-white transition"
+                                                        className="w-full px-2 py-1 border border-transparent hover:border-hairline focus:border-primary-500 rounded-lg bg-transparent focus:bg-surface transition"
                                                     />
                                                     <button
                                                         type="button"
@@ -764,15 +765,14 @@ export default function GroupSplitDetailPage() {
                                                 <td className="px-4 py-3 text-right">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <EditableInput
-                                                            type="number"
-                                                            min={0}
-                                                            step={0.01}
-                                                            value={item.price || ''}
-                                                            onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
-                                                            placeholder="0.00"
-                                                            className="w-20 px-2 py-1 border border-transparent hover:border-[var(--border)] focus:border-primary-500 rounded-lg bg-transparent text-right focus:bg-white transition"
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={item.price ? formatPriceInput(item.price) : ""}
+                                                            onSave={val => updateItemPrice(idx, parseEUR(val))}
+                                                            placeholder="0,00"
+                                                            className="w-20 px-2 py-1 border border-transparent hover:border-hairline focus:border-primary-500 rounded-lg bg-transparent text-right focus:bg-surface transition"
                                                         />
-                                                        <span className="text-[var(--text-muted)]">€</span>
+                                                        <span className="text-ink-faint">€</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
@@ -780,7 +780,7 @@ export default function GroupSplitDetailPage() {
                                                         type="checkbox"
                                                         checked={allSelected}
                                                         onChange={e => toggleAllParticipants(idx, e.target.checked)}
-                                                        className="w-5 h-5 rounded border-2 border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                        className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
                                                     />
                                                 </td>
                                                 {split.participants.map(p => (
@@ -790,7 +790,7 @@ export default function GroupSplitDetailPage() {
                                                                 type="checkbox"
                                                                 checked={item.participants.includes(p)}
                                                                 onChange={() => toggleParticipant(idx, p)}
-                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                                className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
                                                             />
                                                         ) : activeParticipants.includes(p) ? (
                                                             <button
@@ -798,31 +798,31 @@ export default function GroupSplitDetailPage() {
                                                                 onClick={() => setAllocationSheetIdx(idx)}
                                                                 className="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                             >
-                                                                {formatCurrency(computeParticipantAmount(item, p))}
+                                                                <Money value={computeParticipantAmount(item, p)} />
                                                             </button>
                                                         ) : (
-                                                            <span className="text-[var(--text-muted)]">—</span>
+                                                            <span className="text-ink-faint">—</span>
                                                         )}
                                                     </td>
                                                 ))}
                                                 <td className="px-3 py-3 text-center">
                                                     <div className="flex items-center justify-center gap-0.5">
                                                         {renderItemLockButton(idx, locked)}
-                                                        <button onClick={() => removeItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors" title="Remover item">
-                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                        <button onClick={() => removeItem(idx)} className="p-1 text-danger hover:bg-danger-bg rounded transition-colors" title="Remover item">
+                                                            <Icon name="delete_outline" className="text-base" />
                                                         </button>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-primary-600">
                                                     {itemMode === 'equal'
-                                                        ? formatCurrency(perPerson)
+                                                        ? <Money value={perPerson} />
                                                         : getItemModeShortLabel(item)}
                                                 </td>
                                             </tr>
                                         );
                                     })}
                                     {/* Add item row */}
-                                    <tr className="bg-[var(--bg-tertiary)]">
+                                    <tr className="bg-surface-sunken">
                                         <td colSpan={5 + split.participants.length} className="px-4 py-3">
                                             <div className="flex items-center gap-4">
                                                 <button onClick={addItem} className="flex items-center gap-2 text-primary-600 hover:underline font-medium">
@@ -838,15 +838,15 @@ export default function GroupSplitDetailPage() {
                                 <tfoot className="bg-gradient-to-r from-primary-700 to-primary-700 text-white sticky bottom-0 z-30">
                                     <tr>
                                         <td className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Total Cada</td>
-                                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(grandTotal)}</td>
+                                        <td className="px-4 py-3 text-right font-bold"><Money value={grandTotal} /></td>
                                         <td className="px-4 py-3"></td>
                                         {split.participants.map(p => (
                                             <td key={p} className="px-3 py-3 text-center font-bold">
-                                                {formatCurrency(totals[p] || 0)}
+                                                <Money value={totals[p] || 0} />
                                             </td>
                                         ))}
                                         <td className="px-3 py-3"></td>
-                                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(grandTotal)}</td>
+                                        <td className="px-4 py-3 text-right font-bold"><Money value={grandTotal} /></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -859,48 +859,44 @@ export default function GroupSplitDetailPage() {
             <main className="lg:hidden container mx-auto px-4 py-4 max-w-2xl">
                 {/* Participantes */}
                 <section className="card">
-                    <div className="flex items-center gap-2 p-3 border-b border-[var(--border)]">
+                    <div className="flex items-center gap-2 p-3">
                         <button
                             type="button"
                             onClick={toggleParticipantsExpanded}
                             className="flex-1 flex items-center justify-between min-w-0"
                         >
                             <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-semibold text-[var(--text-primary)]">Participantes</span>
+                                <span className="font-semibold text-ink">Participantes</span>
                                 <span className="text-xs font-medium bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full shrink-0">
                                     {split.participants.length}
                                 </span>
                             </div>
-                            <svg
+                            <Icon
+                                name="keyboard_arrow_down"
                                 className={cn(
-                                    'w-5 h-5 text-[var(--text-muted)] shrink-0 ml-2 transition-transform',
-                                    participantsExpanded && 'rotate-180'
+                                    'text-xl text-ink-faint shrink-0 ml-2 transition-transform',
+                                    participantsExpanded && 'rotate-180',
                                 )}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            />
                         </button>
                     </div>
-                    {participantsExpanded && (
-                        <div className="px-3 pb-3 border-t border-[var(--border)]">
+                    <Collapse open={participantsExpanded}>
+                        <div className="px-3 pb-3 border-t border-hairline">
                             <div className="flex flex-wrap gap-2 py-3">
                                 {split.participants.map(p => (
                                     <div
                                         key={p}
                                         title={p}
-                                        className="inline-flex max-w-full items-center gap-1.5 bg-[var(--bg-tertiary)] rounded-full pl-1 pr-1 py-1 text-sm"
+                                        className="inline-flex max-w-full items-center gap-1.5 bg-surface-sunken rounded-full pl-1 pr-1 py-1 text-sm"
                                     >
                                         <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
-                                        <span className="font-medium text-[var(--text-primary)] break-words leading-tight max-w-[9.5rem]">
+                                        <span className="font-medium text-ink break-words leading-tight max-w-[9.5rem]">
                                             {p}
                                         </span>
                                         <button
                                             type="button"
                                             onClick={() => removeParticipant(p)}
-                                            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-ink-faint hover:text-danger hover:bg-danger-bg"
                                             aria-label={`Remover ${p}`}
                                         >
                                             ×
@@ -916,14 +912,14 @@ export default function GroupSplitDetailPage() {
                                 inputRef={participantInputMobileRef}
                             />
                         </div>
-                    )}
+                    </Collapse>
                 </section>
 
                 {/* Items */}
                 <div className="flex items-center justify-between gap-2 my-3">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-[var(--text-primary)]">Itens</span>
-                        <span className="text-sm text-[var(--text-muted)]">{split.items.length}</span>
+                        <span className="font-semibold text-ink">Itens</span>
+                        <span className="text-sm text-ink-faint">{split.items.length}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <button
@@ -932,8 +928,8 @@ export default function GroupSplitDetailPage() {
                             className={cn(
                                 'text-xs font-semibold px-2.5 py-1.5 rounded-lg border',
                                 splitClosed
-                                    ? 'text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30'
-                                    : 'text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30'
+                                    ? 'text-success-fg border-success-fg/25 bg-success-bg'
+                                    : 'text-warning-fg border-warning-fg/25 bg-warning-bg'
                             )}
                         >
                             {splitClosed ? 'Reabrir' : 'Fechar'}
@@ -943,17 +939,15 @@ export default function GroupSplitDetailPage() {
                             onClick={() => setShowInviteSheet(true)}
                             disabled={splitClosed}
                             title="Convidar a marcar"
-                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] disabled:opacity-50"
+                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-hairline bg-surface-sunken text-ink-soft disabled:opacity-50"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
+                            <Icon name="link" className="text-base" />
                         </button>
                         <button
                             type="button"
                             onClick={() => setShowAllowedModesSheet(true)}
                             title="Definições"
-                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-hairline bg-surface-sunken text-ink-soft"
                         >
                             <Icon name="tune" className="text-[18px]" />
                         </button>
@@ -974,7 +968,7 @@ export default function GroupSplitDetailPage() {
                             split.participants.length > 0;
                         const locked = isItemLocked(item);
                         return (
-                            <div key={idx} className="card p-3 space-y-3 shadow-sm border border-[var(--border)]">
+                            <div key={idx} className="card p-3 space-y-3 shadow-sm border border-hairline">
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1">
                                         <EditableInput
@@ -982,40 +976,39 @@ export default function GroupSplitDetailPage() {
                                             value={item.name}
                                             onSave={val => updateItemName(idx, val)}
                                             placeholder="Nome do item"
-                                            className="w-full text-base font-semibold bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition placeholder:text-[var(--text-muted)]/50"
+                                            className="w-full text-base font-semibold bg-surface border border-hairline rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition placeholder:text-ink-faint/50"
                                         />
                                     </div>
 
                                     <div className="w-28 relative flex items-center">
                                         <EditableInput
-                                            type="number"
-                                            min={0}
-                                            step={0.01}
-                                            value={item.price || ''}
-                                            onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
-                                            placeholder="0"
-                                            className="w-full text-right text-base font-bold text-primary-600 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={item.price ? formatPriceInput(item.price) : ""}
+                                            onSave={val => updateItemPrice(idx, parseEUR(val))}
+                                            placeholder="0,00"
+                                            className="w-full text-right text-base font-bold text-primary-600 bg-surface border border-hairline rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition"
                                         />
-                                        <span className="absolute right-3 text-[var(--text-muted)] text-sm font-medium">€</span>
+                                        <span className="absolute right-3 text-ink-faint text-sm font-medium">€</span>
                                     </div>
 
                                     <div className="flex items-center gap-0.5 shrink-0">
                                         {renderItemLockButton(idx, locked)}
                                         <button
                                             onClick={() => removeItem(idx)}
-                                            className="h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                                            className="h-10 w-10 flex items-center justify-center text-ink-faint hover:text-danger hover:bg-danger-bg rounded-xl transition border border-transparent hover:border-danger/20"
                                             title="Remover item"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            <Icon name="delete_outline" className="text-lg" />
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Participants Section */}
-                                <div className="bg-[var(--bg-tertiary)]/30 px-3 py-3 border border-[var(--border)] border-dashed rounded-xl">
+                                <div className="bg-surface-sunken/30 px-3 py-3 border border-hairline border-dashed rounded-xl">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Dividir com</span>
+                                            <span className="text-xs font-bold text-ink-faint uppercase tracking-wider">Dividir com</span>
                                             {locked && (
                                                 <Icon name="lock" className="text-[14px] text-primary-600 dark:text-primary-400" title="Bloqueado" />
                                             )}
@@ -1032,8 +1025,8 @@ export default function GroupSplitDetailPage() {
                                         <div className="flex items-center gap-2">
                                             {itemMode === 'equal' && activeParticipants.length > 0 && (
                                                 <div className="text-right flex items-center gap-1.5">
-                                                    <span className="text-sm font-bold text-primary-600 dark:text-primary-400">{formatCurrency(perPerson)}</span>
-                                                    <span className="text-[10px] font-medium text-[var(--text-muted)]">/pessoa</span>
+                                                    <span className="text-sm font-bold text-primary-600 dark:text-primary-400"><Money value={perPerson} /></span>
+                                                    <span className="text-[10px] font-medium text-ink-faint">/pessoa</span>
                                                 </div>
                                             )}
                                             <button
@@ -1059,10 +1052,10 @@ export default function GroupSplitDetailPage() {
                                                             'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition duration-200 border shadow-sm',
                                                             isSelected
                                                                 ? 'bg-primary-500 border-primary-500 text-white shadow-primary-500/20'
-                                                                : 'bg-[var(--bg-primary)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                                                                : 'bg-app border-hairline text-ink-soft hover:bg-surface'
                                                         )}
                                                     >
-                                                        {isSelected && <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                        {isSelected && <Icon name="check" className="text-[15px] shrink-0" strokeWidth={3} />}
                                                         <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
                                                         {p}
                                                     </button>
@@ -1074,12 +1067,12 @@ export default function GroupSplitDetailPage() {
                                             {activeParticipants.map(p => (
                                                 <div
                                                     key={p}
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-[var(--border)] bg-[var(--bg-primary)]"
+                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-hairline bg-app"
                                                 >
                                                     <Avatar name={p} src={participantAvatar(p)} size="xs" />
-                                                    <span className="text-[var(--text-primary)]">{p}</span>
+                                                    <span className="text-ink">{p}</span>
                                                     <span className="font-bold text-primary-600 dark:text-primary-400">
-                                                        {formatCurrency(computeParticipantAmount(item, p))}
+                                                        <Money value={computeParticipantAmount(item, p)} />
                                                     </span>
                                                 </div>
                                             ))}
@@ -1090,10 +1083,10 @@ export default function GroupSplitDetailPage() {
                         );
                     })}
                     <div className="flex gap-2">
-                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
+                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-hairline rounded-xl text-ink-faint hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
                             + Adicionar Item
                         </button>
-                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
+                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-hairline rounded-xl text-ink-faint hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
                             <Icon name="receipt_long" className="text-lg" /> Scan Fatura
                         </button>
                     </div>
@@ -1103,34 +1096,32 @@ export default function GroupSplitDetailPage() {
             {/* Mobile Bottom Totals */}
             <div
                 className={cn(
-                    'lg:hidden fixed left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] shadow-lg z-40',
+                    'lg:hidden fixed left-0 right-0 bg-surface border-t border-hairline shadow-lg z-40',
                     isAdmin ? 'bottom-[var(--bottom-nav-total-height)]' : 'bottom-[var(--safe-bottom)]'
                 )}
             >
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">
-                    <span className="font-semibold text-[var(--text-primary)]">Total</span>
+                    <span className="font-semibold text-ink">Total</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-primary-600 dark:text-primary-400">{formatCurrency(grandTotal)}</span>
-                        <svg className={cn("w-5 h-5 text-[var(--text-muted)] transition-transform", totalsExpanded && "rotate-180")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
+                        <span className="text-lg font-bold text-primary-600 dark:text-primary-400"><Money value={grandTotal} /></span>
+                        <Icon name="keyboard_arrow_up" className={cn("text-xl text-ink-faint transition-transform", totalsExpanded && "rotate-180")} />
                     </div>
                 </button>
-                {totalsExpanded && (
-                    <div className="px-4 pb-3 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+                <Collapse open={totalsExpanded}>
+                    <div className="px-4 pb-3 border-t border-hairline bg-surface">
                         <div className="py-2 text-sm space-y-1">
                             {sortedTotals.map(([name, amount]) => (
                                 <div key={name} className="flex justify-between">
-                                    <span className="text-[var(--text-secondary)]">{name}</span>
-                                    <span className="font-medium text-primary-600 dark:text-primary-400">{formatCurrency(amount)}</span>
+                                    <span className="text-ink-soft">{name}</span>
+                                    <span className="font-medium text-primary-600 dark:text-primary-400"><Money value={amount} /></span>
                                 </div>
                             ))}
                         </div>
                         <button onClick={handleShare} disabled={sharing} className="w-full mt-2 btn btn-primary py-2 text-sm flex items-center justify-center gap-2">
-                            {sharing ? <LoadingSpinner size="sm" /> : '📤'} Partilhar Imagem
+                            {sharing ? <LoadingSpinner size="sm" /> : <Icon name="share" className="text-base" />} Partilhar Imagem
                         </button>
                     </div>
-                )}
+                </Collapse>
             </div>
 
             {/* Hidden share image */}
@@ -1141,14 +1132,14 @@ export default function GroupSplitDetailPage() {
                     <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16, marginBottom: 16 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <span style={{ color: '#4b5563', fontWeight: 500 }}>Total</span>
-                            <span style={{ fontSize: 24, fontWeight: 700, color: '#2563eb' }}>{formatCurrency(grandTotal)}</span>
+                            <span style={{ fontSize: 24, fontWeight: 700, color: '#2563eb' }}><Money value={grandTotal} /></span>
                         </div>
                     </div>
                     <div>
                         {sortedTotals.map(([name, amount]) => (
                             <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
                                 <span style={{ color: '#374151' }}>{name}</span>
-                                <span style={{ fontWeight: 600, color: '#2563eb' }}>{formatCurrency(amount)}</span>
+                                <span style={{ fontWeight: 600, color: '#2563eb' }}><Money value={amount} /></span>
                             </div>
                         ))}
                     </div>
@@ -1157,24 +1148,24 @@ export default function GroupSplitDetailPage() {
             </div>
             {/* Fullscreen Table Modal */}
             {isFullscreen && (
-                <div className="fixed inset-0 z-[100] bg-[var(--bg-primary)] flex flex-col animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between p-2 border-b border-[var(--border)] bg-white dark:bg-slate-900 shadow-sm">
+                <div className="fixed inset-0 z-[100] bg-app flex flex-col animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between p-2 border-b border-hairline bg-surface shadow-sm">
                         <div className="flex items-center gap-2">
                             <span className="text-xl">📊</span>
                             <div>
-                                <h2 className="font-bold text-[var(--text-primary)] text-base">{split.name}</h2>
-                                <p className="text-[10px] text-[var(--text-muted)] leading-tight">Modo Ecrã Inteiro</p>
+                                <h2 className="font-bold text-ink text-base">{split.name}</h2>
+                                <p className="text-[10px] text-ink-faint leading-tight">Modo Ecrã Inteiro</p>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsFullscreen(false)}
-                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors group"
+                            className="p-1.5 hover:bg-surface-sunken rounded-full transition-colors group"
                             title="Fechar"
                         >
-                            <svg className="w-6 h-6 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            <Icon name="close" className="text-2xl text-ink-faint group-hover:text-danger" />
                         </button>
                     </div>
-                    <div className="flex-1 overflow-hidden bg-white">
+                    <div className="flex-1 overflow-hidden bg-surface">
                         <div className="h-full overflow-hidden flex flex-col">
                             <div className="overflow-x-auto overflow-y-auto flex-1 px-0.5">
                                 <table className="w-full text-sm border-collapse">
@@ -1183,7 +1174,7 @@ export default function GroupSplitDetailPage() {
                                             <th className="px-3 py-2 text-left font-bold text-sm min-w-[200px]">
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={() => setIsFullscreen(false)} className="p-1 hover:bg-white/20 rounded transition-colors" title="Sair do Ecrã Inteiro">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                        <Icon name="fullscreen" className="text-base" />
                                                     </button>
                                                     <span>Item</span>
                                                 </div>
@@ -1214,7 +1205,7 @@ export default function GroupSplitDetailPage() {
                                             <th className="px-3 py-2 text-right font-semibold min-w-[120px]">Por Pessoa</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--border)] bg-white dark:bg-slate-900">
+                                    <tbody className="divide-y divide-[var(--border)] bg-surface">
                                         {split.items.map((item, idx) => {
                                             const itemMode = getSplitItemMode(item);
                                             const activeParticipants = getActiveParticipants(item);
@@ -1235,7 +1226,7 @@ export default function GroupSplitDetailPage() {
                                                             value={item.name}
                                                             onSave={val => updateItemName(idx, val)}
                                                             placeholder="Nome do item"
-                                                            className="w-full px-2 py-1 border border-transparent hover:border-primary-200 focus:border-primary-500 rounded bg-transparent focus:bg-white dark:focus:bg-slate-800 font-medium"
+                                                            className="w-full px-2 py-1 border border-transparent hover:border-primary-200 focus:border-primary-500 rounded bg-transparent focus:bg-surface font-medium"
                                                         />
                                                         <button
                                                             type="button"
@@ -1251,15 +1242,14 @@ export default function GroupSplitDetailPage() {
                                                     <td className="px-3 py-2 text-right">
                                                         <div className="flex items-center justify-end gap-1">
                                                             <EditableInput
-                                                                type="number"
-                                                                min={0}
-                                                                step={0.01}
-                                                                value={item.price || ''}
-                                                                onSave={val => updateItemPrice(idx, parseFloat(val) || 0)}
-                                                                placeholder="0.00"
-                                                                className="w-20 px-2 py-1 border border-transparent hover:border-primary-200 focus:border-primary-500 rounded bg-transparent text-right focus:bg-white dark:focus:bg-slate-800"
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={item.price ? formatPriceInput(item.price) : ""}
+                                                                onSave={val => updateItemPrice(idx, parseEUR(val))}
+                                                                placeholder="0,00"
+                                                                className="w-20 px-2 py-1 border border-transparent hover:border-primary-200 focus:border-primary-500 rounded bg-transparent text-right focus:bg-surface"
                                                             />
-                                                            <span className="text-gray-400">€</span>
+                                                            <span className="text-ink-faint">€</span>
                                                         </div>
                                                     </td>
                                                     <td className="px-2 py-2 text-center">
@@ -1267,7 +1257,7 @@ export default function GroupSplitDetailPage() {
                                                             type="checkbox"
                                                             checked={allSelected}
                                                             onChange={e => toggleAllParticipants(idx, e.target.checked)}
-                                                            className="w-5 h-5 rounded border-2 border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                            className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
                                                         />
                                                     </td>
                                                     {split.participants.map(p => (
@@ -1277,7 +1267,7 @@ export default function GroupSplitDetailPage() {
                                                                     type="checkbox"
                                                                     checked={item.participants.includes(p)}
                                                                     onChange={() => toggleParticipant(idx, p)}
-                                                                    className="w-5 h-5 rounded border-2 border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                                    className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
                                                                 />
                                                             ) : activeParticipants.includes(p) ? (
                                                                 <button
@@ -1288,30 +1278,30 @@ export default function GroupSplitDetailPage() {
                                                                     }}
                                                                     className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                                 >
-                                                                    {formatCurrency(computeParticipantAmount(item, p))}
+                                                                    <Money value={computeParticipantAmount(item, p)} />
                                                                 </button>
                                                             ) : (
-                                                                <span className="text-[var(--text-muted)]">—</span>
+                                                                <span className="text-ink-faint">—</span>
                                                             )}
                                                         </td>
                                                     ))}
                                                     <td className="px-2 py-2 text-center">
                                                         <div className="flex items-center justify-center gap-0.5">
                                                             {renderItemLockButton(idx, locked)}
-                                                            <button onClick={() => removeItem(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Remover item">
-                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
+                                                            <button onClick={() => removeItem(idx)} className="p-1.5 text-danger hover:bg-danger-bg rounded-full transition-colors" title="Remover item">
+                                                                <Icon name="delete_outline" className="text-base" />
                                                             </button>
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-bold text-primary-600 text-base">
                                                         {itemMode === 'equal'
-                                                            ? formatCurrency(perPerson)
+                                                            ? <Money value={perPerson} />
                                                             : getItemModeShortLabel(item)}
                                                     </td>
                                                 </tr>
                                             );
                                         })}
-                                        <tr className="bg-[var(--bg-tertiary)]">
+                                        <tr className="bg-surface-sunken">
                                             <td colSpan={5 + split.participants.length} className="px-3 py-2">
                                                 <div className="flex items-center gap-4">
                                                     <button onClick={addItem} className="flex items-center gap-2 text-primary-600 hover:underline font-medium">
@@ -1327,15 +1317,15 @@ export default function GroupSplitDetailPage() {
                                     <tfoot className="bg-gradient-to-r from-primary-700 to-primary-700 text-white sticky bottom-0 z-30">
                                         <tr>
                                             <td className="px-3 py-2 font-bold uppercase text-xs tracking-wider">Total Geral</td>
-                                            <td className="px-3 py-2 text-right font-black text-lg">{formatCurrency(grandTotal)}</td>
+                                            <td className="px-3 py-2 text-right font-black text-lg"><Money value={grandTotal} /></td>
                                             <td className="px-2 py-2"></td>
                                             {split.participants.map(p => (
                                                 <td key={p} className="px-2 py-2 text-center font-black text-base">
-                                                    {formatCurrency(totals[p] || 0)}
+                                                    <Money value={totals[p] || 0} />
                                                 </td>
                                             ))}
                                             <td className="px-2 py-2"></td>
-                                            <td className="px-3 py-2 text-right font-black text-lg">{formatCurrency(grandTotal)}</td>
+                                            <td className="px-3 py-2 text-right font-black text-lg"><Money value={grandTotal} /></td>
                                         </tr>
                                     </tfoot>
                                 </table>

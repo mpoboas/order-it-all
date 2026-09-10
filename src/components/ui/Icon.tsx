@@ -6,6 +6,7 @@ import {
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
+    Maximize2, Minimize2,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -70,6 +71,8 @@ const MAP = {
     attach_money: Euro,
     warning: TriangleAlert,
     logout: LogOut,
+    fullscreen: Maximize2,
+    fullscreen_exit: Minimize2,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

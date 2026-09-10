@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from "@/components/ui/Icon";
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/context/UserContext';
@@ -341,7 +342,7 @@ export default function PublicSplitPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+      <div className="min-h-screen bg-app flex items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -349,12 +350,12 @@ export default function PublicSplitPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] px-4 py-16 text-center">
+      <div className="min-h-screen bg-app px-4 py-16 text-center">
         <div className="text-5xl mb-4">⚠️</div>
-        <h1 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+        <h1 className="text-xl font-bold text-ink mb-2">
           Erro ao carregar
         </h1>
-        <p className="text-[var(--text-secondary)] text-sm max-w-sm mx-auto mb-6">
+        <p className="text-ink-soft text-sm max-w-sm mx-auto mb-6">
           Não foi possível ligar ao servidor. Tenta outra vez.
         </p>
         <button
@@ -374,12 +375,12 @@ export default function PublicSplitPage() {
 
   if (notFound || !split) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] px-4 py-16 text-center">
+      <div className="min-h-screen bg-app px-4 py-16 text-center">
         <div className="text-5xl mb-4">🔗</div>
-        <h1 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+        <h1 className="text-xl font-bold text-ink mb-2">
           Link inválido ou desativado
         </h1>
-        <p className="text-[var(--text-secondary)] text-sm max-w-sm mx-auto">
+        <p className="text-ink-soft text-sm max-w-sm mx-auto">
           Pede ao organizador um novo link ou para reativar a partilha na divisão.
         </p>
       </div>
@@ -388,7 +389,7 @@ export default function PublicSplitPage() {
 
   if (step === 'identity') {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
+      <div className="min-h-screen bg-app flex flex-col">
         <header className="bg-gradient-to-r from-primary-600 to-primary-600 px-4 py-6 safe-top">
           <h1 className="text-xl font-bold text-white">{split.name}</h1>
           {split.description && (
@@ -397,16 +398,16 @@ export default function PublicSplitPage() {
         </header>
 
         <main className="flex-1 container mx-auto px-4 py-6 max-w-lg w-full">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          <h2 className="text-lg font-semibold text-ink mb-2">
             Quem és?
           </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
+          <p className="text-sm text-ink-soft mb-6">
             Escolhe o teu nome na lista.
           </p>
 
           {suggested && selectedName !== suggested && (
             <div className="mb-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-ink-soft">
                 Parece que és{' '}
                 <button
                   type="button"
@@ -420,7 +421,7 @@ export default function PublicSplitPage() {
           )}
 
           {split.participants.length === 0 ? (
-            <p className="text-[var(--text-secondary)] text-sm">
+            <p className="text-ink-soft text-sm">
               Ainda não há participantes nesta divisão. Pede ao organizador para
               adicionar nomes.
             </p>
@@ -435,27 +436,15 @@ export default function PublicSplitPage() {
                       'w-full flex items-center gap-3 p-4 rounded-xl border transition text-left',
                       selectedName === name
                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-2 ring-primary-500/30'
-                        : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-primary-300'
+                        : 'border-hairline bg-surface hover:border-primary-300'
                     )}
                   >
                     <Avatar name={name} size="md" />
-                    <span className="font-medium text-[var(--text-primary)]">
+                    <span className="font-medium text-ink">
                       {name}
                     </span>
                     {selectedName === name && (
-                      <svg
-                        className="w-5 h-5 text-primary-600 ml-auto shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+                      <Icon name="check" className="text-lg text-primary-600 ml-auto shrink-0" />
                     )}
                   </button>
                 </li>
@@ -464,7 +453,7 @@ export default function PublicSplitPage() {
           )}
         </main>
 
-        <footer className="sticky bottom-0 p-4 bg-[var(--bg-secondary)] border-t border-[var(--border)] safe-bottom">
+        <footer className="sticky bottom-0 p-4 bg-surface border-t border-hairline safe-bottom">
           <button
             type="button"
             disabled={!selectedName}
@@ -479,7 +468,7 @@ export default function PublicSplitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
+    <div className="min-h-screen bg-app pb-24">
       <header className="bg-gradient-to-r from-primary-600 to-primary-600 px-4 py-5 safe-top">
         <h1 className="text-lg font-bold text-white break-words">{split.name}</h1>
         <p className="text-sm text-white/90 mt-1">

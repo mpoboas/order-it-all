@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Icon } from "@/components/ui/Icon";
 import { Sheet } from '@/components/ui/Sheet';
 import { Avatar } from '@/components/ui/Avatar';
 import {
@@ -107,10 +108,10 @@ export function SplitItemAllocationSheet({
     return (
       <li
         key={name}
-        className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0"
+        className="flex items-center gap-3 py-2.5 border-b border-hairline last:border-0"
       >
         <Avatar name={name} src={participantAvatar(name)} size="sm" />
-        <span className="flex-1 font-medium text-[var(--text-primary)] truncate">
+        <span className="flex-1 font-medium text-ink truncate">
           {name}
         </span>
         <button
@@ -120,14 +121,12 @@ export function SplitItemAllocationSheet({
             'w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-colors',
             checked
               ? 'bg-primary-600 border-primary-600 text-white'
-              : 'border-[var(--border)] bg-[var(--bg-primary)]'
+              : 'border-hairline bg-app'
           )}
           aria-pressed={checked}
         >
           {checked && (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
+            <Icon name="check" className="text-lg" strokeWidth={3} />
           )}
         </button>
       </li>
@@ -147,13 +146,13 @@ export function SplitItemAllocationSheet({
       <li
         key={name}
         className={cn(
-          'flex items-center gap-3 py-3 border-b border-[var(--border)] last:border-0',
+          'flex items-center gap-3 py-3 border-b border-hairline last:border-0',
           !active && 'opacity-60'
         )}
       >
         <Avatar name={name} src={participantAvatar(name)} size="sm" />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-[var(--text-primary)] truncate">{name}</p>
+          <p className="font-medium text-ink truncate">{name}</p>
           {active && mode !== 'unequal' && (
             <p className="text-xs text-primary-600 dark:text-primary-400">
               {formatCurrency(amount)}
@@ -162,7 +161,7 @@ export function SplitItemAllocationSheet({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {suffix && (
-            <span className="text-sm text-[var(--text-muted)]">{suffix}</span>
+            <span className="text-sm text-ink-faint">{suffix}</span>
           )}
           <input
             type="number"
@@ -172,7 +171,7 @@ export function SplitItemAllocationSheet({
             value={value === 0 ? '' : value}
             onChange={(e) => setAllocationValue(name, e.target.value)}
             placeholder="0"
-            className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-[var(--border)] focus:border-primary-500 outline-none py-1"
+            className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-hairline focus:border-primary-500 outline-none py-1"
           />
         </div>
       </li>
@@ -186,13 +185,13 @@ export function SplitItemAllocationSheet({
       const count = draft.participants.length;
       if (count === 0) {
         return (
-          <p className="text-sm text-amber-600 dark:text-amber-400">
+          <p className="text-sm text-warning-fg">
             Seleciona pelo menos um participante.
           </p>
         );
       }
       return (
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-ink-soft">
           {formatCurrency(draft.price)} dividido por {count} pessoa
           {count === 1 ? '' : 's'} ({formatCurrency(draft.price / count)} cada)
         </p>
@@ -202,14 +201,14 @@ export function SplitItemAllocationSheet({
     if (summary.mode === 'unequal') {
       return (
         <div className="text-sm">
-          <p className="font-semibold text-[var(--text-primary)]">
+          <p className="font-semibold text-ink">
             {formatCurrency(summary.assigned)} de {formatCurrency(summary.total)}
           </p>
           <p
             className={cn(
               summary.isValid
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-amber-600 dark:text-amber-400'
+                ? 'text-success-fg'
+                : 'text-warning-fg'
             )}
           >
             {summary.isValid
@@ -223,14 +222,14 @@ export function SplitItemAllocationSheet({
     if (summary.mode === 'percentage') {
       return (
         <div className="text-sm">
-          <p className="font-semibold text-[var(--text-primary)]">
+          <p className="font-semibold text-ink">
             {summary.assigned.toFixed(0)}% de 100%
           </p>
           <p
             className={cn(
               summary.isValid
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-amber-600 dark:text-amber-400'
+                ? 'text-success-fg'
+                : 'text-warning-fg'
             )}
           >
             {summary.isValid
@@ -242,7 +241,7 @@ export function SplitItemAllocationSheet({
     }
 
     return (
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-ink-soft">
         {summary.assigned > 0
           ? `${summary.assigned} parte${summary.assigned === 1 ? '' : 's'} no total`
           : 'Define pelo menos uma quantidade.'}
@@ -283,7 +282,7 @@ export function SplitItemAllocationSheet({
                   'shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap',
                   mode === tab
                     ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    : 'border-transparent text-ink-faint hover:text-ink'
                 )}
               >
                 {SPLIT_ITEM_MODE_LABELS[tab]}
@@ -301,7 +300,7 @@ export function SplitItemAllocationSheet({
                   : allParticipants.map((name) => renderValueRow(name, '', 'numeric'))}
           </ul>
 
-          <div className="rounded-xl bg-[var(--bg-tertiary)] px-4 py-3">
+          <div className="rounded-xl bg-surface-sunken px-4 py-3">
             {footerSummary()}
           </div>
         </div>

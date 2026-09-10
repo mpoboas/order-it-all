@@ -45,13 +45,13 @@ export function SplitAllowedModesToggleList({
         return (
           <div
             key={mode}
-            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-4 py-3"
+            className="flex items-center justify-between gap-3 rounded-xl border border-hairline px-4 py-3"
           >
             <div className="min-w-0">
-              <p className="font-medium text-[var(--text-primary)]">
+              <p className="font-medium text-ink">
                 {SPLIT_ITEM_MODE_LABELS[mode]}
               </p>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              <p className="text-xs text-ink-faint mt-0.5">
                 {MODE_DESCRIPTIONS[mode]}
               </p>
             </div>
@@ -61,13 +61,13 @@ export function SplitAllowedModesToggleList({
               onClick={() => onToggle(mode)}
               className={cn(
                 'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-                isEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-700'
+                isEnabled ? "bg-primary-600" : "bg-hairline-strong"
               )}
               aria-pressed={isEnabled}
             >
               <span
                 className={cn(
-                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ml-1',
+                  'inline-block h-4 w-4 transform rounded-full bg-surface transition-transform ml-1',
                   isEnabled && 'translate-x-5'
                 )}
               />
