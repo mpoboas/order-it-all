@@ -70,7 +70,7 @@ export function OrderParticipantsRow({
             className={cn(
               'w-5 h-5 -ml-2 rounded-full flex items-center justify-center',
               'bg-primary-100 dark:bg-primary-900/50 text-[9px] font-bold text-primary-700 dark:text-primary-300',
-              'ring-2 ring-white dark:ring-slate-800'
+              'ring-2 ring-surface'
             )}
           >
             +{overflow}

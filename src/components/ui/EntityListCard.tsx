@@ -39,26 +39,23 @@ const STATUS_PILL_STYLES: Record<
   { className: string; icon: IconName; compact?: boolean }
 > = {
   open: {
-    className:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-300',
+    className: 'bg-success-bg text-success-fg',
     icon: 'lock_open',
   },
   closed: {
-    className: 'bg-red-50 text-red-700 dark:bg-red-900/35 dark:text-red-300',
+    className: 'bg-danger-bg text-danger-fg',
     icon: 'lock',
   },
   in_progress: {
-    className: 'bg-blue-50 text-blue-700 dark:bg-blue-900/35 dark:text-blue-300',
+    className: 'bg-info-bg text-info-fg',
     icon: 'shopping_cart',
   },
   creator: {
-    className:
-      'bg-amber-50 text-amber-700 dark:bg-amber-900/35 dark:text-amber-300',
+    className: 'bg-warning-bg text-warning-fg',
     icon: 'star',
   },
   admin: {
-    className:
-      'bg-primary-50 text-primary-700 dark:bg-primary-900/35 dark:text-primary-300',
+    className: 'bg-primary-50 text-primary-700 dark:bg-primary-900/35 dark:text-primary-300',
     icon: 'admin_panel_settings',
   },
 };

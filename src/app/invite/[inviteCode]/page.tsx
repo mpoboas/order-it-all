@@ -150,7 +150,7 @@ export default function InvitePage() {
                         </div>
                         <button
                             onClick={() => router.push(`/groups/${group.id}/trips`)}
-                            className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition"
+                            className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition"
                         >
                             Ver Grupo
                         </button>
@@ -160,7 +160,7 @@ export default function InvitePage() {
                         <button
                             onClick={handleJoin}
                             disabled={joining}
-                            className={`w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
+                            className={`w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
                         >
                             {isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite'}
                         </button>

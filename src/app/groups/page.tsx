@@ -14,6 +14,7 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { Icon } from '@/components/ui/Icon';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
@@ -118,9 +119,7 @@ export default function GroupsPage() {
                             onClick={() => setShowCreateModal(true)}
                             className="w-full mb-6 p-4 border-2 border-dashed border-primary-300 rounded-2xl text-primary-600 font-semibold hover:bg-primary-50 hover:border-primary-400 transition flex items-center justify-center gap-2 animate-fade-in-up"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
+                            <Icon name="add" className="text-xl" />
                             Criar Novo Grupo
                         </button>
 
@@ -189,7 +188,7 @@ export default function GroupsPage() {
                 <div className="space-y-6 pb-4">
                     {/* Group Name */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        <label className="block text-sm font-bold text-ink mb-2">
                             Nome do Grupo
                         </label>
                         <input
@@ -197,14 +196,14 @@ export default function GroupsPage() {
                             value={newGroupName}
                             onChange={(e) => setNewGroupName(e.target.value)}
                             placeholder="Ex: Família, Amigos, Trabalho..."
-                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-slate-700 focus:border-primary-500 dark:focus:border-primary-500 focus:ring-0 transition-colors bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-lg dark:text-white dark:placeholder:text-gray-500"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 focus:ring-0 transition-colors bg-surface-sunken focus:bg-surface text-lg text-ink"
                             autoFocus
                         />
                     </div>
 
                     {/* Emoji Picker */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">
+                        <label className="block text-sm font-bold text-ink mb-3">
                             Ícone do Grupo
                         </label>
                         <div className="flex flex-wrap gap-3">
@@ -216,7 +215,7 @@ export default function GroupsPage() {
                                         'w-14 h-14 rounded-2xl text-3xl transition flex items-center justify-center',
                                         selectedEmoji === emoji
                                             ? 'bg-primary-100 dark:bg-primary-900/40 ring-4 ring-primary-500/20 dark:ring-primary-500/40 scale-110 shadow-sm'
-                                            : 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-100 dark:border-slate-700'
+                                            : 'bg-surface-sunken hover:bg-hairline-strong border border-hairline'
                                     )}
                                 >
                                     {emoji}

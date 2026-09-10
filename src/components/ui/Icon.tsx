@@ -6,7 +6,7 @@ import {
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
-    Maximize2, Minimize2,
+    Maximize2, Minimize2, Moon, Sun,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -73,6 +73,8 @@ const MAP = {
     logout: LogOut,
     fullscreen: Maximize2,
     fullscreen_exit: Minimize2,
+    dark_mode: Moon,
+    light_mode: Sun,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

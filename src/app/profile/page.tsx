@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { Icon } from '@/components/ui/Icon';
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
@@ -90,21 +91,21 @@ export default function ProfilePage() {
     };
 
     if (!user) {
-        return <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
+        return <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
             <LoadingSpinner />
         </div>;
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20 transition-colors">
+        <div className="min-h-screen bg-surface-sunken pb-20 transition-colors">
             <Header title="Meu Perfil" showBack />
 
             <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
 
                 {/* Profile Card */}
-                <div className="card p-6 flex flex-col items-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm">
+                <div className="card p-6 flex flex-col items-center bg-surface border border-hairline shadow-sm">
                     <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50 dark:ring-slate-800 transition group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
+                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-hairline transition group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
                             {isLoading ? (
                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
                                     <LoadingSpinner size="sm" />
@@ -120,10 +121,7 @@ export default function ProfilePage() {
 
                             {/* Overlay for upload hint */}
                             <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
+                                <Icon name="photo_camera" className="text-3xl text-white" />
                             </div>
                         </div>
                         <input
@@ -135,23 +133,23 @@ export default function ProfilePage() {
                         />
                     </div>
 
-                    <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">{user.name || 'Sem nome'}</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                    <h2 className="mt-4 text-xl font-bold text-ink">{user.name || 'Sem nome'}</h2>
+                    <p className="text-sm text-ink-faint">{user.email}</p>
                 </div>
 
                 {/* Settings Section */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider ml-1">Definições</h3>
+                    <h3 className="text-sm font-bold text-ink-faint uppercase tracking-wider ml-1">Definições</h3>
 
                     {/* Name Input */}
-                    <div className="card p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Nome de Exibição</label>
+                    <div className="card p-4 bg-surface border border-hairline">
+                        <label className="block text-xs font-bold text-ink-faint uppercase mb-2">Nome de Exibição</label>
                         <div className="flex gap-2">
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="input flex-1 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:bg-white dark:focus:bg-slate-900"
+                                className="input flex-1 bg-surface-sunken focus:bg-surface"
                                 placeholder="O teu nome..."
                             />
                             <button
@@ -162,7 +160,7 @@ export default function ProfilePage() {
                                     isSaving
                                         ? "bg-primary-600 text-white btn-loading"
                                         : name === user.name
-                                            ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                            ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
                                             : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
                                 )}
                             >
@@ -173,9 +171,9 @@ export default function ProfilePage() {
 
                     {/* Chave Gemini — só para quem já tem uma definida (usada no scan de faturas). */}
                     {hasGeminiKey && (
-                        <div className="card p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Chave API Gemini</label>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                        <div className="card p-4 bg-surface border border-hairline">
+                            <label className="block text-xs font-bold text-ink-faint uppercase mb-1">Chave API Gemini</label>
+                            <p className="text-xs text-ink-faint mb-2">
                                 Usada para ler faturas. Cria uma nova em{' '}
                                 <a
                                     href="https://aistudio.google.com/apikey"
@@ -196,7 +194,7 @@ export default function ProfilePage() {
                                     spellCheck={false}
                                     value={geminiKeyInput}
                                     onChange={(e) => setGeminiKeyInput(e.target.value)}
-                                    className="input flex-1 font-mono text-sm bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:bg-white dark:focus:bg-slate-900"
+                                    className="input flex-1 font-mono text-sm bg-surface-sunken focus:bg-surface"
                                     placeholder="A tua chave…"
                                 />
                                 <button
@@ -212,7 +210,7 @@ export default function ProfilePage() {
                                             ? "bg-primary-600 text-white btn-loading"
                                             : !geminiKeyInput.trim() ||
                                                 geminiKeyInput.trim() === currentGeminiKey
-                                                ? "bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                                ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
                                                 : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
                                     )}
                                 >
@@ -223,30 +221,24 @@ export default function ProfilePage() {
                     )}
 
                     {/* Theme Toggle */}
-                    <div className="card p-4 flex items-center justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 cursor-pointer hover:border-gray-200 dark:hover:border-slate-700 transition-colors" onClick={toggleTheme}>
+                    <div className="card p-4 flex items-center justify-between bg-surface border border-hairline cursor-pointer hover:border-hairline-strong transition-colors" onClick={toggleTheme}>
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-                                theme === 'dark' ? "bg-slate-800 text-blue-400" : "bg-orange-100 text-orange-500"
+                                theme === 'dark'
+                                    ? "bg-surface-sunken text-primary-300"
+                                    : "bg-warning-bg text-warning-fg"
                             )}>
-                                {theme === 'dark' ? (
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                    </svg>
-                                )}
+                                <Icon name={theme === 'dark' ? 'dark_mode' : 'light_mode'} className="text-2xl" />
                             </div>
                             <div>
-                                <p className="font-semibold text-gray-900 dark:text-white">Tema Escuro</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Alternar entre claro e escuro</p>
+                                <p className="font-semibold text-ink">Tema Escuro</p>
+                                <p className="text-xs text-ink-faint">Alternar entre claro e escuro</p>
                             </div>
                         </div>
                         <div className={cn(
                             "w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out relative",
-                            theme === 'dark' ? "bg-primary-600" : "bg-gray-200 dark:bg-slate-700"
+                            theme === 'dark' ? "bg-primary-600" : "bg-hairline-strong"
                         )}>
                             <div className={cn(
                                 "w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out",
@@ -259,16 +251,14 @@ export default function ProfilePage() {
                 {/* Logout Button */}
                 <button
                     onClick={handleLogout}
-                    className="w-full py-4 rounded-xl text-red-500 font-bold bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors border border-red-100 dark:border-red-900/50 flex items-center justify-center gap-2"
+                    className="w-full py-4 rounded-xl text-danger-fg font-bold bg-danger-bg/50 hover:bg-danger-bg transition-colors border border-danger-fg/20 flex items-center justify-center gap-2"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
+                    <Icon name="logout" className="text-xl" />
                     Terminar Sessão
                 </button>
 
                 <div className="text-center">
-                    <p className="text-xs text-gray-400 dark:text-gray-600">Versão 1.0.0 • Order It All!</p>
+                    <p className="text-xs text-ink-faint">Versão 1.0.0 • Order It All!</p>
                 </div>
             </div>
         </div>

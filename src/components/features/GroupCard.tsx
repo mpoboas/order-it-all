@@ -144,7 +144,7 @@ export function GroupCard({
                 />
               ))}
               {overflowMembers > 0 && (
-                <span className="-ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-700 ring-2 ring-white dark:bg-primary-900/50 dark:text-primary-300 dark:ring-slate-800">
+                <span className="-ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-700 ring-2 ring-surface dark:bg-primary-900/50 dark:text-primary-300">
                   +{overflowMembers}
                 </span>
               )}

@@ -463,14 +463,14 @@ export function InvoiceScanSheet({
         </div>
       ) : scanStep === 'review' && scanResult ? (
         <div className="space-y-4 pb-2">
-          <section className="rounded-[20px] border border-emerald-200 dark:border-emerald-800/60 overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
-            <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 flex justify-between items-center gap-2">
-              <h4 className="font-bold text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5 text-sm">
+          <section className="rounded-[20px] border border-success-fg/25 overflow-hidden bg-surface shadow-sm">
+            <div className="px-4 py-3 bg-success-bg/40 border-b border-success-fg/20 flex justify-between items-center gap-2">
+              <h4 className="font-bold text-success-fg flex items-center gap-1.5 text-sm">
                 <Icon name="check_circle" className="text-base" />
                 Encontrados ({scanResult.matches.length})
               </h4>
             </div>
-            <div className="divide-y divide-gray-100 dark:divide-slate-700">
+            <div className="divide-y divide-hairline">
               {scanResult.matches.length === 0 ? (
                 <p className="p-4 text-center text-sm text-[var(--text-muted)]">
                   Nenhuma correspondência automática.
@@ -489,11 +489,11 @@ export function InvoiceScanSheet({
                           <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                             {m.foundName}
                           </p>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mt-2 mb-0.5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-success-fg mt-2 mb-0.5">
                             Lista
                           </p>
                           <select
-                            className="text-sm font-bold text-[var(--text-primary)] bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-primary-500 focus:ring-0 py-0.5 pr-6 pl-0 cursor-pointer max-w-full"
+                            className="text-sm font-bold text-[var(--text-primary)] bg-transparent border-b border-dashed border-hairline-strong focus:border-primary-500 focus:ring-0 py-0.5 pr-6 pl-0 cursor-pointer max-w-full"
                             value={m.itemId}
                             onChange={(e) => handleUpdateMatch(i, e.target.value)}
                           >
@@ -510,18 +510,18 @@ export function InvoiceScanSheet({
                           </select>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                          <p className="font-bold text-success-fg">
                             {formatCurrency(m.price)}
                           </p>
                           {m.quantity !== originalItem?.quantity && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
+                            <p className="text-[10px] text-warning-fg font-bold mt-0.5">
                               Qtd {originalItem?.quantity} → {m.quantity}
                             </p>
                           )}
                           <button
                             type="button"
                             onClick={() => handleUnmatchItem(i)}
-                            className="mt-1 text-[var(--text-muted)] hover:text-red-500 p-1"
+                            className="mt-1 text-[var(--text-muted)] hover:text-danger p-1"
                             title="Mover para extras"
                             aria-label="Desassociar"
                           >
@@ -536,14 +536,14 @@ export function InvoiceScanSheet({
             </div>
           </section>
 
-          <section className="rounded-[20px] border border-amber-200 dark:border-amber-800/60 overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
-            <div className="px-4 py-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900/50">
-              <h4 className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 text-sm">
+          <section className="rounded-[20px] border border-warning-fg/25 overflow-hidden bg-surface shadow-sm">
+            <div className="px-4 py-3 bg-warning-bg/40 border-b border-warning-fg/20">
+              <h4 className="font-bold text-warning-fg flex items-center gap-1.5 text-sm">
                 <Icon name="add_shopping_cart" className="text-base" />
                 Extras ({scanResult.extras.length})
               </h4>
             </div>
-            <div className="divide-y divide-gray-100 dark:divide-slate-700">
+            <div className="divide-y divide-hairline">
               {scanResult.extras.length === 0 ? (
                 <p className="p-4 text-center text-sm text-[var(--text-muted)]">
                   Nenhum extra no talão.
@@ -554,7 +554,7 @@ export function InvoiceScanSheet({
                     key={e.id}
                     className={cn(
                       'p-3',
-                      e.selected && 'bg-amber-50/50 dark:bg-amber-950/20'
+                      e.selected && 'bg-warning-bg/30'
                     )}
                   >
                     <div className="flex gap-3 items-start">
@@ -564,7 +564,7 @@ export function InvoiceScanSheet({
                           'mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors',
                           e.selected
                             ? 'bg-amber-500 border-amber-500 text-white'
-                            : 'border-gray-300 dark:border-slate-600 bg-[var(--bg-primary)]'
+                            : 'border-hairline-strong bg-[var(--bg-primary)]'
                         )}
                         onClick={() => {
                           const newExtras = [...scanResult.extras];
@@ -587,12 +587,12 @@ export function InvoiceScanSheet({
                               {e.quantity} un. · {formatCurrency(e.unit_price)}/un
                             </p>
                           </div>
-                          <p className="font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                          <p className="font-bold text-warning-fg shrink-0">
                             {formatCurrency(e.price)}
                           </p>
                         </div>
                         <select
-                          className="mt-2 w-full bg-[var(--bg-primary)] border border-gray-200 dark:border-slate-600 rounded-xl text-xs py-2 px-2 text-[var(--text-primary)]"
+                          className="mt-2 w-full bg-[var(--bg-primary)] border border-hairline rounded-xl text-xs py-2 px-2 text-[var(--text-primary)]"
                           value=""
                           onChange={(ev) => {
                             if (ev.target.value) handleMatchExtra(i, ev.target.value);
@@ -618,9 +618,9 @@ export function InvoiceScanSheet({
       ) : (
         <div className="space-y-4">
           {invoicePreview ? (
-            <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-[20px] overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
+            <div className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-[20px] overflow-hidden shadow-lg border border-hairline">
               {invoiceFile?.type === 'application/pdf' ? (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-4">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-surface-sunken text-ink-faint px-4">
                   <Icon name="picture_as_pdf" className="text-5xl" />
                   <span className="text-xs font-medium text-center truncate max-w-full">{invoiceFile.name}</span>
                 </div>
@@ -652,7 +652,7 @@ export function InvoiceScanSheet({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-faint gap-2">
                     <Icon name="photo_camera" className="text-4xl opacity-50" />
                     <span className="text-sm">A iniciar câmara…</span>
                   </div>
@@ -665,19 +665,19 @@ export function InvoiceScanSheet({
                   variant="secondary"
                   className="w-full rounded-xl font-bold"
                 >
-                  <span className="inline-block w-3 h-3 rounded-full bg-red-500 mr-2" />
+                  <span className="inline-block w-3 h-3 rounded-full bg-danger mr-2" />
                   Capturar
                 </Button>
               )}
               <div className="relative w-full">
                 <div className="absolute inset-0 flex items-center" aria-hidden>
-                  <div className="w-full border-t border-gray-200 dark:border-slate-700" />
+                  <div className="w-full border-t border-hairline" />
                 </div>
                 <p className="relative text-center text-xs text-[var(--text-muted)]">
                   <span className="bg-[var(--bg-primary)] px-2">ou</span>
                 </p>
               </div>
-              <label className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              <label className="w-full py-3 border-2 border-dashed border-hairline-strong rounded-xl font-medium text-sm text-[var(--text-muted)] flex items-center justify-center gap-2 cursor-pointer hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                 <Icon name="photo_library" className="text-lg" />
                 Galeria
                 <input

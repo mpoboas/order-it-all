@@ -61,7 +61,7 @@ export function GroupMembersSheet({ isOpen, onClose, group }: GroupMembersSheetP
                                 <p className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
                                     <span className="truncate">{member.name}</span>
                                     {isMemberCreator && (
-                                        <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                        <span className="shrink-0 rounded bg-warning-bg px-1.5 py-0.5 text-xs text-warning-fg">
                                             Dono
                                         </span>
                                     )}

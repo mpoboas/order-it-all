@@ -137,7 +137,7 @@ export function OrderParticipantsSheet({
         >
             {allowCreatorChange && !readOnly && (
                 <div className="mb-5">
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1">
+                    <label className="block text-xs font-bold text-ink-faint uppercase tracking-wide mb-2 px-1">
                         Pedido por
                     </label>
                     <div className="flex gap-3 overflow-x-auto p-1.5 -m-1.5 no-scrollbar">
@@ -152,7 +152,7 @@ export function OrderParticipantsSheet({
                                         'flex flex-col items-center gap-1.5 shrink-0 w-16 py-2 rounded-2xl transition',
                                         selected
                                             ? 'bg-primary-50/90 dark:bg-primary-950/40 ring-2 ring-primary-500 dark:ring-primary-400'
-                                            : 'ring-1 ring-transparent hover:ring-gray-200 dark:hover:ring-slate-700'
+                                            : 'ring-1 ring-transparent hover:ring-hairline'
                                     )}
                                     aria-pressed={selected}
                                 >
@@ -166,7 +166,7 @@ export function OrderParticipantsSheet({
                                             'text-[11px] font-semibold text-center line-clamp-1 max-w-full',
                                             selected
                                                 ? 'text-primary-950 dark:text-primary-100'
-                                                : 'text-gray-600 dark:text-gray-300'
+                                                : 'text-ink-soft'
                                         )}
                                     >
                                         {member.name}
@@ -180,7 +180,7 @@ export function OrderParticipantsSheet({
 
             {!readOnly && (
                 <div className="flex items-center justify-between mb-2 px-1">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <label className="text-xs font-bold text-ink-faint uppercase tracking-wide">
                         Participantes
                     </label>
                     <button

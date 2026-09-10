@@ -140,7 +140,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                     size="md"
                                     className="ring-2 ring-white/30 hover:ring-white/50 transition"
                                 />
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <Icon name="logout" size={12} className="text-white" />
                                 </div>
                             </button>

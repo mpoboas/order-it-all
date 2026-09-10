@@ -38,13 +38,13 @@ export function StickyActionCard({
             )}
             style={bottomStyle}
         >
-            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-primary-200 dark:border-primary-900/50 rounded-2xl shadow-xl shadow-primary-900/10 p-4 flex items-center justify-between gap-4 pointer-events-auto ring-1 ring-black/5">
+            <div className="bg-surface/95 backdrop-blur-md border border-primary-200 dark:border-primary-900/50 rounded-2xl shadow-xl shadow-primary-900/10 p-4 flex items-center justify-between gap-4 pointer-events-auto ring-1 ring-black/5">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xl shrink-0 animate-bounce-subtle">
                         {icon}
                     </div>
                     <div>
-                        <p className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-tight">{title}</p>
+                        <p className="font-bold text-ink text-sm leading-tight">{title}</p>
                     </div>
                 </div>
                 <Button onClick={onAction} size="sm" className="whitespace-nowrap btn-primary shrink-0">
