@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { sheetEase, sheetSpring, fadeUpTransition, footerVariants } from '@/lib/motion';
 import { AnimatedFade } from '@/components/ui/AnimatedStep';
 import { getMinimizedSheetBottom } from '@/lib/bottomDock';
-import { confirmDiscard, UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
+import { UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
+import { useConfirm } from '@/context/ConfirmContext';
 import { Icon } from '@/components/ui/Icon';
 
 export type SheetSize = 'auto' | 'medium' | 'large';
@@ -68,6 +69,7 @@ export function Sheet({
     const reduceMotion = useReducedMotion();
     const shouldMinimize = minimizable && draftActive;
     const isExpanded = isOpen && (!shouldMinimize || !minimized);
+    const confirmAction = useConfirm();
 
     useEffect(() => {
         setMounted(true);
@@ -92,10 +94,15 @@ export function Sheet({
             onClose();
             return;
         }
-        if (confirmDiscard(discardConfirmMessage)) {
-            onDiscard();
-        }
-    }, [onDiscard, onClose, discardConfirmMessage]);
+        void confirmAction({
+            title: discardConfirmMessage,
+            tone: 'warning',
+            confirmLabel: 'Descartar',
+            cancelLabel: 'Continuar a editar',
+        }).then((ok) => {
+            if (ok) onDiscard();
+        });
+    }, [onDiscard, onClose, discardConfirmMessage, confirmAction]);
 
     useEffect(() => {
         if (isExpanded) {

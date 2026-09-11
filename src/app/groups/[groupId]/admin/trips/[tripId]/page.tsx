@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
@@ -218,6 +219,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
         });
     }, [sortedOrderCards]);
     const { showToast } = useToast();
+    const confirmAction = useConfirm();
     const router = useRouter();
     const { trigger } = useWebHaptics();
 
@@ -313,7 +315,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     };
 
     const handleDeleteItem = async () => {
-        if (!selectedItem || !confirm('Tem a certeza de que quer eliminar este produto?')) return;
+        if (!selectedItem) return;
+        if (!(await confirmAction({
+            title: 'Eliminar este produto?',
+            tone: 'danger',
+            confirmLabel: 'Eliminar',
+        }))) return;
         trigger('error');
         setSubmitting(true);
         const orderId = selectedItem.order_id;
@@ -498,8 +505,13 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     const boughtCost = allItems.filter(i => i.found_status === 'found').reduce((s, i) => s + (i.price || 0), 0);
 
     const handleCloseTrip = async () => {
-        if (!confirm('Tens a certeza que queres terminar a viagem?')) return;
         if (!trip) return;
+        if (!(await confirmAction({
+            title: 'Terminar a viagem?',
+            description: 'Os pedidos ficam fechados a novos itens.',
+            tone: 'warning',
+            confirmLabel: 'Terminar viagem',
+        }))) return;
 
         try {
             await optimisticEdit({
@@ -527,8 +539,12 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     };
 
     const handleLockTrip = async () => {
-        if (!confirm('Tens a certeza que queres fechar a trip para novos pedidos?')) return;
         if (!trip) return;
+        if (!(await confirmAction({
+            title: 'Fechar a viagem a novos pedidos?',
+            tone: 'warning',
+            confirmLabel: 'Fechar',
+        }))) return;
 
         try {
             await optimisticEdit({

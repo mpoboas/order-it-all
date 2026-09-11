@@ -20,6 +20,7 @@ import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { Header } from '@/components/layout/Header';
@@ -50,6 +51,7 @@ function AdminDashboardContent() {
     const nav = useAppNavigate();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
+    const confirmAction = useConfirm();
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -196,7 +198,12 @@ function AdminDashboardContent() {
     const handleDeleteTrip = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm('Tem a certeza de que quer eliminar esta viagem? Esta acção não pode ser desfeita e irá eliminar todos os pedidos e produtos associados.')) return;
+        if (!(await confirmAction({
+            title: 'Eliminar esta viagem?',
+            description: 'Apaga todos os pedidos e produtos associados. Não pode ser desfeito.',
+            tone: 'danger',
+            confirmLabel: 'Eliminar viagem',
+        }))) return;
         try {
             await optimisticDelete({
                 table: db.trips,
@@ -216,7 +223,12 @@ function AdminDashboardContent() {
         const canClose = await validateTripClosure(id);
         if (!canClose) return;
 
-        if (!confirm('Tem a certeza de que quer terminar esta viagem? Esta acção não pode ser desfeita.')) return;
+        if (!(await confirmAction({
+            title: 'Terminar esta viagem?',
+            description: 'Não pode ser desfeito.',
+            tone: 'warning',
+            confirmLabel: 'Terminar viagem',
+        }))) return;
         try {
             await optimisticEdit({
                 table: db.trips,
@@ -235,7 +247,10 @@ function AdminDashboardContent() {
         e.stopPropagation();
 
         if (splittingTripId) return;
-        if (!confirm('Gerar uma divisão de contas a partir desta viagem?')) return;
+        if (!(await confirmAction({
+            title: 'Gerar uma divisão de contas a partir desta viagem?',
+            confirmLabel: 'Gerar divisão',
+        }))) return;
 
         setSplittingTripId(trip.id);
         try {
@@ -357,7 +372,11 @@ function AdminDashboardContent() {
     };
 
     const handleRemoveMember = async (memberId: string) => {
-        if (!confirm('Remover este membro do grupo?')) return;
+        if (!(await confirmAction({
+            title: 'Remover este membro do grupo?',
+            tone: 'danger',
+            confirmLabel: 'Remover',
+        }))) return;
         if (!currentGroup) return;
         await editGroupMembers(
             {
@@ -370,7 +389,10 @@ function AdminDashboardContent() {
     };
 
     const handlePromoteMember = async (memberId: string) => {
-        if (!confirm('Promover a administrador?')) return;
+        if (!(await confirmAction({
+            title: 'Promover a administrador?',
+            confirmLabel: 'Promover',
+        }))) return;
         if (!currentGroup) return;
         await editGroupMembers(
             { admins: [...currentGroup.admins, memberId] },
@@ -380,7 +402,11 @@ function AdminDashboardContent() {
     };
 
     const handleDemoteMember = async (memberId: string) => {
-        if (!confirm('Remover privilégios de administrador?')) return;
+        if (!(await confirmAction({
+            title: 'Remover privilégios de administrador?',
+            tone: 'warning',
+            confirmLabel: 'Remover privilégios',
+        }))) return;
         if (!currentGroup) return;
         await editGroupMembers(
             { admins: currentGroup.admins.filter((id) => id !== memberId) },

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { useSplit } from '@/lib/db/hooks';
@@ -117,6 +118,7 @@ export default function GroupSplitDetailPage() {
     const { user, isLoggedIn, updateProfile } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
+    const confirmAction = useConfirm();
     const { startTimer } = useEditTimer();
     const shareRef = useRef<HTMLDivElement>(null);
     const participantInputDesktopRef = useRef<HTMLInputElement>(null);
@@ -340,7 +342,11 @@ export default function GroupSplitDetailPage() {
 
     const removeParticipant = async (name: string) => {
         if (!split || split.participants.length <= 1) return;
-        if (!confirm(`Remover ${name}?`)) return;
+        if (!(await confirmAction({
+            title: `Remover ${name}?`,
+            tone: 'danger',
+            confirmLabel: 'Remover',
+        }))) return;
 
         const nextParticipants = split.participants.filter((p) => p !== name);
         await saveSplitItems(
@@ -377,7 +383,11 @@ export default function GroupSplitDetailPage() {
         if (!split) return;
         const item = split.items[idx];
         if (item && shouldConfirmRemoveItem(item)) {
-            if (!confirm(getRemoveItemConfirmMessage(item))) return;
+            if (!(await confirmAction({
+                title: getRemoveItemConfirmMessage(item),
+                tone: 'danger',
+                confirmLabel: 'Remover',
+            }))) return;
         }
         await saveSplitItems((items) => items.filter((_, i) => i !== idx));
     };
@@ -526,20 +536,30 @@ export default function GroupSplitDetailPage() {
     const setSplitStatus = async (closed: boolean) => {
         if (!split) return;
         if (closed) {
-            const msg =
-                'Fechar esta divisão? Os participantes deixam de poder alterar marcações e o link público será desativado.';
-            if (!confirm(msg)) return;
+            if (!(await confirmAction({
+                title: 'Fechar esta divisão?',
+                description: 'Os participantes deixam de poder alterar marcações e o link público será desativado.',
+                tone: 'warning',
+                confirmLabel: 'Fechar divisão',
+            }))) return;
             await saveSplit(closeSplitPayload());
             showToast('Divisão fechada', 'success');
         } else {
-            if (!confirm('Reabrir esta divisão para permitir alterações?')) return;
+            if (!(await confirmAction({
+                title: 'Reabrir esta divisão para permitir alterações?',
+                confirmLabel: 'Reabrir',
+            }))) return;
             await saveSplit(openSplitPayload());
             showToast('Divisão reaberta', 'success');
         }
     };
 
     const deleteSplit = async () => {
-        if (!confirm('Eliminar esta divisão?')) return;
+        if (!(await confirmAction({
+            title: 'Eliminar esta divisão?',
+            tone: 'danger',
+            confirmLabel: 'Eliminar',
+        }))) return;
         try {
             await optimisticDelete({
                 table: db.splits,

@@ -6,6 +6,7 @@ import { SyncProvider } from "@/context/SyncProvider";
 import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
@@ -95,14 +96,16 @@ export default function RootLayout({
             <SyncProvider>
               <GroupProvider>
                 <ToastProvider>
-                  <ThemeProvider>
-                    <RefreshProvider>
-                      {children}
-                      <NavHistoryTracker />
-                      <ToastContainer />
-                      <LazyPushNotificationManager />
-                    </RefreshProvider>
-                  </ThemeProvider>
+                  <ConfirmProvider>
+                    <ThemeProvider>
+                      <RefreshProvider>
+                        {children}
+                        <NavHistoryTracker />
+                        <ToastContainer />
+                        <LazyPushNotificationManager />
+                      </RefreshProvider>
+                    </ThemeProvider>
+                  </ConfirmProvider>
                 </ToastProvider>
               </GroupProvider>
             </SyncProvider>

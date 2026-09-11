@@ -13,6 +13,7 @@ import {
 } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
@@ -32,6 +33,7 @@ export function GroupSettingsTab({
 }: GroupSettingsTabProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const confirmAction = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editName, setEditName] = useState(group.name);
@@ -158,7 +160,12 @@ export function GroupSettingsTab({
   };
 
   const handleRegenerateInvite = async () => {
-    if (!confirm('Gerar novo código? O anterior deixará de funcionar.')) return;
+    if (!(await confirmAction({
+      title: 'Gerar novo código de convite?',
+      description: 'O anterior deixa de funcionar.',
+      tone: 'warning',
+      confirmLabel: 'Gerar novo código',
+    }))) return;
     try {
       await groupsApi.regenerateInviteCode(groupId);
       showToast('Novo código gerado', 'success');
@@ -538,7 +545,8 @@ export function GroupSettingsTab({
         </div>
       </Sheet>
 
-      {/* Delete step 2: final confirm via native dialog triggered from sheet */}
+      {/* Delete step 2: a sheet dedicada já É a confirmação final — sem diálogo
+          extra por cima (era um `confirm()` nativo redundante). */}
       <Sheet
         isOpen={deleteStep === 'confirm'}
         onClose={() => setDeleteStep('none')}
@@ -556,10 +564,7 @@ export function GroupSettingsTab({
             <button
               type="button"
               disabled={deleting}
-              onClick={() => {
-                if (!confirm('Tem mesmo a certeza?')) return;
-                void handleDeleteGroup();
-              }}
+              onClick={() => void handleDeleteGroup()}
               className="flex-1 py-3.5 rounded-xl bg-danger text-white hover:brightness-110 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {deleting ? (

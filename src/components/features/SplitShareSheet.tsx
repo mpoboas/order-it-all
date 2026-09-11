@@ -9,6 +9,7 @@ import { isSplitClosed } from '@/lib/splitStatus';
 import type { Split } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 
@@ -26,6 +27,7 @@ export function SplitShareSheet({
   onSplitUpdate,
 }: SplitShareSheetProps) {
   const { showToast } = useToast();
+  const confirmAction = useConfirm();
   const [loading, setLoading] = useState(false);
   const [shareCode, setShareCode] = useState(split.share_code ?? '');
   const [shareActive, setShareActive] = useState(split.share_active ?? false);
@@ -115,11 +117,12 @@ export function SplitShareSheet({
   };
 
   const handleRegenerate = async () => {
-    if (
-      !confirm(
-        'Gerar um novo código? O link e QR antigos deixam de funcionar.'
-      )
-    ) {
+    if (!(await confirmAction({
+      title: 'Gerar novo código de partilha?',
+      description: 'O link e QR antigos deixam de funcionar.',
+      tone: 'warning',
+      confirmLabel: 'Gerar novo código',
+    }))) {
       return;
     }
     setLoading(true);
