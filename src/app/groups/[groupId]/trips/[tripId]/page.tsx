@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
 import { ordersApi, itemsApi } from '@/lib/pocketbase';
 import type { Item, OrderWithItems, User } from '@/lib/types';
@@ -54,6 +55,7 @@ export default function GroupTripDetailPage() {
     const { user, isLoggedIn } = useUser();
     const { isAdmin, currentGroup } = useGroup();
     const { showToast } = useToast();
+    const confirmAction = useConfirm();
     const { startTimer } = useEditTimer();
     const online = useOnline();
 
@@ -326,7 +328,11 @@ export default function GroupTripDetailPage() {
             showToast('Limite de 5 minutos excedido', 'error');
             return;
         }
-        if (!confirm('Eliminar este pedido?')) return;
+        if (!(await confirmAction({
+            title: 'Eliminar este pedido?',
+            tone: 'danger',
+            confirmLabel: 'Eliminar',
+        }))) return;
 
         try {
             await optimisticDelete({

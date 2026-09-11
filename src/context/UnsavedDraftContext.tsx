@@ -11,7 +11,8 @@ import React, {
     type ReactNode,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { confirmDiscard, UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
+import { UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
+import { useConfirm } from '@/context/ConfirmContext';
 
 export type UnsavedDraftGuard = {
     message: string;
@@ -32,6 +33,7 @@ export function UnsavedDraftProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const [guard, setGuard] = useState<UnsavedDraftGuard | null>(null);
+    const confirmAction = useConfirm();
 
     const registerGuard = useCallback((next: UnsavedDraftGuard | null) => {
         setGuard(next);
@@ -43,13 +45,19 @@ export function UnsavedDraftProvider({ children }: { children: ReactNode }) {
                 navigate();
                 return;
             }
-            if (confirmDiscard(guard.message)) {
+            void confirmAction({
+                title: guard.message,
+                tone: 'warning',
+                confirmLabel: 'Descartar',
+                cancelLabel: 'Continuar a editar',
+            }).then((ok) => {
+                if (!ok) return;
                 guard.onDiscard();
                 setGuard(null);
                 navigate();
-            }
+            });
         },
-        [guard]
+        [guard, confirmAction]
     );
 
     useEffect(() => {

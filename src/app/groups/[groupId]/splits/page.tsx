@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { splitsApi } from '@/lib/pocketbase';
 import type { Split } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
@@ -35,6 +36,7 @@ export default function GroupSplitsPage() {
     const { user, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
+    const confirmAction = useConfirm();
     const router = useRouter();
     const nav = useAppNavigate();
 
@@ -97,7 +99,11 @@ export default function GroupSplitsPage() {
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm('Eliminar esta divisão?')) return;
+        if (!(await confirmAction({
+            title: 'Eliminar esta divisão?',
+            tone: 'danger',
+            confirmLabel: 'Eliminar',
+        }))) return;
         try {
             await optimisticDelete({
                 table: db.splits,
