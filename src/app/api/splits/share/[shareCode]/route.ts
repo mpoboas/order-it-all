@@ -229,7 +229,7 @@ export async function PATCH(
           throw new PatchReject(
             toggleResult.reason === 'locked' ? 403 : 400,
             toggleResult.reason === 'locked'
-              ? 'Item bloqueado — não podes remover-te desta divisão'
+              ? 'Item bloqueado — quem participa está fixo'
               : 'Invalid item'
           );
         }

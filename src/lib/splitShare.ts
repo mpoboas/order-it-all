@@ -213,7 +213,9 @@ export function toggleItemParticipant(
   const item = next[itemIndex];
   if (!item) return { ok: false, reason: 'invalid_index' };
 
-  if (!include && item.locked === true && !options?.bypassLock) {
+  // Item trancado = roster congelado: ninguém entra nem sai (só o admin, via
+  // editor do split / `bypassLock`).
+  if (item.locked === true && !options?.bypassLock) {
     return { ok: false, reason: 'locked' };
   }
 

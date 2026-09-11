@@ -28,6 +28,7 @@ import {
     getOrderPlacedByLabel,
     type OrderAudienceType,
 } from '@/lib/orderParticipants';
+import { RouteSkeleton } from '@/components/layout/RouteSkeleton';
 import { MoveItemSheet } from '@/components/features/MoveItemSheet';
 import { isSheetActive, type SheetSession } from '@/lib/sheetSession';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
@@ -562,6 +563,9 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
     // Determine card state
     let stickyCardProps = null;
 
+    // A viagem ainda não veio da cache local (nav a frio / mount lento) — sem
+    // `loading.tsx` nesta rota, o skeleton é aqui.
+    if (tripQuery === undefined) return <RouteSkeleton cards={2} />;
     if (!trip) return null;
 
     if (trip.status === 'open' && stats.total > 0) {

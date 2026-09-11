@@ -13,14 +13,22 @@ export function isItemLocked(item: SplitItem): boolean {
   return item.locked === true;
 }
 
-/** After participant changes: lock when everyone is on the item, unlock otherwise. */
+/**
+ * Regra do cadeado, aplicada depois de mexer nos participantes:
+ * - um item **trancado fica trancado** — seja lock manual do admin (roster fixo:
+ *   "só estes X participam") ou auto-lock anterior; só o botão de destrancar o tira;
+ * - **auto-tranca** quando toda a gente passa a estar no item.
+ *
+ * Trancado = roster congelado: ninguém entra nem sai (ver `canMemberSaveAllocation`
+ * e `toggleItemParticipant`). O admin continua a mandar pelos checkboxes do editor.
+ */
 export function reconcileItemLock(
   item: SplitItem,
   allParticipants: string[]
 ): SplitItem {
   return {
     ...item,
-    locked: itemHasAllParticipants(item, allParticipants),
+    locked: item.locked === true || itemHasAllParticipants(item, allParticipants),
   };
 }
 

@@ -4,9 +4,12 @@ import {
 } from '@/components/ui/EntityCardSkeleton';
 
 /**
- * Skeleton mostrado por um `loading.tsx` — durante a navegação, ANTES de o
- * segmento de rota (JS/RSC) carregar. Cobre o intervalo em que a página ainda
- * nem montou (em 3G são segundos). Server component: sem dados, pinta já.
+ * Skeleton de página inteira (faixa de header + grelha de cards).
+ *
+ * Já não há `loading.tsx` — a navegação a quente mantém o ecrã anterior visível
+ * até a rota nova estar pronta (coberto pela barra de progresso). Este skeleton
+ * é o estado de loading *interno* das páginas que não têm dados em cache local
+ * (nav a frio / deep-link), renderizado pela própria página.
  */
 export function RouteSkeleton({ cards = 3 }: { cards?: number }) {
   return (

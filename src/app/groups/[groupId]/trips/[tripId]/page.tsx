@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { useTransitionRouter } from 'next-view-transitions';
+import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
@@ -50,7 +50,7 @@ export default function GroupTripDetailPage() {
     const params = useParams();
     const groupId = params.groupId as string;
     const tripId = params.tripId as string;
-    const router = useTransitionRouter();
+    const router = useSmartRouter();
     const { user, isLoggedIn } = useUser();
     const { isAdmin, currentGroup } = useGroup();
     const { showToast } = useToast();

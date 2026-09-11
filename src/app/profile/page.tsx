@@ -91,13 +91,13 @@ export default function ProfilePage() {
     };
 
     if (!user) {
-        return <div className="min-h-screen bg-surface-sunken flex items-center justify-center">
+        return <div className="min-h-screen bg-app flex items-center justify-center">
             <LoadingSpinner />
         </div>;
     }
 
     return (
-        <div className="min-h-screen bg-surface-sunken pb-20 transition-colors">
+        <div className="min-h-screen bg-app pb-20 transition-colors">
             <Header title="Meu Perfil" showBack />
 
             <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
