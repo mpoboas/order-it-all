@@ -48,7 +48,6 @@ import {
     getRemoveItemConfirmMessage,
     isItemLocked,
     reconcileItemLock,
-    reconcileSplitItems,
     setItemLocked,
     shouldConfirmRemoveItem,
 } from '@/lib/splitItems';
@@ -146,6 +145,12 @@ export default function GroupSplitDetailPage() {
     const [showScanSheet, setShowScanSheet] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(null);
+    // Item trancado + toque num participante → treme o cadeado ("está fixo").
+    const [shakeLockIdx, setShakeLockIdx] = useState<number | null>(null);
+    const bumpLockShake = (idx: number) => {
+        setShakeLockIdx(idx);
+        setTimeout(() => setShakeLockIdx((cur) => (cur === idx ? null : cur)), 450);
+    };
 
     const participantAvatar = useCallback(
         (name: string) => getParticipantAvatarUrl(name, currentGroup),
@@ -226,11 +231,14 @@ export default function GroupSplitDetailPage() {
             return;
         }
 
-        // Optimista: aplica já sobre o estado local.
+        // Optimista: aplica já sobre o estado local. O `locked` é da
+        // responsabilidade de cada mutator (os que mexem em participantes já
+        // chamam `reconcileItemLock`) — não se recalcula aqui, senão o botão de
+        // lock manual nunca pegava.
         setSplit({
             ...base,
             ...updatedFields,
-            items: reconcileSplitItems(mutator(base.items), base.participants),
+            items: mutator(base.items),
         });
         if (!saving) setSaving(true);
 
@@ -241,10 +249,7 @@ export default function GroupSplitDetailPage() {
                 base.items_version ?? 0,
             );
             for (let attempt = 0; attempt < 6; attempt++) {
-                const nextItems = reconcileSplitItems(
-                    mutator(baseSplit.items),
-                    updatedFields.participants ?? baseSplit.participants,
-                );
+                const nextItems = mutator(baseSplit.items);
                 try {
                     const saved = await splitsApi.updateItems(
                         splitId,
@@ -337,9 +342,13 @@ export default function GroupSplitDetailPage() {
         if (!split || split.participants.length <= 1) return;
         if (!confirm(`Remover ${name}?`)) return;
 
+        const nextParticipants = split.participants.filter((p) => p !== name);
         await saveSplitItems(
-            (items) => items.map((item) => removeParticipantFromItem(item, name)),
-            { participants: split.participants.filter((p) => p !== name) },
+            (items) =>
+                items.map((item) =>
+                    reconcileItemLock(removeParticipantFromItem(item, name), nextParticipants),
+                ),
+            { participants: nextParticipants },
         );
     };
 
@@ -380,6 +389,10 @@ export default function GroupSplitDetailPage() {
 
     const toggleParticipant = async (itemIdx: number, participant: string) => {
         if (!split) return;
+        if (isItemLocked(split.items[itemIdx])) {
+            bumpLockShake(itemIdx);
+            return;
+        }
         if (getSplitItemMode(split.items[itemIdx]) !== 'equal') {
             setAllocationSheetIdx(itemIdx);
             return;
@@ -417,6 +430,10 @@ export default function GroupSplitDetailPage() {
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
         if (!split) return;
+        if (isItemLocked(split.items[itemIdx])) {
+            bumpLockShake(itemIdx);
+            return;
+        }
         await saveSplitItems((items) => {
             const next = cloneSplitItems(items);
             const item = next[itemIdx];
@@ -586,9 +603,12 @@ export default function GroupSplitDetailPage() {
                     ? 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                     : 'text-ink-faint hover:bg-surface-sunken'
             )}
-            title={locked ? 'Desbloquear (permite remover participantes)' : 'Bloquear item'}
+            title={locked ? 'Desbloquear — permite entrar/sair deste item' : 'Bloquear — fixa quem participa neste item'}
         >
-            <Icon name={locked ? 'lock' : 'lock_open'} className="text-[20px]" />
+            <Icon
+                name={locked ? 'lock' : 'lock_open'}
+                className={cn('text-[20px]', shakeLockIdx === itemIdx && 'lock-shake')}
+            />
         </button>
     );
 
@@ -780,7 +800,7 @@ export default function GroupSplitDetailPage() {
                                                         type="checkbox"
                                                         checked={allSelected}
                                                         onChange={e => toggleAllParticipants(idx, e.target.checked)}
-                                                        className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                        className={cn('w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer', locked && 'opacity-40')}
                                                     />
                                                 </td>
                                                 {split.participants.map(p => (
@@ -790,7 +810,7 @@ export default function GroupSplitDetailPage() {
                                                                 type="checkbox"
                                                                 checked={item.participants.includes(p)}
                                                                 onChange={() => toggleParticipant(idx, p)}
-                                                                className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                                className={cn('w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer', locked && 'opacity-40')}
                                                             />
                                                         ) : activeParticipants.includes(p) ? (
                                                             <button
@@ -1052,7 +1072,8 @@ export default function GroupSplitDetailPage() {
                                                             'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition duration-200 border shadow-sm',
                                                             isSelected
                                                                 ? 'bg-primary-500 border-primary-500 text-white shadow-primary-500/20'
-                                                                : 'bg-app border-hairline text-ink-soft hover:bg-surface'
+                                                                : 'bg-app border-hairline text-ink-soft hover:bg-surface',
+                                                            locked && 'opacity-40'
                                                         )}
                                                     >
                                                         {isSelected && <Icon name="check" className="text-[15px] shrink-0" strokeWidth={3} />}
@@ -1257,7 +1278,7 @@ export default function GroupSplitDetailPage() {
                                                             type="checkbox"
                                                             checked={allSelected}
                                                             onChange={e => toggleAllParticipants(idx, e.target.checked)}
-                                                            className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                            className={cn('w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer', locked && 'opacity-40')}
                                                         />
                                                     </td>
                                                     {split.participants.map(p => (
@@ -1267,7 +1288,7 @@ export default function GroupSplitDetailPage() {
                                                                     type="checkbox"
                                                                     checked={item.participants.includes(p)}
                                                                     onChange={() => toggleParticipant(idx, p)}
-                                                                    className="w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                                    className={cn('w-5 h-5 rounded border-2 border-hairline-strong text-primary-600 focus:ring-primary-500 cursor-pointer', locked && 'opacity-40')}
                                                                 />
                                                             ) : activeParticipants.includes(p) ? (
                                                                 <button

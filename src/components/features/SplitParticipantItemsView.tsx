@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   getActiveParticipants,
   getSplitItemMode,
@@ -44,6 +45,13 @@ export function SplitParticipantItemsView({
 }: SplitParticipantItemsViewProps) {
   const myTotal = calculateParticipantTotal(items, participantName);
 
+  // Item trancado + toque no controlo → treme o cadeado (feedback "está fixo").
+  const [shakeIdx, setShakeIdx] = useState<number | null>(null);
+  const shakeLock = (idx: number) => {
+    setShakeIdx(idx);
+    setTimeout(() => setShakeIdx((cur) => (cur === idx ? null : cur)), 450);
+  };
+
   const resolvedIntro =
     introText ??
     (readOnly
@@ -61,8 +69,12 @@ export function SplitParticipantItemsView({
           const checked = getActiveParticipants(item).includes(participantName);
           const busy = togglingIdx === idx;
           const locked = isItemLocked(item);
-          const cannotUncheck = checked && locked;
-          const disabled = readOnly || busy || (cannotUncheck && !isCustomMode);
+          // Trancado = roster congelado: nem entra nem sai. (Modo custom abre a
+          // sheet, que tem a sua própria guarda de lock.)
+          const frozen = locked && !isCustomMode;
+          // Não `disabled` quando `frozen` — precisamos do clique para tremer o
+          // cadeado.
+          const disabled = readOnly || busy;
 
           const handlePrimaryAction = () => {
             if (readOnly || busy) return;
@@ -70,7 +82,10 @@ export function SplitParticipantItemsView({
               onOpenAllocationSheet(idx);
               return;
             }
-            if (cannotUncheck) return;
+            if (frozen) {
+              shakeLock(idx);
+              return;
+            }
             onToggle(idx, !checked);
           };
 
@@ -79,13 +94,14 @@ export function SplitParticipantItemsView({
               <button
                 type="button"
                 disabled={disabled}
+                aria-disabled={frozen || undefined}
                 onClick={handlePrimaryAction}
                 className={cn(
                   'w-11 h-11 rounded-xl border-2 flex items-center justify-center shrink-0 transition-colors',
                   checked
                     ? 'bg-primary-600 border-primary-600 text-white'
                     : 'border-hairline bg-app',
-                  (cannotUncheck || readOnly) && 'opacity-60 cursor-not-allowed'
+                  (frozen || readOnly) && 'opacity-60 cursor-not-allowed'
                 )}
                 aria-pressed={checked}
                 title={
@@ -93,8 +109,8 @@ export function SplitParticipantItemsView({
                     ? 'Divisão fechada'
                     : isCustomMode
                       ? 'Ajustar a tua parte'
-                      : cannotUncheck
-                        ? 'Item bloqueado'
+                      : frozen
+                        ? 'Item bloqueado — quem participa está fixo'
                         : checked
                           ? 'Remover deste item'
                           : 'Marcar que participaste'
@@ -113,7 +129,14 @@ export function SplitParticipantItemsView({
                         {item.name || 'Item sem nome'}
                       </p>
                       {locked && (
-                        <Icon name="lock" className="text-[16px] text-ink-faint shrink-0" title="Bloqueado" />
+                        <Icon
+                          name="lock"
+                          className={cn(
+                            'text-[16px] text-ink-faint shrink-0',
+                            shakeIdx === idx && 'lock-shake'
+                          )}
+                          title="Bloqueado — quem participa está fixo"
+                        />
                       )}
                     </div>
                     <p className="text-sm text-ink-faint mt-0.5">

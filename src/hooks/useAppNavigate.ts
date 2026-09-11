@@ -10,6 +10,14 @@ import { useSmartRouter } from '@/hooks/useSmartRouter';
 
 type NavOpts = { haptic?: boolean };
 
+/** Mesma rota que a atual? (ignora query/hash e barra final) — nesse caso a
+ *  navegação é um no-op e não deve acender a barra de progresso (que ficaria
+ *  presa: sem mudança de `pathname`, o `navDone` nunca dispara). */
+function isSamePath(href: string, current: string): boolean {
+  const dest = href.split(/[?#]/)[0].replace(/(.)\/$/, '$1');
+  return dest === current.replace(/(.)\/$/, '$1');
+}
+
 /**
  * Navegação unificada da app:
  * - **View Transition** (crossfade nativo do browser) via `next-view-transitions`
@@ -37,24 +45,26 @@ export function useAppNavigate() {
 
   const push = useCallback(
     (href: string, opts?: NavOpts) => {
+      if (isSamePath(href, pathname)) return;
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
         navStart();
         router.push(href);
       });
     },
-    [router, tryNavigate, trigger],
+    [router, tryNavigate, trigger, pathname],
   );
 
   const replace = useCallback(
     (href: string, opts?: NavOpts) => {
+      if (isSamePath(href, pathname)) return;
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
         navStart();
         router.replace(href);
       });
     },
-    [router, tryNavigate, trigger],
+    [router, tryNavigate, trigger, pathname],
   );
 
   const back = useCallback(

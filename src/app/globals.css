@@ -703,7 +703,11 @@ header {
   box-shadow: 0 0 10px 0 var(--primary-400);
 }
 .nav-progress-bar--loading {
-  animation: nav-progress-fill 8s cubic-bezier(0.08, 0.7, 0.2, 1) forwards;
+  /* enche + um "respirar" muito ligeiro do glow para não parecer congelada
+     quando o width estabiliza numa espera longa. */
+  animation:
+    nav-progress-fill 8s cubic-bezier(0.08, 0.7, 0.2, 1) forwards,
+    nav-progress-glow 2.4s ease-in-out infinite;
 }
 .nav-progress-bar--done {
   transform: scaleX(1);
@@ -716,6 +720,10 @@ header {
   18%  { transform: scaleX(0.5); }
   100% { transform: scaleX(0.92); }
 }
+@keyframes nav-progress-glow {
+  0%, 100% { box-shadow: 0 0 8px 0 var(--primary-400); }
+  50%      { box-shadow: 0 0 14px 0 var(--primary-400); }
+}
 @media (prefers-reduced-motion: reduce) {
   .nav-progress-bar--loading {
     animation: none;
@@ -725,6 +733,24 @@ header {
   .nav-progress-bar--done {
     transition: opacity 120ms linear;
   }
+}
+
+/* Cadeado de item bloqueado a tremer — feedback ao tentar mexer nos
+   participantes de um item trancado (editor de split e página de partilha). */
+.lock-shake {
+  animation: lock-shake 0.42s ease-in-out;
+  transform-origin: center;
+}
+@keyframes lock-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  15% { transform: translateX(-2px) rotate(-9deg); }
+  30% { transform: translateX(2px) rotate(7deg); }
+  45% { transform: translateX(-2px) rotate(-6deg); }
+  60% { transform: translateX(2px) rotate(4deg); }
+  75% { transform: translateX(-1px) rotate(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lock-shake { animation: none; }
 }
 
 @keyframes spin {

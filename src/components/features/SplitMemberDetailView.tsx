@@ -121,7 +121,7 @@ export function SplitMemberDetailView({
     );
     if (!precheck.ok) {
       if (precheck.reason === 'locked') {
-        showToast('Este item está bloqueado — não podes remover-te', 'error');
+        showToast('Este item está bloqueado — quem participa está fixo', 'error');
       }
       return;
     }

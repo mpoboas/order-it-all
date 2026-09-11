@@ -117,7 +117,7 @@ export default function GroupsPage() {
                         {/* Create Group Button */}
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="w-full mb-6 p-4 border-2 border-dashed border-primary-300 rounded-2xl text-primary-600 font-semibold hover:bg-primary-50 hover:border-primary-400 transition flex items-center justify-center gap-2 animate-fade-in-up"
+                            className="w-full mb-6 p-4 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-2xl text-info-fg font-semibold hover:bg-info-bg hover:border-primary-400 dark:hover:border-primary-600 transition flex items-center justify-center gap-2 animate-fade-in-up"
                         >
                             <Icon name="add" className="text-xl" />
                             Criar Novo Grupo
