@@ -45,6 +45,7 @@ import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheet
 import { getFabBottom } from '@/lib/bottomDock';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
 
 export default function GroupTripDetailPage() {
@@ -53,7 +54,7 @@ export default function GroupTripDetailPage() {
     const tripId = params.tripId as string;
     const router = useSmartRouter();
     const { user, isLoggedIn } = useUser();
-    const { isAdmin, currentGroup } = useGroup();
+    const { currentGroup } = useGroup();
     const { showToast } = useToast();
     const confirmAction = useConfirm();
     const { startTimer } = useEditTimer();
@@ -386,8 +387,8 @@ export default function GroupTripDetailPage() {
         (participantsSheetSession === 'minimized' && participantsSheetDraftActive);
 
     return (
-        <div className={cn('min-h-screen bg-app', isAdmin && 'has-bottom-nav')}>
-            <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
+        <div className="min-h-screen bg-app has-bottom-nav">
+            <Header showBack title="Viagem" subtitle={trip.name} groupId={groupId} />
 
             {trip.status !== 'open' && (
                 <div className={cn(
@@ -492,22 +493,42 @@ export default function GroupTripDetailPage() {
 
                 {/* Orders */}
                 {orders.length === 0 && otherOrders.length === 0 ? (
+                    /* Onboarding: o primeiro pedido é o "aha moment" desta app — diz
+                       exatamente o que fazer, com um botão a sério (não só a
+                       apontar para o FAB, que se pode passar ao lado). */
                     <div className="text-center py-16 animate-fade-in-up">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/40 flex items-center justify-center">
-                            <span className="text-4xl">📝</span>
+                            <Icon name="shopping_cart" className="text-4xl text-primary-500" />
                         </div>
                         <h4 className="text-lg font-semibold text-ink mb-2">Ainda sem pedidos</h4>
-                        <p className="text-ink-soft mb-4">Toca no + para fazer o primeiro!</p>
+                        <p className="text-ink-soft mb-4">Faz o teu primeiro pedido para esta viagem.</p>
+                        <Button onClick={openNewOrder}>
+                            <Icon name="add" className="text-xl" />
+                            Fazer Pedido
+                        </Button>
                     </div>
                 ) : displayedOrders.length === 0 ? (
+                    /* Bug apanhado pelo utilizador: o CTA acima só cobria a viagem
+                       inteira vazia — se já há pedidos de outros (participas nalgum,
+                       ou "others"), caías aqui sem botão nenhum mesmo sem teres feito
+                       o teu próprio pedido ainda. O separador "mine" é sempre uma
+                       oportunidade de ação; os outros dois são só informativos. */
                     <div className="text-center py-12 animate-fade-in-up">
-                        <p className="text-ink-soft text-sm">
-                            {ordersTab === 'mine'
-                                ? 'Ainda não criaste pedidos nesta viagem.'
-                                : ordersTab === 'participating'
+                        {ordersTab === 'mine' ? (
+                            <>
+                                <p className="text-ink-soft text-sm mb-4">Ainda não fizeste o teu pedido nesta viagem.</p>
+                                <Button size="sm" onClick={openNewOrder}>
+                                    <Icon name="add" className="text-lg" />
+                                    Fazer Pedido
+                                </Button>
+                            </>
+                        ) : (
+                            <p className="text-ink-soft text-sm">
+                                {ordersTab === 'participating'
                                     ? 'Não estás incluído em pedidos de outros membros.'
                                     : 'Ainda não há pedidos de outros membros.'}
-                        </p>
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -692,7 +713,7 @@ export default function GroupTripDetailPage() {
                             'fab !bg-none !bg-primary-600 hover:!bg-primary-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
                             !online && 'opacity-50'
                         )}
-                        style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
+                        style={{ bottom: getFabBottom(true, hasMinimizedDock) }}
                         aria-label="Novo pedido"
                     >
                         <Icon name="add" className="text-3xl" />
@@ -720,7 +741,6 @@ export default function GroupTripDetailPage() {
                 onMinimize={() => setOrderSheetSession('minimized')}
                 onExpand={() => setOrderSheetSession('expanded')}
                 onDiscard={() => setOrderSheetSession('closed')}
-                minimizedAboveBottomNav={isAdmin}
                 onDraftActiveChange={setOrderSheetDraftActive}
             />
 
@@ -743,7 +763,6 @@ export default function GroupTripDetailPage() {
                     setParticipantsSheetOrderId(null);
                     setParticipantsSheetSession('closed');
                 }}
-                minimizedAboveBottomNav={isAdmin}
                 onDraftActiveChange={setParticipantsSheetDraftActive}
             />
         </div >

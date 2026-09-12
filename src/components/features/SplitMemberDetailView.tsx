@@ -152,8 +152,8 @@ export function SplitMemberDetailView({
       <div className="min-h-screen bg-app">
         <Header
           showBack
-          title={split.name}
-          subtitle={split.description || 'Divisão'}
+          title="Divisão"
+          subtitle={split.name}
           groupId={groupId}
         />
         <main className="container mx-auto px-4 py-16 max-w-lg text-center">
@@ -176,11 +176,11 @@ export function SplitMemberDetailView({
   }
 
   return (
-    <div className="min-h-screen bg-app pb-24">
+    <div className="min-h-screen bg-app has-bottom-nav">
       <Header
         showBack
-        title={split.name}
-        subtitle={split.description || 'Divisão'}
+        title="Divisão"
+        subtitle={split.name}
         groupId={groupId}
       />
       <div className="px-4 py-2.5 border-b border-hairline bg-surface">

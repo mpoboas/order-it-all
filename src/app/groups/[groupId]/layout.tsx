@@ -34,8 +34,13 @@ export default function GroupLayout({
         setActiveGroup(groupId);
         return () => setActiveGroup(null);
     }, [groupId, setActiveGroup]);
-    // O grupo pode não estar em cache (ex.: acabaste de ser convidado). Antes de
-    // dizer "não encontrado", força um catch-up e espera por ele.
+    // O grupo pode não estar em cache (ex.: acabaste de ser convidado) — ou
+    // pode estar em cache mas DESATUALIZADO (ex.: foste removido). O
+    // PocketBase não avisa quando deixas de bater certo com o filtro de uma
+    // subscrição em tempo real — só pára de enviar, em silêncio. Por isso a
+    // sondagem corre sempre que se entra num grupo, não só quando falta em
+    // cache: `reconcileDeletes` confirma a lista de acesso a sério contra o
+    // servidor e apaga o grupo (e os dados dele) se já não pertenceres lá.
     const [probedId, setProbedId] = useState<string | null>(null);
 
     const isMember = !!(group && user?.id && group.members.includes(user.id));
@@ -55,9 +60,23 @@ export default function GroupLayout({
     }, [isLoggedIn, router]);
 
     useEffect(() => {
-        if (!ready || group !== null || probedId === groupId) return;
-        catchUp().finally(() => setProbedId(groupId));
-    }, [ready, group, groupId, probedId]);
+        if (!ready || probedId === groupId) return;
+        catchUp({ reconcileDeletes: true }).finally(() => setProbedId(groupId));
+    }, [ready, groupId, probedId]);
+
+    // Se ficares com a aba aberta dentro de um grupo e fores removido nesse
+    // meio tempo, a sondagem acima (uma vez por entrada) não apanha isso — só
+    // ao voltares a entrar. Isto cobre o caso de teres saído de foco (outra
+    // app, outra aba) e voltado: confirma outra vez ao readquirir foco.
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                void catchUp({ reconcileDeletes: true });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, []);
 
     // Mantém o GroupContext em sincronia com a cache local.
     useEffect(() => {
@@ -98,10 +117,9 @@ export default function GroupLayout({
 
     return (
         <UnsavedDraftProvider>
-            <div className={isAdmin ? 'has-bottom-nav' : ''}>
+            <div className="has-bottom-nav">
                 {children}
-                {/* Only show BottomNav for admins */}
-                {isAdmin && currentGroup && <BottomNav groupId={groupId} />}
+                {currentGroup && <BottomNav groupId={groupId} isAdmin={isAdmin} />}
             </div>
         </UnsavedDraftProvider>
     );

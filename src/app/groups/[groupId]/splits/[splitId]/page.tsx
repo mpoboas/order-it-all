@@ -634,7 +634,7 @@ export default function GroupSplitDetailPage() {
 
     return (
         <div className="min-h-screen bg-app pb-32 md:pb-8">
-            <Header showBack title={split.name} subtitle={split.description || 'Divisão'} groupId={groupId} />
+            <Header showBack title="Divisão" subtitle={split.name} groupId={groupId} />
 
             {saving && (
                 <div className="fixed top-20 right-4 z-50 bg-primary-600 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
@@ -1138,7 +1138,7 @@ export default function GroupSplitDetailPage() {
             <div
                 className={cn(
                     'lg:hidden fixed left-0 right-0 bg-surface border-t border-hairline shadow-lg z-40',
-                    isAdmin ? 'bottom-[var(--bottom-nav-total-height)]' : 'bottom-[var(--safe-bottom)]'
+                    'bottom-[var(--bottom-nav-total-height)]'
                 )}
             >
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">

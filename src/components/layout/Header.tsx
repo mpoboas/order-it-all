@@ -92,20 +92,21 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         <div className="min-w-0">
                             <h1 className="text-lg md:text-xl font-bold text-white truncate">{displayTitle}</h1>
                             {displaySubtitle && (
-                                <p className="text-xs md:text-sm text-white/80 truncate hidden sm:block">{displaySubtitle}</p>
+                                <p className="text-xs md:text-sm text-white/80 truncate">{displaySubtitle}</p>
                             )}
                         </div>
                     </div>
 
                     {/* Right side */}
                     <div className="flex items-center gap-2">
-                        {/* Toggle button for non-admin users in a group */}
+                        {/* Toggle button for non-admin users in a group — mobile now has
+                            BottomNav for this, so it's desktop-only here (no BottomNav there). */}
                         {showToggle && (
                             <button
                                 type="button"
                                 aria-label={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
                                 onClick={() => nav.push(toggleHref!)}
-                                className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
+                                className="hidden md:flex w-10 h-10 rounded-xl bg-white/20 backdrop-blur items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
                             >
                                 <Icon
                                     name={isInTrips ? 'calculate' : 'shopping_bag'}

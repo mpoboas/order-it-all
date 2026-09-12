@@ -40,6 +40,7 @@ import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
+import { GroupSetupChecklist } from '@/components/features/GroupSetupChecklist';
 
 function AdminDashboardContent() {
     const params = useParams();
@@ -436,6 +437,17 @@ function AdminDashboardContent() {
             <Header title="Admin" subtitle={currentGroup.name} showBack groupId={groupId} />
 
             <main className="container mx-auto px-4 py-6 max-w-4xl">
+                {/* Onboarding: só para quem criou o grupo de raiz — uma vez na
+                    vida (qualquer grupo), não uma vez por grupo. */}
+                {isCreator && (
+                    <GroupSetupChecklist
+                        memberCount={currentGroup.members.length}
+                        tripCount={trips.length}
+                        onInvite={() => setActiveTab('settings')}
+                        onCreateTrip={() => setShowCreateModal(true)}
+                    />
+                )}
+
                 {/* Tabs */}
                 <div className="flex p-1 mb-6 bg-surface-sunken rounded-xl">
                     {(['trips', 'members', 'settings'] as const).map((tab) => (
@@ -466,9 +478,19 @@ function AdminDashboardContent() {
 
                         <div className="grid gap-4 md:grid-cols-2">
                             {trips.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-ink-faint">
-                                    <Icon name="receipt_long" className="text-4xl block mx-auto mb-2 opacity-60" />
-                                    <p>Nenhuma viagem encontrada.</p>
+                                /* Onboarding: sem viagem aberta, ninguém no grupo consegue fazer
+                                   pedidos — é o desbloqueio inicial para o admin. */
+                                <div className="col-span-full py-12 text-center">
+                                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">
+                                        <Icon name="receipt_long" className="text-3xl" />
+                                    </div>
+                                    <h3 className="font-bold text-ink mb-1">Cria a tua primeira viagem</h3>
+                                    <p className="text-sm text-ink-faint mb-4 max-w-xs mx-auto">
+                                        Os membros só conseguem fazer pedidos depois de teres uma viagem aberta.
+                                    </p>
+                                    <Button size="sm" onClick={() => setShowCreateModal(true)}>
+                                        + Nova Viagem
+                                    </Button>
                                 </div>
                             ) : (
                                 trips.map(trip => (

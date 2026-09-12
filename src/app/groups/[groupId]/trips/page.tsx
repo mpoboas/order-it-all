@@ -38,10 +38,9 @@ export default function GroupTripsPage() {
     if (isAdmin) return null;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)]">
+        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
             <Header
-                title="Viagens"
-                subtitle={currentGroup?.name}
+                title={currentGroup?.name}
                 showBack
                 groupId={groupId}
             />

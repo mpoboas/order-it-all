@@ -16,6 +16,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
 import { NotificationSoftAsk } from '@/components/features/NotificationSoftAsk';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
@@ -129,17 +130,22 @@ export default function GroupsPage() {
                         </button>
 
                         {groups.length === 0 ? (
-                            /* Empty State */
+                            /* Estado vazio — onboarding: primeira ação acionável, não só texto
+                               (ver plano de onboarding). */
                             <div className="text-center py-20 animate-fade-in-up">
                                 <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 flex items-center justify-center">
                                     <span className="text-6xl">👥</span>
                                 </div>
                                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                                    Sem grupos ainda
+                                    Cria o teu primeiro grupo
                                 </h3>
                                 <p className="text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
-                                    Cria um grupo para começar a organizar compras e divisões!
+                                    Convida amigos ou família e organiza compras e despesas em conjunto.
                                 </p>
+                                <Button onClick={() => setShowCreateModal(true)}>
+                                    <Icon name="add" className="text-xl" />
+                                    Criar Grupo
+                                </Button>
                             </div>
                         ) : (
                             /* Groups Grid */

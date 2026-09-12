@@ -122,15 +122,9 @@ export default function GroupSplitsPage() {
     if (!isLoggedIn) return null;
 
     return (
-        <div
-            className={cn(
-                'min-h-screen bg-app overflow-x-hidden',
-                isAdmin && 'has-bottom-nav'
-            )}
-        >
+        <div className="min-h-screen bg-app overflow-x-hidden has-bottom-nav">
             <Header
-                title="Divisões"
-                subtitle={currentGroup?.name}
+                title={currentGroup?.name}
                 showBack
                 groupId={groupId}
             />

@@ -624,7 +624,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     stackAboveMinimized={hasMinimizedDock}
                 />
             )}
-            <Header title={trip.name} subtitle="Admin" showBack />
+            <Header title="Viagem" subtitle={trip.name} showBack />
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">
                 <div className="grid grid-cols-3 gap-3 mb-8">
