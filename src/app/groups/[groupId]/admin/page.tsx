@@ -108,16 +108,18 @@ function AdminDashboardContent() {
             setShowCreateModal(false);
             void catchUp();
 
-            // Notify Users
-            await fetch('/api/notify', {
+            // Notify Users (menos quem acabou de criar — já vê a viagem no ecrã)
+            const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
                 body: JSON.stringify({
                     groupId,
+                    excludeUserId: user?.id,
                     title: '🛍️ Está na hora de encomendar!',
                     message: `${newTripName.trim()} está disponível. Faz os teus pedidos!`,
                     url: `/groups/${groupId}/trips`
                 })
             }).catch(console.error);
+            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
 
         } catch (error) {
             console.error('Error creating trip:', error);

@@ -3,13 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { pb, usersApi } from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
+import { unsubscribeFromPushNotifications } from '@/lib/notifications';
 
 interface UserContextType {
     user: any | null;
     isLoggedIn: boolean;
     login: (email: string, pass: string) => Promise<void>;
     register: (email: string, pass: string, passConfirm: string) => Promise<any>;
-    logout: () => void;
+    logout: () => Promise<void>;
     updateProfile: (data: any) => Promise<void>;
 }
 
@@ -77,7 +78,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
     }, [user]);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
+        // Apagar a subscrição de push precisa da autenticação atual — corre
+        // antes do `usersApi.logout()` (que limpa o auth). Best-effort: se
+        // falhar, a linha fica órfã mas autocura-se (ver `notifications.ts`).
+        await unsubscribeFromPushNotifications().catch(() => {});
         usersApi.logout();
         router.push('/');
     }, [router]);

@@ -14,6 +14,7 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { NotificationSoftAsk } from '@/components/features/NotificationSoftAsk';
 import { Icon } from '@/components/ui/Icon';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
@@ -107,6 +108,10 @@ export default function GroupsPage() {
                         Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">{user?.name || 'amigo'}</span>! 👋
                     </h2>
                     <p className="text-[var(--text-secondary)]">Seleciona um grupo ou cria um novo</p>
+                </div>
+
+                <div className="mb-6">
+                    <NotificationSoftAsk />
                 </div>
 
                 {/* Loading */}

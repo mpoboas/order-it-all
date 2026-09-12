@@ -18,12 +18,29 @@ if (vapidKeys.publicKey && vapidKeys.privateKey) {
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );
+} else {
+  console.warn('VAPID keys missing at module load — pushes vão falhar em silêncio (webPush.sendNotification rejeita, o .catch() por-subscrição só regista no log).');
+}
+
+// Diagnóstico: erros do SDK do PocketBase trazem `response`/`status` úteis que
+// `String(error)`/`error.message` não mostram. Devolvido no JSON de resposta
+// (visível no separador Network) para não depender de veres o terminal do
+// `next dev`.
+function errorDetail(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const anyErr = err as { status?: number; response?: unknown; message?: string };
+    if (anyErr.status || anyErr.response) {
+      return `status=${anyErr.status ?? '?'} response=${JSON.stringify(anyErr.response)}`;
+    }
+    if (anyErr.message) return anyErr.message;
+  }
+  return String(err);
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { groupId, title, message, url, targetUserIds } = body;
+    const { groupId, title, message, url, targetUserIds, excludeUserId } = body;
 
     if (!title || !message) {
       return NextResponse.json({ error: 'Missing title or message' }, { status: 400 });
@@ -39,7 +56,15 @@ export async function POST(request: Request) {
     }
 
     // Login as admin (Superuser)
-    await pb.collection('_superusers').authWithPassword(adminEmail, adminPass);
+    try {
+      await pb.collection('_superusers').authWithPassword(adminEmail, adminPass);
+    } catch (authErr) {
+      console.error('PocketBase admin auth failed:', authErr);
+      return NextResponse.json(
+        { error: 'PocketBase admin auth failed', detail: errorDetail(authErr) },
+        { status: 500 },
+      );
+    }
 
     // Determine recipients
     let recipients: string[] = [];
@@ -58,6 +83,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // Quem disparou a ação já vê o resultado no ecrã — não se auto-notifica
+    // (mesma política dos toasts: otimista = silêncio no sucesso).
+    if (excludeUserId) {
+      recipients = recipients.filter((id) => id !== excludeUserId);
+    }
+
     if (recipients.length === 0) {
       return NextResponse.json({ message: 'No recipients found' });
     }
@@ -73,9 +104,18 @@ export async function POST(request: Request) {
     
     if (!filter) return NextResponse.json({ message: 'No valid user filters' });
 
-    const subscriptions = await pb.collection('push_subscriptions').getFullList({
-      filter: filter,
-    });
+    let subscriptions;
+    try {
+      subscriptions = await pb.collection('push_subscriptions').getFullList({
+        filter: filter,
+      });
+    } catch (subErr) {
+      console.error('Fetching push_subscriptions failed:', subErr);
+      return NextResponse.json(
+        { error: 'Fetching push_subscriptions failed', detail: errorDetail(subErr) },
+        { status: 500 },
+      );
+    }
 
     console.log(`Sending specific notifications to ${subscriptions.length} devices...`);
 
@@ -90,7 +130,10 @@ export async function POST(request: Request) {
         title,
         body: message,
         url: url || '/groups',
-        icon: '/android-chrome-192x192.png'
+        icon: '/android-chrome-192x192.png',
+        // Agrupa no telemóvel avisos sucessivos sobre o mesmo destino (ex.: a
+        // mesma viagem) em vez de os empilhar — ver `tag`/`renotify` no sw.js.
+        tag: url || undefined,
       });
 
       return webPush.sendNotification(pushConfig, payload).catch(err => {
@@ -108,6 +151,9 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Notification API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', detail: errorDetail(error) },
+      { status: 500 },
+    );
   }
 }

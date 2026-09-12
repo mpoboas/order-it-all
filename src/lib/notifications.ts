@@ -45,6 +45,52 @@ export async function subscribeToPushNotifications() {
   }
 }
 
+/**
+ * A subscrição do browser pode rodar sozinha (renovação silenciosa, ou o
+ * browser força uma nova) — o `sw.js` apanha isso no `pushsubscriptionchange`
+ * mas não tem ali a chave VAPID (só existe no bundle da app), por isso avisa
+ * as páginas abertas via `postMessage` e é aqui que se re-subscreve a sério.
+ * Ver `PushNotificationManager.tsx` — é quem regista o listener da mensagem.
+ */
+export async function handlePushSubscriptionChange() {
+  await subscribeToPushNotifications();
+}
+
+/**
+ * Ao terminar sessão: apaga a linha em `push_subscriptions` (precisa da
+ * autenticação atual — por isso corre ANTES do `usersApi.logout()`) e cancela
+ * a subscrição no browser. Se o apagar falhar (ex.: a regra do PocketBase não
+ * deixa o próprio utilizador apagar), a linha fica órfã mas autocura-se: o
+ * `/api/notify` já apaga subscrições que devolvem 410/404 ao tentar enviar.
+ */
+export async function unsubscribeFromPushNotifications(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+
+    const user = pb.authStore.model;
+    if (user) {
+      try {
+        const existing = await pb.collection('push_subscriptions').getList(1, 1, {
+          filter: `user="${user.id}" && endpoint="${subscription.endpoint}"`,
+        });
+        if (existing.items.length > 0) {
+          await pb.collection('push_subscriptions').delete(existing.items[0].id);
+        }
+      } catch (err) {
+        console.error('Error removing subscription from PB:', err);
+      }
+    }
+
+    await subscription.unsubscribe();
+  } catch (err) {
+    console.error('Error unsubscribing from push:', err);
+  }
+}
+
 async function saveSubscriptionToDb(subscription: PushSubscription) {
   const user = pb.authStore.model;
   if (!user) return;

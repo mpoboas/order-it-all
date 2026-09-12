@@ -9,6 +9,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
+import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
@@ -21,6 +23,8 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [geminiKeyInput, setGeminiKeyInput] = useState('');
     const [isSavingKey, setIsSavingKey] = useState(false);
+    const { status: notifStatus, iosNeedsInstall, requestPermission } = useNotificationPermission();
+    const [enablingNotifs, setEnablingNotifs] = useState(false);
 
     const currentGeminiKey = getUserGeminiApiKey(user) ?? '';
     const hasGeminiKey = Boolean(currentGeminiKey);
@@ -31,6 +35,26 @@ export default function ProfilePage() {
             setGeminiKeyInput(getUserGeminiApiKey(user) ?? '');
         }
     }, [user]);
+
+    const handleEnableNotifications = async () => {
+        if (iosNeedsInstall) {
+            showToast('Instala a app no ecrã principal: Partilhar → Adicionar ao Ecrã Principal', 'info');
+            return;
+        }
+        setEnablingNotifs(true);
+        try {
+            const permission = await requestPermission();
+            if (permission === 'granted') {
+                showToast('Notificações ativadas', 'success');
+            } else if (permission === 'denied') {
+                showToast('Permissão recusada — ativa nas definições do navegador', 'error');
+            }
+        } catch {
+            showToast('Não foi possível ativar notificações', 'error');
+        } finally {
+            setEnablingNotifs(false);
+        }
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -86,7 +110,7 @@ export default function ProfilePage() {
     };
 
     const handleLogout = () => {
-        logout();
+        void logout();
         // Router push is handled in context but being safe
     };
 
@@ -217,6 +241,50 @@ export default function ProfilePage() {
                                     Guardar
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Notificações */}
+                    {notifStatus !== 'unsupported' && (
+                        <div className="card p-4 flex items-center gap-3 bg-surface border border-hairline">
+                            <div className={cn(
+                                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                                notifStatus === 'granted'
+                                    ? "bg-success-bg text-success-fg"
+                                    : "bg-surface-sunken text-ink-faint"
+                            )}>
+                                <Icon
+                                    name={
+                                        notifStatus === 'granted'
+                                            ? 'notifications_active'
+                                            : notifStatus === 'denied'
+                                                ? 'notifications_off'
+                                                : iosNeedsInstall
+                                                    ? 'phone_iphone'
+                                                    : 'notifications'
+                                    }
+                                    className="text-2xl"
+                                />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-ink">Notificações</p>
+                                <p className="text-xs text-ink-faint">
+                                    {notifStatus === 'granted' && 'Ativas neste dispositivo'}
+                                    {notifStatus === 'denied' && 'Bloqueadas — ativa nas definições do navegador'}
+                                    {notifStatus === 'default' && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
+                                    {notifStatus === 'default' && !iosNeedsInstall && 'Recebe um aviso quando há viagens novas'}
+                                </p>
+                            </div>
+                            {notifStatus === 'default' && (
+                                <Button
+                                    size="sm"
+                                    variant={iosNeedsInstall ? 'secondary' : 'primary'}
+                                    loading={enablingNotifs}
+                                    onClick={handleEnableNotifications}
+                                >
+                                    {iosNeedsInstall ? 'Como instalar' : 'Ativar'}
+                                </Button>
+                            )}
                         </div>
                     )}
 

@@ -6,7 +6,7 @@ import {
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
-    Maximize2, Minimize2, Moon, Sun,
+    Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -75,6 +75,10 @@ const MAP = {
     fullscreen_exit: Minimize2,
     dark_mode: Moon,
     light_mode: Sun,
+    notifications: Bell,
+    notifications_active: BellRing,
+    notifications_off: BellOff,
+    phone_iphone: Smartphone,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

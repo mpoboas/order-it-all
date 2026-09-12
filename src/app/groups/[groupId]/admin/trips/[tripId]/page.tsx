@@ -522,16 +522,18 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
 
-            // Notify Users
-            await fetch('/api/notify', {
+            // Notify Users (menos quem terminou a viagem — já vê o resultado)
+            const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
                 body: JSON.stringify({
                     groupId: trip.group_id,
+                    excludeUserId: user?.id,
                     title: '🏁 Viagem Concluída',
                     message: `As compras de "${trip.name}" foram terminadas. Abre para ver quanto ficou a tua parte!`,
                     url: `/groups/${trip.group_id}/trips/${trip.id}`
                 })
             }).catch(console.error);
+            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
@@ -555,16 +557,18 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast('Viagem fechada a novos pedidos', 'success');
 
-            // Notify Users
-            await fetch('/api/notify', {
+            // Notify Users (menos quem fechou a viagem — já vê o resultado)
+            const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
                 body: JSON.stringify({
                     groupId: trip.group_id,
+                    excludeUserId: user?.id,
                     title: '🛒 Vamos às compras!',
                     message: `A viagem "${trip.name}" já não aceita mais novos pedidos.`,
                     url: `/groups/${trip.group_id}/trips/${trip.id}`
                 })
             }).catch(console.error);
+            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
