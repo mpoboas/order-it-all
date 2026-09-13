@@ -12,6 +12,8 @@ export interface User {
    *  omissão nos utilizadores antigos — devem vê-lo uma vez na próxima
    *  entrada. */
   onboarded?: boolean;
+  /** Número de telemóvel MB WAY — mostrado como atalho ao acertar contas. */
+  mbway_phone?: string;
 }
 
 export interface Group {
@@ -25,6 +27,8 @@ export interface Group {
   invite_active: boolean;
   /** Admin setting: when true, members can see every order in the group's trips, not just their own. */
   show_all_orders?: boolean;
+  /** Quando true, os saldos do grupo são apresentados já simplificados (min-cash-flow). Default true. */
+  simplify_debts?: boolean;
   expand?: {
     creator?: User;
     admins?: User[];
@@ -121,6 +125,98 @@ export interface SplitItem {
   split_mode?: SplitItemMode;
   /** Per-participant values: euros (unequal), percent (percentage), or shares (shares). */
   allocations?: Record<string, number>;
+}
+
+// --- Livro-razão de despesas (Splitwise-like) ------------------------------
+
+/** Uma "parte" — quem pode dever/receber num grupo: um utilizador com conta
+ *  ou um placeholder (membro sem conta, ver `Placeholder`). Todo o cálculo de
+ *  saldos usa o id canónico (`claimedBy ?? id`) — ver `src/lib/parties.ts`. */
+export interface Party {
+  id: string;
+  name: string;
+  avatar?: string;
+  kind: 'user' | 'placeholder';
+  /** Só quando `kind === 'placeholder'` e já foi reclamado. */
+  claimedBy?: string;
+}
+
+/** Membro do grupo sem conta na app (ex.: convidado só pelo link de
+ *  divisão). Participa nas despesas como qualquer outra parte; quando a
+ *  pessoa entra na app e "reclama" o placeholder, o histórico não é
+ *  reescrito — o resolvedor de partes passa a mapear `id → claimed_by`. */
+export interface Placeholder {
+  id: string;
+  group_id: string;
+  name: string;
+  claimed_by?: string;
+  created_by: string;
+  expand?: {
+    claimed_by?: User;
+    created_by?: User;
+  };
+  created: string;
+  updated: string;
+}
+
+export type ExpenseKind = 'expense' | 'payment';
+
+export type ExpenseSplitMode =
+  | 'equal'
+  | 'exact'
+  | 'percentage'
+  | 'shares'
+  | 'adjustment'
+  | 'itemized';
+
+/** Quem pagou e quanto (euros). Uma despesa sem pagador (`payers: []`) fica
+ *  fora dos saldos — pastilha "Falta pagador" na UI. */
+export interface ExpensePayer {
+  party: string;
+  amount: number;
+}
+
+/** Quanto cada parte deve nesta despesa (euros, já arredondado — fonte de
+ *  verdade para os saldos). `input` guarda o valor original do modo (%,
+ *  quotas, ajuste) para se poder reabrir o formulário e reeditar. */
+export interface ExpenseShare {
+  party: string;
+  amount: number;
+  input?: number;
+}
+
+export interface Expense {
+  id: string;
+  group_id: string;
+  kind: ExpenseKind;
+  description: string;
+  /** Euros, 2 casas — a matemática de saldos corre sempre em cêntimos (ver `src/lib/ledger/money.ts`). */
+  amount: number;
+  /** Data da despesa (distinta de `created`). */
+  date: string;
+  category?: string;
+  notes?: string;
+  split_mode: ExpenseSplitMode;
+  payers: ExpensePayer[];
+  shares: ExpenseShare[];
+  /** Quando `split_mode === 'itemized'` — o split existente com o editor de itens/link/scan. */
+  split_id?: string;
+  /** Quando lançada a partir do fecho de uma viagem. */
+  trip_id?: string;
+  receipt?: string;
+  created_by: string;
+  updated_by?: string;
+  deleted_at?: string;
+  deleted_by?: string;
+  expand?: {
+    created_by?: User;
+    updated_by?: User;
+    deleted_by?: User;
+    split_id?: Split;
+    trip_id?: Trip;
+  };
+  created: string;
+  updated: string;
 }
 
 // Form types

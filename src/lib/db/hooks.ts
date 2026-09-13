@@ -1,8 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Group, Trip, Order, Item, Split, User } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party } from '@/lib/types';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
+import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
+import { netByParty } from '@/lib/ledger/balances';
 import { db } from './schema';
 
 /**
@@ -45,7 +48,7 @@ function useCachedLiveQuery<T>(
 const byCreatedDesc = <T extends { created: string }>(a: T, b: T) =>
   b.created.localeCompare(a.created);
 
-const SINGLE_USER_KEYS = ['creator', 'created_by', 'user'] as const;
+const SINGLE_USER_KEYS = ['creator', 'created_by', 'user', 'updated_by', 'deleted_by', 'claimed_by'] as const;
 const ARRAY_USER_KEYS = ['members', 'admins', 'participants'] as const;
 
 type WithExpand = { expand?: Record<string, unknown> };
@@ -174,4 +177,111 @@ export function useSplit(splitId: string | undefined): Split | undefined | null 
     ]);
     return s ? overlayUsers(normalizeSplitRecord(s), usersMap(users)) : null;
   }, [splitId]);
+}
+
+// --- Livro-razão de despesas -----------------------------------------------
+//
+// `expenses`/`placeholders` sincronizam globalmente (ver sync.ts) — o Dexie já
+// só contém os grupos a que o utilizador pertence, por isso `useAllExpenses`
+// não precisa de filtrar por grupo.
+
+export function useExpenses(groupId: string | undefined): Expense[] | undefined {
+  return useCachedLiveQuery(`expenses:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const [expenses, users] = await Promise.all([
+      db.expenses.where('group_id').equals(groupId).toArray(),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return expenses
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((e) => overlayUsers(e, byId));
+  }, [groupId]);
+}
+
+export function useExpense(expenseId: string | undefined): Expense | undefined | null {
+  return useCachedLiveQuery(`expense:${expenseId ?? ''}`, async () => {
+    if (!expenseId) return null;
+    const [e, users] = await Promise.all([
+      db.expenses.get(expenseId),
+      db.users.toArray(),
+    ]);
+    return e ? overlayUsers(e, usersMap(users)) : null;
+  }, [expenseId]);
+}
+
+/** Todas as despesas de todos os grupos do utilizador — para a home e a
+ *  Atividade global. */
+export function useAllExpenses(): Expense[] | undefined {
+  return useCachedLiveQuery('expenses:all', async () => {
+    const [expenses, users] = await Promise.all([db.expenses.toArray(), db.users.toArray()]);
+    const byId = usersMap(users);
+    return expenses.map((e) => overlayUsers(e, byId));
+  }, []);
+}
+
+export function usePlaceholders(groupId: string | undefined): Placeholder[] | undefined {
+  return useCachedLiveQuery(`placeholders:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const [placeholders, users] = await Promise.all([
+      db.placeholders.where('group_id').equals(groupId).toArray(),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return placeholders.map((p) => overlayUsers(p, byId));
+  }, [groupId]);
+}
+
+function useAllPlaceholders(): Placeholder[] | undefined {
+  return useCachedLiveQuery('placeholders:all', async () => db.placeholders.toArray(), []);
+}
+
+/** Partes de um grupo (membros com conta + placeholders), por id — ver
+ *  `src/lib/parties.ts` para a resolução canónica/nomes/avatares. */
+export function useParties(groupId: string | undefined): Map<string, Party> | undefined {
+  const group = useGroup(groupId);
+  const placeholders = usePlaceholders(groupId);
+  return useMemo(() => {
+    if (group === undefined || placeholders === undefined) return undefined;
+    return buildPartyMap(groupMembersFromExpand(group), placeholders);
+  }, [group, placeholders]);
+}
+
+/** Saldo líquido (cêntimos) do utilizador em cada grupo onde é membro — para
+ *  a frase "No total, deves/devem-te X" da home e o saldo por `GroupCard`. */
+export function useGroupBalances(userId: string | undefined): Map<string, number> | undefined {
+  const groups = useGroups(userId);
+  const allExpenses = useAllExpenses();
+  const allPlaceholders = useAllPlaceholders();
+
+  return useMemo(() => {
+    if (!userId || groups === undefined || allExpenses === undefined || allPlaceholders === undefined) {
+      return undefined;
+    }
+    const expensesByGroup = new Map<string, Expense[]>();
+    for (const e of allExpenses) {
+      const list = expensesByGroup.get(e.group_id) ?? [];
+      list.push(e);
+      expensesByGroup.set(e.group_id, list);
+    }
+    const placeholdersByGroup = new Map<string, Placeholder[]>();
+    for (const p of allPlaceholders) {
+      const list = placeholdersByGroup.get(p.group_id) ?? [];
+      list.push(p);
+      placeholdersByGroup.set(p.group_id, list);
+    }
+
+    const result = new Map<string, number>();
+    for (const group of groups) {
+      const parties = buildPartyMap(
+        groupMembersFromExpand(group),
+        placeholdersByGroup.get(group.id) ?? [],
+      );
+      const net = netByParty(expensesByGroup.get(group.id) ?? [], (id) =>
+        canonicalPartyId(id, parties),
+      );
+      result.set(group.id, net[userId] ?? 0);
+    }
+    return result;
+  }, [userId, groups, allExpenses, allPlaceholders]);
 }

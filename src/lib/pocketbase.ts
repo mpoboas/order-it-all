@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group, SplitItemMode } from './types';
+import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase('https://pb-orderit.povoas.top/');
@@ -330,6 +330,112 @@ export const splitsApi = {
     return await pb.collection('splits').update<Split>(id, {
       share_code: generateInviteCode(),
     });
+  },
+};
+
+// Expense API — livro-razão (despesas + pagamentos, ver src/lib/ledger/*)
+export const expensesApi = {
+  getByGroups: async (groupIds: string[]): Promise<Expense[]> => {
+    if (groupIds.length === 0) return [];
+    const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');
+    return await pb.collection('expenses').getFullList<Expense>({
+      filter,
+      sort: '-date',
+      expand: 'created_by,updated_by,deleted_by',
+    });
+  },
+
+  getById: async (id: string): Promise<Expense> => {
+    return await pb.collection('expenses').getOne<Expense>(id, {
+      expand: 'created_by,updated_by,deleted_by,split_id,trip_id',
+    });
+  },
+
+  create: async (data: {
+    group_id: string;
+    kind?: ExpenseKind;
+    description: string;
+    amount: number;
+    date: string;
+    category?: string;
+    notes?: string;
+    split_mode: ExpenseSplitMode;
+    payers: ExpensePayer[];
+    shares: ExpenseShare[];
+    split_id?: string;
+    trip_id?: string;
+    created_by: string;
+  }): Promise<Expense> => {
+    return await pb.collection('expenses').create<Expense>({
+      kind: 'expense',
+      notes: '',
+      ...data,
+      updated_by: data.created_by,
+    });
+  },
+
+  update: async (
+    id: string,
+    data: Partial<Expense>,
+    updatedByUserId: string
+  ): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      ...data,
+      updated_by: updatedByUserId,
+    });
+  },
+
+  /** Soft-delete — mantém-se em "Apagadas recentemente" com restauro. */
+  softDelete: async (id: string, deletedByUserId: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      deleted_at: new Date().toISOString(),
+      deleted_by: deletedByUserId,
+    });
+  },
+
+  restore: async (id: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      deleted_at: null,
+      deleted_by: null,
+    });
+  },
+};
+
+// Placeholder API — membros de grupo sem conta na app
+export const placeholdersApi = {
+  getByGroups: async (groupIds: string[]): Promise<Placeholder[]> => {
+    if (groupIds.length === 0) return [];
+    const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');
+    return await pb.collection('placeholders').getFullList<Placeholder>({
+      filter,
+      sort: '-created',
+      expand: 'claimed_by,created_by',
+    });
+  },
+
+  create: async (data: {
+    group_id: string;
+    name: string;
+    created_by: string;
+  }): Promise<Placeholder> => {
+    return await pb.collection('placeholders').create<Placeholder>(data);
+  },
+
+  rename: async (id: string, name: string): Promise<Placeholder> => {
+    return await pb.collection('placeholders').update<Placeholder>(id, { name });
+  },
+
+  /** Associa o placeholder a um utilizador com conta — o histórico não é
+   *  reescrito, só se marca `claimed_by` (ver `src/lib/parties.ts`). */
+  claim: async (id: string, userId: string): Promise<Placeholder> => {
+    return await pb.collection('placeholders').update<Placeholder>(id, {
+      claimed_by: userId,
+    });
+  },
+
+  delete: async (id: string): Promise<boolean> => {
+    await pb.collection('placeholders').delete(id);
+    return true;
   },
 };
 

@@ -7,6 +7,7 @@ import {
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
+    Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -84,6 +85,17 @@ const MAP = {
     phone_iphone: Smartphone,
     install_mobile: Download,
     add_to_home_screen: SquarePlus,
+    // Categorias de despesa (livro-razão) — ver src/lib/ledger/categories.ts.
+    restaurant: Utensils,
+    local_grocery_store: ShoppingBasket,
+    directions_car: Car,
+    home: Home,
+    bolt: Zap,
+    theaters: Clapperboard,
+    medical_services: HeartPulse,
+    flight: Plane,
+    pets: PawPrint,
+    more_horiz: MoreHorizontal,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

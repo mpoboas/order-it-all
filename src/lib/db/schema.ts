@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Group, Trip, Order, Item, Split, User } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder } from '@/lib/types';
 
 /**
  * Cache local-first (IndexedDB via Dexie). As leituras da app saem daqui através
@@ -17,7 +17,7 @@ export interface MetaRow {
 
 // --- Utilizadores embebidos no `expand` -----------------------------------
 
-const SINGLE_USER_KEYS = ['creator', 'created_by', 'user'] as const;
+const SINGLE_USER_KEYS = ['creator', 'created_by', 'user', 'updated_by', 'deleted_by', 'claimed_by'] as const;
 const ARRAY_USER_KEYS = ['members', 'admins', 'participants'] as const;
 
 function looksLikeUser(v: unknown): v is User {
@@ -59,6 +59,8 @@ class OrderItDB extends Dexie {
   splits!: Table<Split, string>;
   users!: Table<User, string>;
   meta!: Table<MetaRow, string>;
+  expenses!: Table<Expense, string>;
+  placeholders!: Table<Placeholder, string>;
 
   constructor() {
     super('orderit');
@@ -88,6 +90,14 @@ class OrderItDB extends Dexie {
         const users = extractUsersFromExpand(records);
         if (users.length) await tx.table('users').bulkPut(users);
       });
+    // v3: livro-razão de despesas. `expenses`/`placeholders` sincronizam
+    // **globalmente** (todos os grupos do utilizador, não só o grupo ativo —
+    // ver sync.ts) porque a home e a Atividade precisam dos saldos de todos
+    // os grupos; são registos pequenos, ao contrário de trips/orders/items.
+    this.version(3).stores({
+      expenses: 'id, group_id, date, updated, deleted_at',
+      placeholders: 'id, group_id, claimed_by',
+    });
   }
 }
 
@@ -106,7 +116,7 @@ export async function metaSet(key: string, value: string | null): Promise<void> 
 export async function clearAllData(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta],
+    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta, db.expenses, db.placeholders],
     async () => {
       await Promise.all([
         db.groups.clear(),
@@ -116,6 +126,8 @@ export async function clearAllData(): Promise<void> {
         db.splits.clear(),
         db.users.clear(),
         db.meta.clear(),
+        db.expenses.clear(),
+        db.placeholders.clear(),
       ]);
     },
   );

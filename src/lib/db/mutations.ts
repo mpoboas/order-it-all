@@ -123,4 +123,6 @@ export const tables = {
   orders: db.orders,
   items: db.items,
   splits: db.splits,
+  expenses: db.expenses,
+  placeholders: db.placeholders,
 } as const;
