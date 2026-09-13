@@ -1,12 +1,12 @@
 import type { ComponentProps } from 'react';
 import {
     Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
-    ArrowRight, ArrowLeftRight, Pencil, Trash2, Copy, Share2, Link, Link2Off,
+    ArrowRight, ArrowLeftRight, Pencil, Trash2, Copy, Share, Share2, Link, Link2Off,
     Lock, LockOpen, Eye, User, Users, Star, ShieldCheck, ShoppingCart, ShoppingBag, Store,
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
-    Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone,
+    Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -35,6 +35,9 @@ const MAP = {
     delete_outline: Trash2,
     content_copy: Copy,
     share: Share2,
+    // Ícone real do botão "Partilhar" do Safari/iOS (quadrado + seta para
+    // cima) — distinto do `share` (Share2, o ícone de rede do Android).
+    ios_share: Share,
     link: Link,
     link_off: Link2Off,
     lock: Lock,
@@ -79,6 +82,8 @@ const MAP = {
     notifications_active: BellRing,
     notifications_off: BellOff,
     phone_iphone: Smartphone,
+    install_mobile: Download,
+    add_to_home_screen: SquarePlus,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

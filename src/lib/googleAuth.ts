@@ -193,12 +193,20 @@ export async function urlToAvatarFile(url: string): Promise<File | null> {
 
 export function buildPostAuthPath(
   needsSetup: boolean,
-  redirectPath: string | null
+  redirectPath: string | null,
+  onboarded?: boolean
 ): string {
   if (needsSetup) {
     return redirectPath
       ? `/auth/profile-setup?redirect=${encodeURIComponent(redirectPath)}`
       : '/auth/profile-setup';
+  }
+  // Conta antiga (de antes do onboarding existir), ainda não vista — mostra
+  // o carrossel uma vez, preservando o `redirect` (ex.: link de convite).
+  if (!onboarded) {
+    return redirectPath
+      ? `/onboarding?redirect=${encodeURIComponent(redirectPath)}`
+      : '/onboarding';
   }
   return redirectPath || '/groups';
 }

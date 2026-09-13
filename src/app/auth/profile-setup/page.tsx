@@ -218,9 +218,15 @@ export default function ProfileSetupPage() {
             clearOAuthProfileHints();
             navStart();
             if (redirect) {
-                router.push(redirect);
+                // Convite — mostra o carrossel de boas-vindas primeiro
+                // (com o grupo real do convite no 1º ecrã), preservando o
+                // destino original para o aceitar/auto-join continuar
+                // exatamente como antes assim que o utilizador terminar.
+                router.push(`/onboarding?redirect=${redirect}`);
             } else {
-                router.push('/groups');
+                // Registo direto (sem convite) — mostra o carrossel de
+                // boas-vindas antes de cair no /groups vazio.
+                router.push('/onboarding');
             }
         } catch (error) {
             console.error(error);

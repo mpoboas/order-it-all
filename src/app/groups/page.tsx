@@ -14,12 +14,14 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
-import { NotificationSoftAsk } from '@/components/features/NotificationSoftAsk';
+import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { useGroups } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
+import { shouldShowNotificationPrompt } from '@/lib/notificationPromptState';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
@@ -41,6 +43,7 @@ export default function GroupsPage() {
     const groups = groupsQuery ?? [];
     const { hydrating } = useSyncStatus();
     const loading = groupsQuery === undefined || (groups.length === 0 && hydrating);
+    const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
     // Redirect if not logged in
     useEffect(() => {
@@ -48,6 +51,26 @@ export default function GroupsPage() {
             router.push('/');
         }
     }, [isLoggedIn, router]);
+
+    // Utilizadores antigos (de antes do onboarding existir) têm
+    // `onboarded` a false/undefined — mostra-lho da próxima vez que abrirem
+    // a app, não só a quem acabou de criar conta (ver memória
+    // `onboarding-pwa-install`).
+    useEffect(() => {
+        if (isLoggedIn && user && !user.onboarded) {
+            router.push('/onboarding');
+        }
+    }, [isLoggedIn, user, router]);
+
+    // Pedido de ativar notificações — apanha quem acabou de instalar a WPA
+    // e voltou a entrar na app, ou quem criou o primeiro grupo/viagem sem
+    // alguma vez ter feito um pedido (esse caso, com o item real, dispara
+    // logo em `trips/[tripId]/page.tsx`).
+    useEffect(() => {
+        if (isLoggedIn && shouldShowNotificationPrompt(true)) {
+            setShowNotificationPrompt(true);
+        }
+    }, [isLoggedIn]);
 
     // Clear current group when visiting groups list
     useEffect(() => {
@@ -67,6 +90,7 @@ export default function GroupsPage() {
             await onlineCreate(() =>
                 groupsApi.create({ name: newGroupName.trim(), avatar: avatarBlob }),
             );
+            markInstallValueMoment();
             void catchUp();
             setShowCreateModal(false);
             setNewGroupName('');
@@ -109,10 +133,6 @@ export default function GroupsPage() {
                         Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">{user?.name || 'amigo'}</span>! 👋
                     </h2>
                     <p className="text-[var(--text-secondary)]">Seleciona um grupo ou cria um novo</p>
-                </div>
-
-                <div className="mb-6">
-                    <NotificationSoftAsk />
                 </div>
 
                 {/* Loading */}
@@ -236,6 +256,10 @@ export default function GroupsPage() {
                     </div>
                 </div>
             </Sheet>
+
+            {showNotificationPrompt && (
+                <NotificationInstallPrompt onClose={() => setShowNotificationPrompt(false)} />
+            )}
         </div>
     );
 }

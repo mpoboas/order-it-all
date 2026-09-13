@@ -25,12 +25,18 @@ export default function LoginPage() {
         try {
             await login(email, password);
             navStart();
-            const record = pb.authStore.model as { name?: string } | null;
+            const record = pb.authStore.model as { name?: string; onboarded?: boolean } | null;
             if (!record?.name?.trim()) {
                 router.push(
                     redirect
                         ? `/auth/profile-setup?redirect=${encodeURIComponent(redirect)}`
                         : '/auth/profile-setup'
+                );
+            } else if (!record?.onboarded) {
+                // Utilizador antigo, de antes do onboarding existir — mostra-lho
+                // uma vez, preservando o `redirect` (ex.: link de convite).
+                router.push(
+                    redirect ? `/onboarding?redirect=${encodeURIComponent(redirect)}` : '/onboarding'
                 );
             } else if (redirect) {
                 router.push(redirect);

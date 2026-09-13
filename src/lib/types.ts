@@ -8,6 +8,10 @@ export interface User {
   geminiApiKey?: string;
   daily_requests_count?: number;
   last_request_date?: string;
+  /** Já passou pelo carrossel de onboarding (`/onboarding`)? Falso por
+   *  omissão nos utilizadores antigos — devem vê-lo uma vez na próxima
+   *  entrada. */
+  onboarded?: boolean;
 }
 
 export interface Group {

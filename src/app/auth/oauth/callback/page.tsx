@@ -43,7 +43,11 @@ export default function OAuthCallbackPage() {
           record as { name?: string },
           meta
         );
-        const path = buildPostAuthPath(setup, redirectPath ?? null);
+        const path = buildPostAuthPath(
+          setup,
+          redirectPath ?? null,
+          (record as { onboarded?: boolean }).onboarded
+        );
 
         if (setup) {
           showToast('Completa o teu perfil para continuar', 'info');

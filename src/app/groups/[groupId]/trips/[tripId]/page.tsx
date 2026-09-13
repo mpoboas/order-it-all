@@ -43,6 +43,9 @@ import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
+import { shouldShowNotificationPrompt } from '@/lib/notificationPromptState';
+import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
@@ -72,6 +75,9 @@ export default function GroupTripDetailPage() {
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
     const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
     const [ordersTab, setOrdersTab] = useState<'mine' | 'participating' | 'others'>('mine');
+    const [notificationPrompt, setNotificationPrompt] = useState<{
+        item: { name: string; quantity: number } | null;
+    } | null>(null);
 
     const groupMembers: User[] = currentGroup?.expand?.members ?? [];
     const currentUserId = user?.id || '';
@@ -235,6 +241,15 @@ export default function GroupTripDetailPage() {
                 // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
                 await db.orders.put(order);
                 if (createdItems.length) await db.items.bulkPut(createdItems);
+                markInstallValueMoment();
+                // Já é o momento de valor em si — não precisa de reconfirmar
+                // com `hasReachedInstallValueMoment()` (por isso o `false`).
+                if (shouldShowNotificationPrompt(false)) {
+                    const first = data.items[0];
+                    setNotificationPrompt({
+                        item: first ? { name: first.name, quantity: first.quantity } : null,
+                    });
+                }
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
@@ -765,6 +780,13 @@ export default function GroupTripDetailPage() {
                 }}
                 onDraftActiveChange={setParticipantsSheetDraftActive}
             />
+
+            {notificationPrompt && (
+                <NotificationInstallPrompt
+                    orderItem={notificationPrompt.item}
+                    onClose={() => setNotificationPrompt(null)}
+                />
+            )}
         </div >
     );
 }

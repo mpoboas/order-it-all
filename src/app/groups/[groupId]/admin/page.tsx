@@ -41,6 +41,7 @@ import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
 import { GroupSetupChecklist } from '@/components/features/GroupSetupChecklist';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
 
 function AdminDashboardContent() {
     const params = useParams();
@@ -107,6 +108,7 @@ function AdminDashboardContent() {
             setNewTripName('');
             setNewTripDescription('');
             setShowCreateModal(false);
+            markInstallValueMoment();
             void catchUp();
 
             // Notify Users (menos quem acabou de criar — já vê a viagem no ecrã)
