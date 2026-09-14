@@ -10,7 +10,7 @@ import { useToast } from '@/context/ToastContext';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
-import { partyLabel } from '@/lib/parties';
+import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import { notify, notifiableUserIds } from '@/lib/notify';
@@ -19,12 +19,15 @@ import type { Party } from '@/lib/types';
 interface SettleUpSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  groupId: string;
+  /** Omitido = acerto direto entre dois amigos, sem grupo (Fase 8). */
+  groupId?: string;
   parties: Map<string, Party>;
   /** debtor → credor → cêntimos (já simplificado ou não, consoante o grupo). */
   pairwise: Record<string, Record<string, number>>;
   currentUserId: string;
   onSaved?: () => void;
+  /** URL do pagamento para a notificação — por omissão a rota de grupo. */
+  notifyUrl?: (expenseId: string) => string;
 }
 
 interface CounterpartyOption {
@@ -41,6 +44,7 @@ export function SettleUpSheet({
   pairwise,
   currentUserId,
   onSaved,
+  notifyUrl,
 }: SettleUpSheetProps) {
   const { showToast } = useToast();
   const [counterpartyId, setCounterpartyId] = useState<string | null>(null);
@@ -110,6 +114,7 @@ export function SettleUpSheet({
         split_mode: 'equal',
         payers: [{ party: payerId, amount }],
         shares: [{ party: receiverId, amount }],
+        participants: realParticipantIds([payerId, receiverId], parties),
         created_by: currentUserId,
       });
       await db.expenses.put(created);
@@ -120,7 +125,7 @@ export function SettleUpSheet({
         targetUserIds: receiverUserIds,
         title: '💸 Pagamento recebido',
         message: `${partyLabel(payerId, parties)} pagou-te ${formatEUR(amount)}.`,
-        url: `/groups/${groupId}/expenses/${created.id}`,
+        url: notifyUrl ? notifyUrl(created.id) : `/groups/${groupId}/expenses/${created.id}`,
       });
 
       onSaved?.();

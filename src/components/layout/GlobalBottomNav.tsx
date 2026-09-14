@@ -16,13 +16,14 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
     { href: '/groups', label: 'Grupos', icon: 'groups' },
+    { href: '/people', label: 'Amigos', icon: 'person' },
     { href: '/activity', label: 'Atividade', icon: 'activity' },
     { href: '/profile', label: 'Perfil', icon: 'person' },
 ];
 
-/** Barra inferior fora de um grupo (Grupos · Atividade · Perfil) — mesmo
- *  estilo do `BottomNav` do grupo. O separador "Perfil" usa o avatar do
- *  utilizador em vez de um ícone genérico, à Splitwise. */
+/** Barra inferior global — Grupos · Amigos · Atividade · Perfil, à
+ *  Splitwise. O separador "Perfil" usa o avatar do utilizador em vez de um
+ *  ícone genérico. */
 export function GlobalBottomNav() {
     const pathname = usePathname();
     const nav = useAppNavigate();

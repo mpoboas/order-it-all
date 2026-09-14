@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, ExpenseComment } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, ExpenseComment, Friendship } from '@/lib/types';
 
 /**
  * Cache local-first (IndexedDB via Dexie). As leituras da app saem daqui através
@@ -17,7 +17,10 @@ export interface MetaRow {
 
 // --- Utilizadores embebidos no `expand` -----------------------------------
 
-const SINGLE_USER_KEYS = ['creator', 'created_by', 'user', 'updated_by', 'deleted_by', 'claimed_by'] as const;
+const SINGLE_USER_KEYS = [
+  'creator', 'created_by', 'user', 'updated_by', 'deleted_by', 'claimed_by',
+  'user_a', 'user_b', 'requested_by',
+] as const;
 const ARRAY_USER_KEYS = ['members', 'admins', 'participants'] as const;
 
 function looksLikeUser(v: unknown): v is User {
@@ -62,6 +65,7 @@ class OrderItDB extends Dexie {
   expenses!: Table<Expense, string>;
   placeholders!: Table<Placeholder, string>;
   expense_comments!: Table<ExpenseComment, string>;
+  friendships!: Table<Friendship, string>;
 
   constructor() {
     super('orderit');
@@ -105,6 +109,15 @@ class OrderItDB extends Dexie {
     this.version(4).stores({
       expense_comments: 'id, expense_id, group_id, created',
     });
+    // v5: amizade como entidade própria + despesas sem grupo (Fase 8).
+    // `friendships` sincroniza globalmente como as outras tabelas acima.
+    // `*participants` é um índice multi-entry — só ganho local (o PB não
+    // indexa relações multi para `~`) para encontrar despesas diretas sem
+    // varrer a tabela toda.
+    this.version(5).stores({
+      expenses: 'id, group_id, date, updated, deleted_at, *participants',
+      friendships: 'id, user_a, user_b, status',
+    });
   }
 }
 
@@ -123,7 +136,7 @@ export async function metaSet(key: string, value: string | null): Promise<void> 
 export async function clearAllData(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments],
+    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments, db.friendships],
     async () => {
       await Promise.all([
         db.groups.clear(),
@@ -136,6 +149,7 @@ export async function clearAllData(): Promise<void> {
         db.expenses.clear(),
         db.placeholders.clear(),
         db.expense_comments.clear(),
+        db.friendships.clear(),
       ]);
     },
   );

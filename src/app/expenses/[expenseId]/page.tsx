@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
-import { useExpense, useParties } from '@/lib/db/hooks';
+import { useExpense, usePartiesForUserIds } from '@/lib/db/hooks';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
@@ -19,16 +19,18 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { Money } from '@/components/ui/Money';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { Button } from '@/components/ui/Button';
 import { ShareTree } from '@/components/features/ShareTree';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { formatRelativeOrDate } from '@/lib/utils';
 import { expenseReceiptUrl } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
-export default function ExpenseDetailPage() {
+/** Detalhe de uma despesa DIRETA, sem grupo (Fase 8) — equivalente a
+ *  `/groups/[groupId]/expenses/[expenseId]/page.tsx`, mas para despesas
+ *  entre dois amigos. Sem "Ver itens" (itemizada precisa de um `Split`,
+ *  sempre acoplado a um grupo — despesas diretas não suportam esse modo). */
+export default function DirectExpenseDetailPage() {
     const params = useParams();
-    const groupId = params.groupId as string;
     const expenseId = params.expenseId as string;
     const router = useSmartRouter();
     const nav = useAppNavigate();
@@ -37,12 +39,18 @@ export default function ExpenseDetailPage() {
     const confirmAction = useConfirm();
 
     const expense = useExpense(expenseId);
-    const parties = useParties(groupId);
+    const parties = usePartiesForUserIds(expense?.participants);
     const loading = expense === undefined || parties === undefined;
 
     const [showEdit, setShowEdit] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+    const otherUserId = useMemo(
+        () => expense?.participants?.find((id) => id !== user?.id),
+        [expense, user],
+    );
+    const returnUrl = otherUserId ? `/people/${otherUserId}` : '/activity';
 
     const handleReceiptChange = async (file: File | undefined) => {
         if (!file || !expense || !user?.id) return;
@@ -95,7 +103,7 @@ export default function ExpenseDetailPage() {
                     targetUserIds: notifiableUserIds(participantIds, parties, user.id),
                     title: '🗑️ Despesa eliminada',
                     message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" — ${formatEUR(updated.amount)}.`,
-                    url: `/groups/${groupId}/expenses`,
+                    url: returnUrl,
                 });
             }
 
@@ -170,16 +178,6 @@ export default function ExpenseDetailPage() {
                     <ShareTree expense={expense} parties={parties!} myId={user?.id} />
                 </div>
 
-                {expense.split_mode === 'itemized' && (
-                    <Button
-                        variant="secondary"
-                        block
-                        onClick={() => nav.push(`/groups/${groupId}/expenses/${expense.id}/items`)}
-                    >
-                        Ver itens
-                    </Button>
-                )}
-
                 {expense.notes && (
                     <div className="card p-4">
                         <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1">Notas</p>
@@ -225,9 +223,9 @@ export default function ExpenseDetailPage() {
                 {parties && user?.id && (
                     <CommentsBar
                         expense={expense}
-                        groupId={groupId}
                         parties={parties}
                         currentUserId={user.id}
+                        notifyUrl={`/expenses/${expense.id}`}
                     />
                 )}
             </main>
@@ -236,12 +234,11 @@ export default function ExpenseDetailPage() {
                 <ExpenseFormSheet
                     isOpen={showEdit}
                     onClose={() => setShowEdit(false)}
-                    groupId={groupId}
                     parties={parties}
                     currentUserId={user.id}
                     expense={expense}
                     onSaved={() => setShowEdit(false)}
-                    onOpenItems={(e) => nav.push(`/groups/${groupId}/expenses/${e.id}/items`, { haptic: false })}
+                    notifyUrl={(e) => `/expenses/${e.id}`}
                 />
             )}
         </div>

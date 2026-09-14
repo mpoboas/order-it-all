@@ -668,7 +668,7 @@ export default function SplitItemsPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack title="Itens" groupId={groupId} />
+                <Header showBack title="Itens" />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
         );
@@ -677,7 +677,7 @@ export default function SplitItemsPage() {
     if (!split) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack title="Itens" groupId={groupId} />
+                <Header showBack title="Itens" />
                 <div className="text-center py-20">
                     <div className="text-5xl mb-4">🔍</div>
                     <h2 className="text-xl font-bold mb-2">Não encontrei os itens desta despesa</h2>
@@ -724,7 +724,7 @@ export default function SplitItemsPage() {
 
     return (
         <div className="min-h-screen bg-app pb-32 md:pb-8">
-            <Header showBack title="Itens" subtitle={split.name} groupId={groupId} />
+            <Header showBack title="Itens" subtitle={split.name} />
 
             {saving && (
                 <div className="fixed top-20 right-4 z-50 bg-primary-600 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">

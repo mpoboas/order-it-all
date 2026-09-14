@@ -152,7 +152,6 @@ export function SplitMemberDetailView({
           showBack
           title="Divisão"
           subtitle={split.name}
-          groupId={groupId}
         />
         <main className="container mx-auto px-4 py-16 max-w-lg text-center">
           <div className="text-5xl mb-4">👤</div>
@@ -180,7 +179,6 @@ export function SplitMemberDetailView({
         showBack
         title="Divisão"
         subtitle={split.name}
-        groupId={groupId}
       />
       <div className="px-4 py-2.5 border-b border-hairline bg-surface">
         <p className="text-sm text-ink-soft max-w-lg mx-auto">

@@ -126,4 +126,5 @@ export const tables = {
   expenses: db.expenses,
   placeholders: db.placeholders,
   expense_comments: db.expense_comments,
+  friendships: db.friendships,
 } as const;

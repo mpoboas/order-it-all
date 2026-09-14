@@ -5,6 +5,14 @@ import { formatEUR } from '@/lib/money';
 
 const PB_BASE = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top';
 
+/** Ordena por `date` (mais recente primeiro) e, dentro do mesmo dia, por
+ *  `created` (mais recente primeiro) — `date` sozinho não desempata duas
+ *  despesas lançadas no mesmo dia (é só uma data, sem hora), o que dava
+ *  ordem arbitrária a despesas adicionadas há pouco. */
+export function compareExpensesRecentFirst(a: Expense, b: Expense): number {
+  return b.date.localeCompare(a.date) || b.created.localeCompare(a.created);
+}
+
 /** URL da foto do recibo (Fase 6) — `undefined` se a despesa não tiver uma. */
 export function expenseReceiptUrl(expense: Expense): string | undefined {
   if (!expense.receipt) return undefined;
@@ -57,7 +65,7 @@ export interface ExpenseMonthGroup {
 /** Agrupa despesas por mês (mais recente primeiro), já ordenadas por data
  *  dentro de cada grupo. */
 export function groupExpensesByMonth(expenses: Expense[]): ExpenseMonthGroup[] {
-  const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...expenses].sort(compareExpensesRecentFirst);
   const currentKey = monthKey(new Date().toISOString());
 
   const groups = new Map<string, Expense[]>();

@@ -191,7 +191,8 @@ export interface ExpenseShare {
 
 export interface Expense {
   id: string;
-  group_id: string;
+  /** Ausente/vazio = despesa direta entre amigos, sem grupo (Fase 8) — ver `participants`. */
+  group_id?: string;
   kind: ExpenseKind;
   description: string;
   /** Euros, 2 casas — a matemática de saldos corre sempre em cêntimos (ver `src/lib/ledger/money.ts`). */
@@ -207,6 +208,11 @@ export interface Expense {
   split_id?: string;
   /** Quando lançada a partir do fecho de uma viagem. */
   trip_id?: string;
+  /** Ids de utilizadores reais (nunca placeholders) entre `payers`+`shares`.
+   *  Sempre preenchido, mesmo em despesas de grupo (aí é redundante com
+   *  `group_id.members`) — é o mecanismo de autorização/sync para despesas
+   *  sem grupo (ver regra PB e `GLOBAL_FILTERS` em `src/lib/db/sync.ts`). */
+  participants?: string[];
   receipt?: string;
   created_by: string;
   updated_by?: string;
@@ -218,22 +224,49 @@ export interface Expense {
     deleted_by?: User;
     split_id?: Split;
     trip_id?: Trip;
+    participants?: User[];
   };
   created: string;
   updated: string;
 }
 
-/** Comentário numa despesa (Fase 5). `group_id` está desnormalizado (copiado
- *  da despesa ao criar) para a coleção sincronizar globalmente como
- *  `expenses`/`placeholders` (ver `src/lib/db/sync.ts`). */
+/** Comentário numa despesa (Fase 5). `group_id`/`participants` estão
+ *  desnormalizados (copiados da despesa ao criar) para a coleção sincronizar
+ *  globalmente como `expenses`/`placeholders` (ver `src/lib/db/sync.ts`). */
 export interface ExpenseComment {
   id: string;
   expense_id: string;
-  group_id: string;
+  /** Ausente/vazio quando a despesa pai é direta (sem grupo) — ver `Expense.group_id`. */
+  group_id?: string;
+  /** Copiado da despesa pai — ver `Expense.participants`. */
+  participants?: string[];
   user: string;
   content: string;
   expand?: {
     user?: User;
+  };
+  created: string;
+  updated: string;
+}
+
+// --- Amigos (Fase 8) --------------------------------------------------------
+
+export type FriendshipStatus = 'pending' | 'accepted';
+
+/** Amizade entre dois utilizadores, independente de grupo. `user_a`/`user_b`
+ *  guardam sempre o par canónico (`user_a < user_b`, ordem lexicográfica) —
+ *  evita pedidos espelhados; `requested_by` diz quem iniciou. Recusar um
+ *  pedido pendente é apagar a linha (sem histórico de "recusado"). */
+export interface Friendship {
+  id: string;
+  user_a: string;
+  user_b: string;
+  status: FriendshipStatus;
+  requested_by: string;
+  expand?: {
+    user_a?: User;
+    user_b?: User;
+    requested_by?: User;
   };
   created: string;
   updated: string;

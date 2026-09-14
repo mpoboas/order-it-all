@@ -1,7 +1,6 @@
 'use client';
 
 import { Money } from '@/components/ui/Money';
-import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/lib/utils';
 import { partyLabel } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
@@ -18,19 +17,15 @@ interface BalanceBandProps {
   /** Linhas por pessoa (já simplificadas ou não, consoante o grupo). */
   lines: BalanceLine[];
   parties: Map<string, Party>;
-  memberCount: number;
-  onMembersClick?: () => void;
   onSeeAllClick?: () => void;
 }
 
-/** Faixa logo abaixo do header do grupo — pastilha de membros + saldo
- *  líquido + até 3 linhas por pessoa. */
+/** Faixa logo abaixo da capa do grupo — saldo líquido + até 3 linhas por
+ *  pessoa. A pastilha "N pessoas" vive agora na capa (`GroupCoverHeader`). */
 export function BalanceBand({
   netCents,
   lines,
   parties,
-  memberCount,
-  onMembersClick,
   onSeeAllClick,
 }: BalanceBandProps) {
   const net = fromCents(netCents);
@@ -40,26 +35,15 @@ export function BalanceBand({
 
   return (
     <div className="px-4 py-3 border-b border-hairline bg-surface space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onMembersClick}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors shrink-0"
-        >
-          <Icon name="groups" className="text-base" />
-          {memberCount} {memberCount === 1 ? 'pessoa' : 'pessoas'}
-        </button>
-
-        {settled ? (
-          <p className="text-sm font-semibold text-ink-faint">Contas em dia</p>
-        ) : (
-          <p className={cn('text-sm font-semibold text-right', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-            {net > 0 ? 'Devem-te ' : 'Deves '}
-            <Money value={Math.abs(net)} />
-            {net < 0 && ' no total'}
-          </p>
-        )}
-      </div>
+      {settled ? (
+        <p className="text-sm font-semibold text-ink-faint text-right">Contas em dia</p>
+      ) : (
+        <p className={cn('text-sm font-semibold text-right', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
+          {net > 0 ? 'Devem-te ' : 'Deves '}
+          <Money value={Math.abs(net)} />
+          {net < 0 && ' no total'}
+        </p>
+      )}
 
       {visibleLines.length > 0 && (
         <ul className="space-y-0.5">

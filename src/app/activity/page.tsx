@@ -12,6 +12,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Avatar } from '@/components/ui/Avatar';
 import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { formatRelativeOrDate, cn } from '@/lib/utils';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
@@ -48,9 +49,20 @@ export default function ActivityPage() {
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
-            <Header title="Atividade" />
+            <Header
+                title="Order It All!"
+                icon={
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src="/favicon.svg"
+                        alt=""
+                        className="w-full h-full object-contain p-1"
+                    />
+                }
+            />
 
-            <main className="container mx-auto max-w-lg">
+            <main className="container mx-auto max-w-lg px-2 sm:px-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-ink mb-4 mt-4 animate-fade-in-up">Atividade</h2>
                 {!feed ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />
@@ -61,10 +73,14 @@ export default function ActivityPage() {
                             <Icon name="activity" className="text-5xl" />
                         </div>
                         <h3 className="text-xl font-semibold text-ink mb-2">Ainda não há atividade</h3>
-                        <p className="text-ink-soft">As despesas dos teus grupos vão aparecer aqui.</p>
+                        <p className="text-ink-soft mb-6 max-w-sm mx-auto">As despesas dos teus grupos vão aparecer aqui, assim que houver alguma.</p>
+                        <Button onClick={() => nav.push('/groups', { haptic: false })}>
+                            <Icon name="groups" className="text-xl" />
+                            Ver grupos
+                        </Button>
                     </div>
                 ) : (
-                    <ul className="divide-y divide-hairline px-2 sm:px-4">
+                    <ul className="divide-y divide-hairline">
                         {feed.map((item) => {
                             const actor = item.actorId === item.expense.created_by
                                 ? item.expense.expand?.created_by
@@ -72,13 +88,18 @@ export default function ActivityPage() {
                                     ? item.expense.expand?.updated_by
                                     : item.expense.expand?.deleted_by;
                             const actorName = actor?.name || 'Alguém';
-                            const groupName = groupNameById.get(item.expense.group_id) || 'um grupo';
+                            const groupName = item.expense.group_id
+                                ? groupNameById.get(item.expense.group_id) || 'um grupo'
+                                : null; // despesa direta (Fase 8) — sem grupo, sem clausula "em X"
+                            const expenseHref = item.expense.group_id
+                                ? `/groups/${item.expense.group_id}/expenses/${item.expense.id}`
+                                : `/expenses/${item.expense.id}`;
 
                             return (
                                 <li key={`${item.expense.id}-${item.verb}`}>
                                     <button
                                         type="button"
-                                        onClick={() => nav.push(`/groups/${item.expense.group_id}/expenses/${item.expense.id}`, { haptic: false })}
+                                        onClick={() => nav.push(expenseHref, { haptic: false })}
                                         className="w-full flex items-start gap-3 py-3 text-left hover:bg-surface-sunken rounded-lg px-2 -mx-2 transition-colors"
                                     >
                                         <div className="relative shrink-0">
@@ -95,8 +116,8 @@ export default function ActivityPage() {
                                                     <Money value={item.expense.amount} className="font-semibold" />
                                                 ) : (
                                                     <>«{item.expense.description || 'despesa'}»</>
-                                                )}{' '}
-                                                em <span className="font-semibold">{groupName}</span>
+                                                )}
+                                                {groupName && <> em <span className="font-semibold">{groupName}</span></>}
                                             </p>
                                             <p className="text-xs text-ink-faint mt-0.5">{formatRelativeOrDate(item.at)}</p>
                                         </div>

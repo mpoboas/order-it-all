@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { Header } from '@/components/layout/Header';
+import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { GroupTabs } from '@/components/features/GroupTabs';
+import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { TripCard } from '@/components/features/TripCard';
 import { Icon } from '@/components/ui/Icon';
@@ -22,6 +24,7 @@ export default function GroupTripsPage() {
     const { currentGroup, isAdmin } = useGroup();
     const router = useRouter();
     const nav = useAppNavigate();
+    const [showMembers, setShowMembers] = useState(false);
 
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
@@ -38,18 +41,22 @@ export default function GroupTripsPage() {
     if (isAdmin) return null;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
-            <Header
-                title={currentGroup?.name}
-                showBack
-                groupId={groupId}
-            />
+        <div className="min-h-dvh bg-app has-bottom-nav">
+            {currentGroup && (
+                <GroupCoverHeader
+                    group={currentGroup}
+                    memberCount={currentGroup.members.length}
+                    onMembersClick={() => setShowMembers(true)}
+                    isAdmin={isAdmin}
+                />
+            )}
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
             <main className="container mx-auto px-4 py-6 md:py-8">
                 {/* Título — utilizadores normais não criam viagens, por isso é só o cabeçalho (como em Divisões). */}
                 <div className="mb-6 animate-fade-in-up">
-                    <h2 className="text-2xl font-bold text-[var(--text-primary)]">Viagens</h2>
-                    <p className="text-sm text-[var(--text-secondary)]">Escolhe uma viagem para fazer o teu pedido</p>
+                    <h2 className="text-2xl font-bold text-ink">Viagens</h2>
+                    <p className="text-sm text-ink-soft">Escolhe uma viagem para fazer o teu pedido</p>
                 </div>
 
                 {/* Loading */}
@@ -58,17 +65,14 @@ export default function GroupTripsPage() {
                 ) : trips.length === 0 ? (
                     /* Empty State */
                     <div className="text-center py-20 animate-fade-in-up">
-                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/40 dark:to-primary-900/20 flex items-center justify-center">
+                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary-50 dark:bg-primary-950 flex items-center justify-center">
                             <span className="text-6xl">🛒</span>
                         </div>
-                        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                        <h3 className="text-xl font-semibold text-ink mb-2">
                             Sem viagens disponíveis
                         </h3>
-                        <p className="text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
-                            {isAdmin
-                                ? 'Cria uma nova viagem na área de admin!'
-                                : 'Volta mais tarde para novas viagens ao supermercado!'
-                            }
+                        <p className="text-ink-soft mb-6 max-w-sm mx-auto">
+                            Volta mais tarde para novas viagens ao supermercado!
                         </p>
                     </div>
                 ) : (
@@ -92,12 +96,16 @@ export default function GroupTripsPage() {
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 md:hidden">
                     <button
                         onClick={() => void catchUp()}
-                        className="px-4 py-2 bg-white/80 backdrop-blur rounded-full shadow-lg text-sm text-[var(--text-secondary)] flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
+                        className="px-4 py-2 bg-surface/80 backdrop-blur rounded-full shadow-lg text-sm text-ink-soft flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
                     >
                         <Icon name="refresh" className="text-base" />
                         Atualizar
                     </button>
                 </div>
+            )}
+
+            {currentGroup && (
+                <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
             )}
         </div>
     );

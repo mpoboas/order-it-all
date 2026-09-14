@@ -1,7 +1,7 @@
 import type { Table } from 'dexie';
 import type { RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import { pb } from '@/lib/pocketbase';
-import type { Group, User, Expense, Placeholder, ExpenseComment } from '@/lib/types';
+import type { Group, User, Expense, Placeholder, ExpenseComment, Friendship } from '@/lib/types';
 import { db, extractUsersFromExpand, metaGet, metaSet } from './schema';
 
 /**
@@ -35,13 +35,24 @@ const GROUP_EXPAND: Record<GroupColl, string> = {
 
 const GROUPS_EXPAND = 'creator,admins,members';
 
-type GlobalColl = 'expenses' | 'placeholders' | 'expense_comments';
-const GLOBAL_COLLS: GlobalColl[] = ['expenses', 'placeholders', 'expense_comments'];
+type GlobalColl = 'expenses' | 'placeholders' | 'expense_comments' | 'friendships';
+const GLOBAL_COLLS: GlobalColl[] = ['expenses', 'placeholders', 'expense_comments', 'friendships'];
 
 const GLOBAL_EXPAND: Record<GlobalColl, string> = {
-  expenses: 'created_by,updated_by,deleted_by',
+  expenses: 'created_by,updated_by,deleted_by,participants',
   placeholders: 'claimed_by,created_by',
   expense_comments: 'user',
+  friendships: 'user_a,user_b,requested_by',
+};
+
+/** Filtro relacional global por coleção (Fase 8: `expenses`/`expense_comments`
+ *  passam a admitir despesas sem grupo, autorizadas via `participants` em vez
+ *  de `group_id.members`; `friendships` não tem `group_id` nenhum). */
+const GLOBAL_FILTERS: Record<GlobalColl, (userId: string) => string> = {
+  expenses: (id) => `(group_id.members ~ "${id}") || (participants ~ "${id}")`,
+  placeholders: (id) => `group_id.members ~ "${id}"`,
+  expense_comments: (id) => `(group_id.members ~ "${id}") || (participants ~ "${id}")`,
+  friendships: (id) => `user_a = "${id}" || user_b = "${id}"`,
 };
 
 type Syncable = { id: string; updated?: string; expand?: Record<string, unknown> };
@@ -100,13 +111,14 @@ export async function backfillUsersFromCache(): Promise<void> {
       db.expenses.toArray(),
       db.placeholders.toArray(),
       db.expense_comments.toArray(),
+      db.friendships.toArray(),
     ])
   ).flat();
   await putUsers(extractUsersFromExpand(records));
 }
 
 async function referencedUserIds(): Promise<string[]> {
-  const [groups, trips, orders, splits, expenses, placeholders, comments] = await Promise.all([
+  const [groups, trips, orders, splits, expenses, placeholders, comments, friendships] = await Promise.all([
     db.groups.toArray(),
     db.trips.toArray(),
     db.orders.toArray(),
@@ -114,6 +126,7 @@ async function referencedUserIds(): Promise<string[]> {
     db.expenses.toArray(),
     db.placeholders.toArray(),
     db.expense_comments.toArray(),
+    db.friendships.toArray(),
   ]);
   const s = new Set<string>();
   for (const g of groups) {
@@ -131,12 +144,18 @@ async function referencedUserIds(): Promise<string[]> {
     if (e.created_by) s.add(e.created_by);
     if (e.updated_by) s.add(e.updated_by);
     if (e.deleted_by) s.add(e.deleted_by);
+    e.participants?.forEach((x) => s.add(x));
   }
   for (const p of placeholders) {
     if (p.created_by) s.add(p.created_by);
     if (p.claimed_by) s.add(p.claimed_by);
   }
   for (const c of comments) if (c.user) s.add(c.user);
+  for (const f of friendships) {
+    s.add(f.user_a);
+    s.add(f.user_b);
+    s.add(f.requested_by);
+  }
   return [...s];
 }
 
@@ -160,29 +179,32 @@ async function fetchMissingUsers(): Promise<void> {
 // --- Groups (global) ---------------------------------------------------
 
 export async function hydrateGroups(userId: string): Promise<void> {
-  const globalScope = `group_id.members ~ "${userId}"`;
-  const [groups, expenses, placeholders, comments] = await Promise.all([
+  const [groups, expenses, placeholders, comments, friendships] = await Promise.all([
     pb.collection('groups').getFullList<Group>({
       filter: `members ~ "${userId}"`,
       sort: '-created',
       expand: GROUPS_EXPAND,
     }),
     pb.collection('expenses').getFullList<Expense>({
-      filter: globalScope,
+      filter: GLOBAL_FILTERS.expenses(userId),
       expand: GLOBAL_EXPAND.expenses,
     }),
     pb.collection('placeholders').getFullList<Placeholder>({
-      filter: globalScope,
+      filter: GLOBAL_FILTERS.placeholders(userId),
       expand: GLOBAL_EXPAND.placeholders,
     }),
     pb.collection('expense_comments').getFullList<ExpenseComment>({
-      filter: globalScope,
+      filter: GLOBAL_FILTERS.expense_comments(userId),
       expand: GLOBAL_EXPAND.expense_comments,
+    }),
+    pb.collection('friendships').getFullList<Friendship>({
+      filter: GLOBAL_FILTERS.friendships(userId),
+      expand: GLOBAL_EXPAND.friendships,
     }),
   ]);
   await db.transaction(
     'rw',
-    [db.groups, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments],
+    [db.groups, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments, db.friendships],
     async () => {
       await db.groups.clear();
       await db.groups.bulkPut(groups);
@@ -192,7 +214,9 @@ export async function hydrateGroups(userId: string): Promise<void> {
       await db.placeholders.bulkPut(placeholders);
       await db.expense_comments.clear();
       await db.expense_comments.bulkPut(comments);
-      await putUsers(extractUsersFromExpand([...groups, ...expenses, ...placeholders, ...comments]));
+      await db.friendships.clear();
+      await db.friendships.bulkPut(friendships);
+      await putUsers(extractUsersFromExpand([...groups, ...expenses, ...placeholders, ...comments, ...friendships]));
       const mark = maxUpdated(groups, null);
       if (mark) await metaSet('lastSync:groups', mark);
       const expMark = maxUpdated(expenses, null);
@@ -201,6 +225,8 @@ export async function hydrateGroups(userId: string): Promise<void> {
       if (phMark) await metaSet('lastSync:global:placeholders', phMark);
       const cMark = maxUpdated(comments, null);
       if (cMark) await metaSet('lastSync:global:expense_comments', cMark);
+      const frMark = maxUpdated(friendships, null);
+      if (frMark) await metaSet('lastSync:global:friendships', frMark);
       await metaSet('session:userId', userId);
     },
   );
@@ -260,7 +286,7 @@ async function syncGroups(opts: SyncOpts): Promise<void> {
 async function syncGlobalCollection(coll: GlobalColl, opts: SyncOpts): Promise<void> {
   const userId = pb.authStore.model?.id;
   if (!userId) return;
-  const scope = `group_id.members ~ "${userId}"`;
+  const scope = GLOBAL_FILTERS[coll](userId);
   const wmKey = `lastSync:global:${coll}`;
   const lastSync = await metaGet(wmKey);
   const full = opts.fullGroups || !lastSync;
@@ -701,11 +727,10 @@ export async function startRealtime(): Promise<void> {
       filter: `members ~ "${userId}"`,
       expand: GROUPS_EXPAND,
     });
-    const globalScope = `group_id.members ~ "${userId}"`;
     const globalResults = await Promise.allSettled(
       GLOBAL_COLLS.map((coll) =>
         pb.collection(coll).subscribe('*', makeGlobalHandler(coll), {
-          filter: globalScope,
+          filter: GLOBAL_FILTERS[coll](userId),
           expand: GLOBAL_EXPAND[coll],
         }),
       ),

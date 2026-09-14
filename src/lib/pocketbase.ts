@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment } from './types';
+import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment, Friendship } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase(
@@ -353,19 +353,29 @@ export const expensesApi = {
     const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');
     return await pb.collection('expenses').getFullList<Expense>({
       filter,
-      sort: '-date',
-      expand: 'created_by,updated_by,deleted_by',
+      sort: '-date,-created',
+      expand: 'created_by,updated_by,deleted_by,participants',
+    });
+  },
+
+  /** Despesas diretas (sem grupo) entre o utilizador e um amigo — Fase 8. */
+  getDirectBetween: async (userIdA: string, userIdB: string): Promise<Expense[]> => {
+    return await pb.collection('expenses').getFullList<Expense>({
+      filter: `group_id = "" && participants ~ "${userIdA}" && participants ~ "${userIdB}"`,
+      sort: '-date,-created',
+      expand: 'created_by,updated_by,deleted_by,participants',
     });
   },
 
   getById: async (id: string): Promise<Expense> => {
     return await pb.collection('expenses').getOne<Expense>(id, {
-      expand: 'created_by,updated_by,deleted_by,split_id,trip_id',
+      expand: 'created_by,updated_by,deleted_by,split_id,trip_id,participants',
     });
   },
 
   create: async (data: {
-    group_id: string;
+    /** Omitido/vazio = despesa direta entre amigos (Fase 8) — ver `participants`. */
+    group_id?: string;
     kind?: ExpenseKind;
     description: string;
     amount: number;
@@ -377,6 +387,9 @@ export const expensesApi = {
     shares: ExpenseShare[];
     split_id?: string;
     trip_id?: string;
+    /** Ids de utilizadores reais entre `payers`+`shares` — obrigatório quando
+     *  não há `group_id` (é o mecanismo de autorização da despesa direta). */
+    participants?: string[];
     created_by: string;
   }): Promise<Expense> => {
     return await pb.collection('expenses').create<Expense>({
@@ -467,6 +480,39 @@ export const placeholdersApi = {
   },
 };
 
+// Friendship API — amizade entre dois utilizadores, independente de grupo (Fase 8)
+export const friendshipsApi = {
+  getForUser: async (userId: string): Promise<Friendship[]> => {
+    return await pb.collection('friendships').getFullList<Friendship>({
+      filter: `user_a = "${userId}" || user_b = "${userId}"`,
+      expand: 'user_a,user_b,requested_by',
+    });
+  },
+
+  /** Pede amizade a `otherUserId`. O par canónico (`user_a < user_b`,
+   *  exigido pela regra de criação) é resolvido aqui. */
+  request: async (currentUserId: string, otherUserId: string): Promise<Friendship> => {
+    const [user_a, user_b] = [currentUserId, otherUserId].sort();
+    return await pb.collection('friendships').create<Friendship>({
+      user_a,
+      user_b,
+      status: 'pending',
+      requested_by: currentUserId,
+    });
+  },
+
+  /** Só quem não pediu pode aceitar (ver regra da coleção). */
+  accept: async (id: string): Promise<Friendship> => {
+    return await pb.collection('friendships').update<Friendship>(id, { status: 'accepted' });
+  },
+
+  /** Cancela um pedido pendente ou desfaz uma amizade aceite — sem histórico. */
+  remove: async (id: string): Promise<boolean> => {
+    await pb.collection('friendships').delete(id);
+    return true;
+  },
+};
+
 // Comentários numa despesa (Fase 5)
 export const commentsApi = {
   getByExpense: async (expenseId: string): Promise<ExpenseComment[]> => {
@@ -479,7 +525,11 @@ export const commentsApi = {
 
   create: async (data: {
     expense_id: string;
-    group_id: string;
+    /** Omitido/vazio quando a despesa pai é direta (sem grupo) — ver `Expense.group_id`. */
+    group_id?: string;
+    /** Copiado da despesa pai (`Expense.participants`) — necessário para a
+     *  regra de acesso quando a despesa não tem grupo. */
+    participants?: string[];
     user: string;
     content: string;
   }): Promise<ExpenseComment> => {

@@ -15,7 +15,7 @@ import { useToast } from '@/context/ToastContext';
 import { guessCategory } from '@/lib/ledger/categories';
 import { computeShares, type ComputableSplitMode } from '@/lib/ledger/shares';
 import { toCents, fromCents } from '@/lib/ledger/money';
-import { partyLabel } from '@/lib/parties';
+import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { notify, notifiableUserIds } from '@/lib/notify';
 import { formatEUR } from '@/lib/money';
 import type { Expense, ExpensePayer, ExpenseSplitMode, Party } from '@/lib/types';
@@ -23,7 +23,9 @@ import type { Expense, ExpensePayer, ExpenseSplitMode, Party } from '@/lib/types
 interface ExpenseFormSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  groupId: string;
+  /** Omitido = despesa direta entre amigos, sem grupo (Fase 8) — desativa o
+   *  modo "Itens" (precisa de um `Split`, sempre acoplado a um grupo). */
+  groupId?: string;
   parties: Map<string, Party>;
   currentUserId: string;
   expense?: Expense | null;
@@ -31,6 +33,9 @@ interface ExpenseFormSheetProps {
   /** Chamado depois de criar/gravar uma despesa itemizada — navega para o
    *  sub-ecrã de itens. */
   onOpenItems?: (expense: Expense) => void;
+  /** URL da despesa gravada, para a notificação — por omissão a rota de
+   *  grupo; despesas diretas passam a sua própria (`/expenses/[id]`). */
+  notifyUrl?: (expense: Expense) => string;
 }
 
 function todayIso(): string {
@@ -46,6 +51,7 @@ export function ExpenseFormSheet({
   expense,
   onSaved,
   onOpenItems,
+  notifyUrl,
 }: ExpenseFormSheetProps) {
   const { showToast } = useToast();
   const isEditing = Boolean(expense);
@@ -154,6 +160,7 @@ export function ExpenseFormSheet({
         sharesPayload = shares.map((s) => ({ party: s.party, amount: fromCents(s.amountCents), input: s.input }));
       }
 
+      const notifyPartyIdsForSave = Array.from(new Set([...payers.map((p) => p.party), ...sharesPayload.map((s) => s.party)]));
       const base = {
         description: description.trim(),
         amount,
@@ -163,6 +170,7 @@ export function ExpenseFormSheet({
         split_mode: splitMode,
         payers,
         shares: sharesPayload,
+        participants: realParticipantIds(notifyPartyIdsForSave, parties),
       };
 
       let saved: Expense;
@@ -177,7 +185,7 @@ export function ExpenseFormSheet({
       }
       await db.expenses.put(saved);
 
-      if (splitMode === 'itemized' && !saved.split_id) {
+      if (splitMode === 'itemized' && !saved.split_id && groupId) {
         const split = await splitsApi.create({
           name: description.trim(),
           group_id: groupId,
@@ -200,7 +208,7 @@ export function ExpenseFormSheet({
         targetUserIds: targets,
         title: isEditing ? '✏️ Despesa editada' : '💰 Nova despesa',
         message: `${partyLabel(currentUserId, parties)} ${isEditing ? 'editou' : 'adicionou'} "${saved.description}" — ${formatEUR(saved.amount)}.`,
-        url: `/groups/${groupId}/expenses/${saved.id}`,
+        url: notifyUrl ? notifyUrl(saved) : `/groups/${groupId}/expenses/${saved.id}`,
       });
     } catch (error) {
       showToast(mutationErrorMessage(error, 'Erro ao guardar despesa'), 'error');
@@ -297,6 +305,7 @@ export function ExpenseFormSheet({
         mode={splitMode}
         participantIds={participantIds}
         inputs={splitInputs}
+        allowItemized={Boolean(groupId)}
         onConfirm={(result: SplitModeResult) => {
           setSplitMode(result.mode);
           setParticipantIds(result.participantIds);

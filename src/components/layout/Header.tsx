@@ -1,12 +1,8 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { Avatar } from '@/components/ui/Avatar';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
-import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { cn } from '@/lib/utils';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { Icon } from '@/components/ui/Icon';
@@ -16,163 +12,90 @@ interface HeaderProps {
     subtitle?: string;
     showBack?: boolean;
     transparent?: boolean;
-    groupId?: string;
     icon?: React.ReactNode;
-    /** Ações à direita (ex.: editar/apagar no detalhe de uma despesa) — antes
-     *  do avatar de perfil, sempre visíveis (não só desktop). */
+    /** Ações à direita (ex.: editar/apagar no detalhe de uma despesa). */
     actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, showBack, transparent = false, groupId, icon, actions }: HeaderProps) {
-    const { user, isLoggedIn } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
-    const pathname = usePathname();
+/** Barra fina e neutra — sem gradiente de marca (troca feita depois de nos
+ *  aproximarmos do layout do Splitwise: a barra de baixo global é que agora
+ *  "diz onde estás na app"; esta é só título + voltar). Trocar de grupo
+ *  deixou de ter atalho aqui — usa-se o separador "Grupos" da barra global.
+ *  O avatar de perfil também saiu daqui — redundante com o separador
+ *  "Perfil" da mesma barra. */
+export function Header({ title, subtitle, showBack, transparent = false, icon, actions }: HeaderProps) {
+    const { currentGroup } = useGroup();
     const nav = useAppNavigate();
-    const userName = user?.name || user?.email || '??';
 
-    // Determine current section within a group
-    const isInTrips = pathname.includes('/trips');
-    const isInExpenses = pathname.includes('/expenses');
-    const isInAdmin = pathname.includes('/admin');
-    const isInGroup = !!groupId || pathname.startsWith('/groups/');
-
-    const displayTitle = title || currentGroup?.name || 'Order It All!';
-    const displaySubtitle = subtitle;
-
-    // Toggle to the other section (trips <-> despesas) for non-admin users
-    const getToggleHref = () => {
-        if (!groupId) return null;
-        if (isInTrips) return `/groups/${groupId}/expenses`;
-        if (isInExpenses) return `/groups/${groupId}/trips`;
-        return null;
-    };
-
-    const toggleHref = getToggleHref();
-    const showToggle = isInGroup && !isAdmin && toggleHref;
+    // Ecrãs de topo (Grupos/Amigos/Atividade) não passam título nenhum — à
+    // Splitwise, a identidade do ecrã vive no próprio conteúdo (saudação,
+    // cabeçalho de secção), não numa barra fixa. Nesse caso a barra fica
+    // "em branco": sem ícone à esquerda, só as `actions` à direita, se as
+    // houver.
+    const bare = !showBack && !title;
+    const displayTitle = title || currentGroup?.name;
 
     return (
         <header
             className={cn(
-                'sticky top-0 z-40 transition duration-300 safe-top',
-                transparent
-                    ? 'bg-transparent'
-                    : 'bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800'
+                'sticky top-0 z-40 transition duration-300 safe-top border-b border-hairline',
+                transparent ? 'bg-transparent border-transparent' : 'bg-surface'
             )}
         >
-            <div className="px-4 py-4 md:py-5">
+            <div className="px-4 py-3 md:py-4">
                 <div className="flex items-center justify-between max-w-6xl mx-auto">
                     {/* Left side */}
-                    <div className="flex items-center min-w-0">
-                        {showBack ? (
-                            <button
-                                type="button"
-                                aria-label="Voltar"
-                                onClick={() => nav.up()}
-                                className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 hover:bg-white/30 transition-colors active:scale-95"
-                            >
-                                <Icon name="chevron_left" className="text-xl text-white" />
-                            </button>
-                        ) : (
-                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center mr-3 overflow-hidden">
-                                {icon ? (
-                                    typeof icon === 'string' ? (
-                                        <span className="text-xl">{icon}</span>
+                    {bare ? (
+                        <div />
+                    ) : (
+                        <div className="flex items-center min-w-0">
+                            {showBack ? (
+                                <button
+                                    type="button"
+                                    aria-label="Voltar"
+                                    onClick={() => nav.up()}
+                                    className="w-9 h-9 rounded-xl flex items-center justify-center mr-3 hover:bg-surface-sunken transition-colors active:scale-95 text-ink"
+                                >
+                                    <Icon name="chevron_left" className="text-xl" />
+                                </button>
+                            ) : (
+                                <div className="w-9 h-9 rounded-xl bg-surface-sunken flex items-center justify-center mr-3 overflow-hidden">
+                                    {icon ? (
+                                        typeof icon === 'string' ? (
+                                            <span className="text-xl">{icon}</span>
+                                        ) : (
+                                            icon
+                                        )
+                                    ) : currentGroup && getGroupAvatarUrl(currentGroup.id, currentGroup.avatar) ? (
+                                        <RemoteImage
+                                            src={getGroupAvatarUrl(currentGroup.id, currentGroup.avatar)!}
+                                            alt="Grupo"
+                                            width={36}
+                                            height={36}
+                                            className="w-full h-full object-cover"
+                                        />
                                     ) : (
-                                        icon
-                                    )
-                                ) : currentGroup && getGroupAvatarUrl(currentGroup.id, currentGroup.avatar) ? (
-                                    <RemoteImage
-                                        src={getGroupAvatarUrl(currentGroup.id, currentGroup.avatar)!}
-                                        alt="Grupo"
-                                        width={40}
-                                        height={40}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="text-xl">{currentGroup?.avatar || '🛒'}</span>
+                                        <span className="text-xl">{currentGroup?.avatar || '🛒'}</span>
+                                    )}
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <h1 className="text-lg md:text-xl font-semibold text-ink truncate">{displayTitle}</h1>
+                                {subtitle && (
+                                    <p className="text-xs md:text-sm text-ink-soft truncate">{subtitle}</p>
                                 )}
                             </div>
-                        )}
-                        <div className="min-w-0">
-                            <h1 className="text-lg md:text-xl font-bold text-white truncate">{displayTitle}</h1>
-                            {displaySubtitle && (
-                                <p className="text-xs md:text-sm text-white/80 truncate">{displaySubtitle}</p>
-                            )}
                         </div>
-                    </div>
+                    )}
 
                     {/* Right side */}
-                    <div className="flex items-center gap-2">
-                        {/* Toggle button for non-admin users in a group — mobile now has
-                            BottomNav for this, so it's desktop-only here (no BottomNav there). */}
-                        {showToggle && (
-                            <button
-                                type="button"
-                                aria-label={isInTrips ? 'Ver Despesas' : 'Ver Viagens'}
-                                onClick={() => nav.push(toggleHref!)}
-                                className="hidden md:flex w-10 h-10 rounded-xl bg-white/20 backdrop-blur items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
-                            >
-                                <Icon
-                                    name={isInTrips ? 'receipt_long' : 'shopping_bag'}
-                                    className="text-xl text-white"
-                                    strokeWidth={1.75}
-                                />
-                            </button>
-                        )}
-
-                        {/* Desktop nav links - only for admins in group */}
-                        {isAdmin && groupId && (
-                            <nav className="hidden md:flex items-center gap-1 mr-4">
-                                <NavLink href={`/groups/${groupId}/admin`} current={isInAdmin}>
-                                    Admin
-                                </NavLink>
-                                <NavLink href={`/groups/${groupId}/expenses`} current={isInExpenses}>
-                                    Despesas
-                                </NavLink>
-                            </nav>
-                        )}
-
-                        {actions}
-
-                        {isLoggedIn && (
-                            <button
-                                type="button"
-                                aria-label="Meu perfil"
-                                onClick={() => nav.push('/profile')}
-                                className="relative group"
-                            >
-                                <Avatar
-                                    name={userName}
-                                    src={user ? getUserAvatarUrl(user.id, user.avatar) : undefined}
-                                    size="md"
-                                    className="ring-2 ring-white/30 hover:ring-white/50 transition"
-                                />
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-danger rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Icon name="logout" size={12} className="text-white" />
-                                </div>
-                            </button>
-                        )}
-                    </div>
+                    {actions && (
+                        <div className="flex items-center gap-2">
+                            {actions}
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
-    );
-}
-
-function NavLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
-    const nav = useAppNavigate();
-
-    return (
-        <button
-            onClick={() => nav.push(href)}
-            className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium transition',
-                current
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-            )}
-        >
-            {children}
-        </button>
     );
 }

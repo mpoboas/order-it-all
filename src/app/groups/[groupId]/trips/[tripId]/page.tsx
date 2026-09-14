@@ -376,7 +376,7 @@ export default function GroupTripDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack groupId={groupId} />
+                <Header showBack />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
         );
@@ -385,7 +385,7 @@ export default function GroupTripDetailPage() {
     if (!trip) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack groupId={groupId} />
+                <Header showBack />
                 <div className="text-center py-20">
                     <div className="text-6xl mb-4">😕</div>
                     <h2 className="text-xl font-bold mb-4">Viagem não encontrada</h2>
@@ -403,7 +403,7 @@ export default function GroupTripDetailPage() {
 
     return (
         <div className="min-h-screen bg-app has-bottom-nav">
-            <Header showBack title="Viagem" subtitle={trip.name} groupId={groupId} />
+            <Header showBack title="Viagem" subtitle={trip.name} />
 
             {trip.status !== 'open' && (
                 <div className={cn(

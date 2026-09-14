@@ -11,13 +11,15 @@ import { partyLabel, isUnclaimedPlaceholder } from '@/lib/parties';
 import { notify, notifiableUserIds } from '@/lib/notify';
 import { formatEUR } from '@/lib/money';
 import { useToast } from '@/context/ToastContext';
-import { Header } from '@/components/layout/Header';
+import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { GroupTabs } from '@/components/features/GroupTabs';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
+import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { cn } from '@/lib/utils';
 import { getFabBottom } from '@/lib/bottomDock';
 
@@ -28,12 +30,13 @@ export default function GroupBalancesPage() {
     const groupId = params.groupId as string;
     const router = useRouter();
     const { user, isLoggedIn } = useUser();
-    const { currentGroup } = useGroup();
+    const { currentGroup, isAdmin } = useGroup();
     const { showToast } = useToast();
 
     const ledger = useGroupLedger(groupId);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showSettleUp, setShowSettleUp] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
@@ -76,7 +79,15 @@ export default function GroupBalancesPage() {
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
-            <Header title="Saldos" subtitle={currentGroup?.name} showBack groupId={groupId} />
+            {currentGroup && (
+                <GroupCoverHeader
+                    group={currentGroup}
+                    memberCount={ledger?.parties.size ?? currentGroup.members.length}
+                    onMembersClick={() => setShowMembers(true)}
+                    isAdmin={isAdmin}
+                />
+            )}
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
             <main className="container mx-auto px-4 py-4 max-w-lg">
                 {!ledger ? (
@@ -183,6 +194,10 @@ export default function GroupBalancesPage() {
                     pairwise={ledger.pairwise}
                     currentUserId={user.id}
                 />
+            )}
+
+            {currentGroup && (
+                <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
             )}
         </div>
     );

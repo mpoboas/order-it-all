@@ -141,7 +141,17 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-app pb-20 transition-colors has-bottom-nav">
-            <Header title="Meu Perfil" showBack />
+            <Header
+                title="Order It All!"
+                icon={
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src="/favicon.svg"
+                        alt=""
+                        className="w-full h-full object-contain p-1"
+                    />
+                }
+            />
 
             <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
 

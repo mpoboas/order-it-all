@@ -2,26 +2,39 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { groupsApi } from '@/lib/pocketbase';
+import { groupsApi, placeholdersApi } from '@/lib/pocketbase';
 import { navStart } from '@/lib/navProgress';
-import type { Group } from '@/lib/types';
+import type { Group, Placeholder } from '@/lib/types';
 import {
   GROUP_EMOJIS,
   getGroupAvatarUrl,
   guessGroupEmoji,
   isGroupImageAvatar,
 } from '@/lib/groupAvatars';
+import { groupMembersFromExpand, canonicalPartyId } from '@/lib/parties';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
+import { usePlaceholders, useExpenses, useGroupLedger } from '@/lib/db/hooks';
+import { fromCents } from '@/lib/ledger/money';
+import { db } from '@/lib/db/schema';
+import { optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { Sheet } from '@/components/ui/Sheet';
+import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
+import { Money } from '@/components/ui/Money';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
+import { ClaimPlaceholderSheet } from '@/components/features/ClaimPlaceholderSheet';
+
+const EPS_CENTS = 1;
 
 interface GroupSettingsTabProps {
   group: Group;
   groupId: string;
   isCreator: boolean;
+  currentUserId?: string;
   onGroupUpdated: () => void;
 }
 
@@ -29,12 +42,126 @@ export function GroupSettingsTab({
   group,
   groupId,
   isCreator,
+  currentUserId,
   onGroupUpdated,
 }: GroupSettingsTabProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const confirmAction = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const members = groupMembersFromExpand(group);
+  const placeholders = usePlaceholders(groupId) ?? [];
+  const unclaimedPlaceholders = placeholders.filter((p) => !p.claimed_by);
+  const expenses = useExpenses(groupId) ?? [];
+  const placeholderHasExpenses = (id: string) =>
+    expenses.some((e) => e.payers.some((p) => p.party === id) || e.shares.some((s) => s.party === id));
+
+  const ledger = useGroupLedger(groupId);
+
+  const editGroupMembers = async (
+    patch: Partial<Group>,
+    commit: () => Promise<unknown>,
+    errMsg: string,
+  ) => {
+    try {
+      await optimisticEdit({ table: db.groups, id: groupId, patch, commit });
+      onGroupUpdated();
+    } catch (error) {
+      showToast(mutationErrorMessage(error, errMsg), 'error');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!(await confirmAction({
+      title: 'Remover este membro do grupo?',
+      tone: 'danger',
+      confirmLabel: 'Remover',
+    }))) return;
+    await editGroupMembers(
+      {
+        members: group.members.filter((id) => id !== memberId),
+        admins: group.admins.filter((id) => id !== memberId),
+      },
+      () => groupsApi.removeMember(groupId, memberId),
+      'Erro ao remover membro',
+    );
+  };
+
+  const handlePromoteMember = async (memberId: string) => {
+    if (!(await confirmAction({
+      title: 'Promover a administrador?',
+      confirmLabel: 'Promover',
+    }))) return;
+    await editGroupMembers(
+      { admins: [...group.admins, memberId] },
+      () => groupsApi.promoteToAdmin(groupId, memberId),
+      'Erro ao promover',
+    );
+  };
+
+  const handleDemoteMember = async (memberId: string) => {
+    if (!(await confirmAction({
+      title: 'Remover privilégios de administrador?',
+      tone: 'warning',
+      confirmLabel: 'Remover privilégios',
+    }))) return;
+    await editGroupMembers(
+      { admins: group.admins.filter((id) => id !== memberId) },
+      () => groupsApi.demoteFromAdmin(groupId, memberId),
+      'Erro ao despromover',
+    );
+  };
+
+  const [claimTarget, setClaimTarget] = useState<Placeholder | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [busyPlaceholderId, setBusyPlaceholderId] = useState<string | null>(null);
+
+  const startRename = (p: Placeholder) => {
+    setRenamingId(p.id);
+    setRenameValue(p.name);
+  };
+
+  const saveRename = async (p: Placeholder) => {
+    const name = renameValue.trim();
+    if (!name || name === p.name) {
+      setRenamingId(null);
+      return;
+    }
+    setBusyPlaceholderId(p.id);
+    try {
+      const updated = await placeholdersApi.rename(p.id, name);
+      await db.placeholders.put(updated);
+      setRenamingId(null);
+    } catch {
+      showToast('Erro ao renomear', 'error');
+    } finally {
+      setBusyPlaceholderId(null);
+    }
+  };
+
+  const handleRemovePlaceholder = async (p: Placeholder) => {
+    if (placeholderHasExpenses(p.id)) {
+      showToast('Não é possível remover — tem despesas associadas', 'error');
+      return;
+    }
+    if (!(await confirmAction({
+      title: `Remover "${p.name}"?`,
+      tone: 'danger',
+      confirmLabel: 'Remover',
+    }))) return;
+    setBusyPlaceholderId(p.id);
+    try {
+      await placeholdersApi.delete(p.id);
+      await db.placeholders.delete(p.id);
+      showToast('Removido', 'success');
+    } catch {
+      showToast('Erro ao remover', 'error');
+    } finally {
+      setBusyPlaceholderId(null);
+    }
+  };
 
   const [editName, setEditName] = useState(group.name);
   const [selectedEmoji, setSelectedEmoji] = useState(() => guessGroupEmoji(group.avatar));
@@ -399,6 +526,83 @@ export function GroupSettingsTab({
         )}
       </section>
 
+      {/* Membros — combinação das antigas abas "Membros" e "Definições" */}
+      <section className="card p-5 space-y-4">
+        <h2 className="text-lg font-bold text-ink">Membros ({members.length})</h2>
+        <div className="space-y-3">
+          {members.map((member) => {
+            const isMemberAdmin = group.admins.includes(member.id);
+            const isMemberCreator = group.creator === member.id;
+            const netCents = ledger ? ledger.net[canonicalPartyId(member.id, ledger.parties)] ?? 0 : 0;
+            const settled = Math.abs(netCents) < EPS_CENTS;
+
+            return (
+              <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-hairline bg-surface p-3">
+                <Avatar name={member.name} src={getUserAvatarUrl(member.id, member.avatar)} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-ink flex items-center gap-2">
+                    <span className="truncate">{member.name}</span>
+                    {isMemberCreator && <Badge variant="warning">Dono</Badge>}
+                    {isMemberAdmin && !isMemberCreator && <Badge variant="info">Admin</Badge>}
+                  </p>
+                  {member.email && <p className="text-xs text-ink-faint truncate">{member.email}</p>}
+                </div>
+
+                {ledger && (
+                  <div className="text-right shrink-0">
+                    <p className={cn('text-[10px] font-bold uppercase', settled ? 'text-ink-faint' : netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
+                      {settled ? 'em dia' : netCents > 0 ? 'recebe' : 'deve'}
+                    </p>
+                    {!settled && (
+                      <Money
+                        value={Math.abs(fromCents(netCents))}
+                        className={cn('text-sm font-bold', netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {currentUserId !== member.id && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isCreator && (
+                      isMemberAdmin ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDemoteMember(member.id)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-surface-sunken text-ink-soft hover:text-ink transition-colors"
+                          title="Remover privilégios de admin"
+                        >
+                          <Icon name="keyboard_arrow_down" className="text-sm" /> Admin
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handlePromoteMember(member.id)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+                          title="Promover a admin"
+                        >
+                          <Icon name="keyboard_arrow_up" className="text-sm" /> Admin
+                        </button>
+                      )
+                    )}
+                    {(!isMemberCreator && (isCreator || !isMemberAdmin)) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(member.id)}
+                        className="p-1.5 rounded-lg text-danger hover:bg-danger-bg transition-colors"
+                        title="Remover do grupo"
+                      >
+                        <Icon name="close" className="text-base" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Invite */}
       <section className="card p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
@@ -531,6 +735,80 @@ export function GroupSettingsTab({
           </button>
         </div>
       </section>
+
+      {/* Membros sem conta — reclamar/renomear/remover placeholders */}
+      {unclaimedPlaceholders.length > 0 && (
+        <section className="card p-5 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Icon name="person" className="text-primary-600 text-xl" />
+              Membros sem conta
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Nomes de despesas antigas ou importadas — associa-os a um membro real quando a pessoa entrar na app.
+            </p>
+          </div>
+          <ul className="divide-y divide-hairline">
+            {unclaimedPlaceholders.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 py-2.5">
+                <Avatar name={p.name} size="sm" />
+                {renamingId === p.id ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => saveRename(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveRename(p);
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-hairline-strong bg-surface text-sm"
+                  />
+                ) : (
+                  <span className="flex-1 min-w-0 font-medium text-ink truncate">{p.name}</span>
+                )}
+                <Badge variant="neutral">Sem conta</Badge>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => startRename(p)}
+                    disabled={busyPlaceholderId === p.id}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-sunken text-ink-faint"
+                    aria-label="Renomear"
+                  >
+                    <Icon name="edit" className="text-base" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClaimTarget(p)}
+                    disabled={busyPlaceholderId === p.id || members.length === 0}
+                    className="px-2.5 h-8 flex items-center rounded-lg text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 disabled:opacity-40"
+                  >
+                    Associar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePlaceholder(p)}
+                    disabled={busyPlaceholderId === p.id}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-danger-bg text-ink-faint hover:text-danger-fg"
+                    aria-label="Remover"
+                  >
+                    <Icon name="delete_outline" className="text-base" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <ClaimPlaceholderSheet
+        isOpen={!!claimTarget}
+        onClose={() => setClaimTarget(null)}
+        placeholder={claimTarget}
+        members={members}
+        onClaimed={() => {}}
+      />
 
       {/* Delete — owner only */}
       {isCreator && (

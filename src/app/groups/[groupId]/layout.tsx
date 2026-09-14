@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { BottomNav } from '@/components/layout/BottomNav';
+import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { EntityCardSkeletonGrid, PageHeaderSkeleton } from '@/components/ui/EntityCardSkeleton';
 import { UnsavedDraftProvider } from '@/context/UnsavedDraftContext';
 import { useGroup as useGroupRecord } from '@/lib/db/hooks';
@@ -23,7 +23,7 @@ export default function GroupLayout({
     const router = useSmartRouter();
     const groupId = params.groupId as string;
     const { user, isLoggedIn } = useUser();
-    const { currentGroup, setCurrentGroup, isAdmin } = useGroup();
+    const { currentGroup, setCurrentGroup } = useGroup();
 
     const group = useGroupRecord(groupId);
     const { hydrating, ready, setActiveGroup } = useSyncStatus();
@@ -119,7 +119,7 @@ export default function GroupLayout({
         <UnsavedDraftProvider>
             <div className="has-bottom-nav">
                 {children}
-                {currentGroup && <BottomNav groupId={groupId} isAdmin={isAdmin} />}
+                {currentGroup && <GlobalBottomNav />}
             </div>
         </UnsavedDraftProvider>
     );

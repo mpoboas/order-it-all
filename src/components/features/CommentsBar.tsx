@@ -15,12 +15,15 @@ import type { Expense, Party } from '@/lib/types';
 
 interface CommentsBarProps {
     expense: Expense;
-    groupId: string;
+    /** Omitido = despesa direta entre amigos, sem grupo (Fase 8). */
+    groupId?: string;
     parties: Map<string, Party>;
     currentUserId: string;
+    /** URL da despesa para a notificação — por omissão a rota de grupo. */
+    notifyUrl?: string;
 }
 
-export function CommentsBar({ expense, groupId, parties, currentUserId }: CommentsBarProps) {
+export function CommentsBar({ expense, groupId, parties, currentUserId, notifyUrl }: CommentsBarProps) {
     const comments = useComments(expense.id);
     const { showToast } = useToast();
     const [content, setContent] = useState('');
@@ -35,6 +38,7 @@ export function CommentsBar({ expense, groupId, parties, currentUserId }: Commen
             const created = await commentsApi.create({
                 expense_id: expense.id,
                 group_id: groupId,
+                participants: expense.participants,
                 user: currentUserId,
                 content: text,
             });
@@ -49,7 +53,7 @@ export function CommentsBar({ expense, groupId, parties, currentUserId }: Commen
                 targetUserIds: targets,
                 title: '💬 Novo comentário',
                 message: `${partyLabel(currentUserId, parties)} comentou em "${expense.description}": ${text.slice(0, 80)}`,
-                url: `/groups/${groupId}/expenses/${expense.id}`,
+                url: notifyUrl ?? `/groups/${groupId}/expenses/${expense.id}`,
             });
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Erro ao comentar'), 'error');

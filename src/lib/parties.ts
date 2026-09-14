@@ -83,6 +83,20 @@ export function partyResolver(parties: Map<string, Party>): PartyResolver {
   };
 }
 
+/** Ids de utilizadores reais (nunca placeholders) entre uma lista de ids de
+ *  parte — resolve pelo id canónico primeiro (um placeholder reclamado conta
+ *  como o utilizador que o reclamou). É o valor a gravar em
+ *  `Expense.participants`/`ExpenseComment.participants` (Fase 8): o
+ *  mecanismo de autorização/sync para despesas sem grupo. */
+export function realParticipantIds(ids: string[], parties: Map<string, Party>): string[] {
+  const out = new Set<string>();
+  for (const id of ids) {
+    const canonical = canonicalPartyId(id, parties);
+    if (parties.get(canonical)?.kind === 'user') out.add(canonical);
+  }
+  return Array.from(out);
+}
+
 export function isPlaceholder(id: string, parties: Map<string, Party>): boolean {
   return parties.get(id)?.kind === 'placeholder';
 }

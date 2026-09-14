@@ -124,10 +124,9 @@ export default function GroupsPage() {
     if (!isLoggedIn) return null;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
+        <div className="min-h-dvh bg-app has-bottom-nav">
             <Header
-                title="Meus Grupos"
-                subtitle="Escolhe um grupo para começar"
+                title="Order It All!"
                 icon={
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -139,11 +138,11 @@ export default function GroupsPage() {
                 actions={
                     <button
                         type="button"
-                        onClick={() => nav.push('/people', { haptic: false })}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/20 text-white/90"
-                        aria-label="Pessoas"
+                        onClick={() => setShowCreateModal(true)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft"
+                        aria-label="Criar grupo"
                     >
-                        <Icon name="group" className="text-lg" />
+                        <Icon name="add" className="text-xl" />
                     </button>
                 }
             />
@@ -151,10 +150,10 @@ export default function GroupsPage() {
             <main className="container mx-auto px-4 py-6 md:py-8">
                 {/* Greeting */}
                 <div className="mb-8 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-1">
-                        Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">{user?.name || 'amigo'}</span>! 👋
+                    <h2 className="text-2xl md:text-3xl font-bold text-ink mb-1">
+                        Olá, <span className="text-primary-600">{user?.name || 'amigo'}</span>! 👋
                     </h2>
-                    <p className="text-[var(--text-secondary)]">Seleciona um grupo ou cria um novo</p>
+                    <p className="text-ink-soft">Seleciona um grupo ou cria um novo</p>
                     {!loading && groups.length > 0 && (
                         <p className="mt-2 text-sm font-semibold">
                             {Math.abs(totalNetCents) < 1 ? (
@@ -186,13 +185,13 @@ export default function GroupsPage() {
                             /* Estado vazio — onboarding: primeira ação acionável, não só texto
                                (ver plano de onboarding). */
                             <div className="text-center py-20 animate-fade-in-up">
-                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 flex items-center justify-center">
+                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary-100 dark:bg-primary-950 flex items-center justify-center">
                                     <span className="text-6xl">👥</span>
                                 </div>
-                                <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                                <h3 className="text-xl font-semibold text-ink mb-2">
                                     Cria o teu primeiro grupo
                                 </h3>
-                                <p className="text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
+                                <p className="text-ink-soft mb-6 max-w-sm mx-auto">
                                     Convida amigos ou família e organiza compras e despesas em conjunto.
                                 </p>
                                 <Button onClick={() => setShowCreateModal(true)}>
@@ -264,7 +263,7 @@ export default function GroupsPage() {
                             )}
                         </button>
                         {!online && (
-                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                            <p className="mt-2 text-center text-xs text-ink-faint">
                                 Sem ligação — precisas de rede para criar um grupo.
                             </p>
                         )}

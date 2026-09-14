@@ -38,6 +38,9 @@ interface SplitModeSheetProps {
   inputs: Record<string, number>;
   onConfirm: (result: SplitModeResult) => void;
   onOpenItems?: () => void;
+  /** `false` esconde "Itens" — despesas diretas sem grupo (Fase 8) não têm
+   *  onde viver um `Split` (o sub-sistema de itens é acoplado a grupo). */
+  allowItemized?: boolean;
 }
 
 export function SplitModeSheet({
@@ -50,7 +53,9 @@ export function SplitModeSheet({
   inputs: initialInputs,
   onConfirm,
   onOpenItems,
+  allowItemized = true,
 }: SplitModeSheetProps) {
+  const tabs = allowItemized ? TABS : TABS.filter((t) => t !== 'itemized');
   const [mode, setMode] = useState<ExpenseSplitMode>(initialMode);
   const [participantIds, setParticipantIds] = useState<string[]>(initialParticipantIds);
   const [inputs, setInputs] = useState<Record<string, number>>(initialInputs);
@@ -116,7 +121,7 @@ export function SplitModeSheet({
     >
       <div className="space-y-4 px-1 pb-2">
         <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               type="button"

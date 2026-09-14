@@ -11,6 +11,7 @@
  *       /groups/[g]/expenses/[e]               → /groups/[g]/expenses
  *         /groups/[g]/expenses/[e]/items        → /groups/[g]/expenses/[e]
  *       /groups/[g]/admin/trips/[t]           → /groups/[g]/admin
+ *     /groups/[g]/settings                    → /groups/[g]/admin (engrenagem, só admins)
  */
 export function parentPath(pathname: string): string | null {
   const m = pathname.match(/^\/groups\/([^/]+)(?:\/(.+?))?\/?$/);
@@ -21,6 +22,7 @@ export function parentPath(pathname: string): string | null {
   if (!rest) return '/groups'; // /groups/[g]
 
   const seg = rest.split('/');
+  if (seg[0] === 'settings') return `/groups/${groupId}/admin`; // engrenagem → volta ao Admin
   if (seg.length === 1) return '/groups'; // tab-root do grupo → lista de grupos
   if (seg[0] === 'admin') return `/groups/${groupId}/admin`; // admin/trips/[t] → admin
   if (seg[0] === 'expenses' && seg.length === 3 && seg[2] === 'items') {

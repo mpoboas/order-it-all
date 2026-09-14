@@ -8,7 +8,8 @@ import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { balanceFor } from '@/lib/ledger/balances';
 import { groupExpensesByMonth } from '@/lib/expenseDisplay';
-import { Header } from '@/components/layout/Header';
+import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { GroupTabs } from '@/components/features/GroupTabs';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { BalanceBand } from '@/components/features/BalanceBand';
@@ -30,7 +31,7 @@ export default function GroupExpensesPage() {
     const router = useRouter();
     const nav = useAppNavigate();
     const { user, isLoggedIn } = useUser();
-    const { currentGroup } = useGroup();
+    const { currentGroup, isAdmin } = useGroup();
 
     const expensesQuery = useExpenses(groupId);
     const expenses = useMemo(
@@ -99,15 +100,21 @@ export default function GroupExpensesPage() {
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
-            <Header title={currentGroup?.name} showBack groupId={groupId} />
+            {currentGroup && (
+                <GroupCoverHeader
+                    group={currentGroup}
+                    memberCount={memberCount}
+                    onMembersClick={() => setShowMembers(true)}
+                    isAdmin={isAdmin}
+                />
+            )}
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
             {!loading && parties && myBalance && (
                 <>
                     <BalanceBand
                         netCents={myBalance.netCents}
                         lines={myBalance.lines}
                         parties={parties}
-                        memberCount={memberCount}
-                        onMembersClick={() => setShowMembers(true)}
                         onSeeAllClick={() => nav.push(`/groups/${groupId}/balances`)}
                     />
                     <ActionChipRow
