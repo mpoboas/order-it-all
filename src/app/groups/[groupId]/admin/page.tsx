@@ -2,9 +2,11 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
-import type { Trip, Group } from '@/lib/types';
-import { useTrips } from '@/lib/db/hooks';
+import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi, expensesApi, placeholdersApi } from '@/lib/pocketbase';
+import { findPlaceholderByName } from '@/lib/parties';
+import { calculateExportGrandTotal, calculateSplitTotals } from '@/lib/splitShare';
+import type { Trip, Group, SplitItem } from '@/lib/types';
+import { useExpenses, useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { db } from '@/lib/db/schema';
 import {
@@ -66,6 +68,7 @@ function AdminDashboardContent() {
     // Data (local-first: cache do Dexie via SyncProvider)
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
+    const expensesForChecklist = useExpenses(groupId) ?? [];
     usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/admin/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
@@ -312,19 +315,48 @@ function AdminDashboardContent() {
 
             // Convert to array for 'Geral' usage
             const allParticipantsList = Array.from(allParticipantsSet);
-            const splitItems: any[] = [];
+
+            // Nomes → ids de parte (membro com conta, ou placeholder — ver
+            // Fase 1 do livro-razão): `Split.participants`/`item.participants`
+            // já não guardam nomes. Reaproveita um placeholder do grupo já
+            // existente com o mesmo nome; só cria um novo se preciso.
+            const nameById = new Map<string, string>();
+            for (const [id, name] of memberMap) nameById.set(name.trim().toLowerCase(), id);
+            const existingPlaceholders = await placeholdersApi.getByGroups([groupId]);
+            const nameToId = new Map<string, string>();
+            const resolveNameToId = async (name: string): Promise<string> => {
+                const norm = name.trim().toLowerCase();
+                const cached = nameToId.get(norm);
+                if (cached) return cached;
+                const memberId = nameById.get(norm);
+                if (memberId) {
+                    nameToId.set(norm, memberId);
+                    return memberId;
+                }
+                const existing = findPlaceholderByName(name, existingPlaceholders);
+                if (existing) {
+                    nameToId.set(norm, existing.id);
+                    return existing.id;
+                }
+                const created = await placeholdersApi.create({
+                    group_id: groupId,
+                    name: name.trim(),
+                    created_by: user!.id,
+                });
+                existingPlaceholders.push(created);
+                await db.placeholders.put(created);
+                nameToId.set(norm, created.id);
+                return created.id;
+            };
+            const allParticipantIds = await Promise.all(allParticipantsList.map(resolveNameToId));
+
+            const splitItems: SplitItem[] = [];
 
             // 3. Process Orders and Items
             for (const order of orders) {
-                let displayName = order.user_name;
-                const orderUserId = order.user || order.expand?.user?.id;
-
-                if (orderUserId && memberMap.has(orderUserId)) {
-                    displayName = memberMap.get(orderUserId)!;
-                }
-
                 const items = await itemsApi.getByOrder(order.id);
                 const splitNames = getSplitParticipantNames(order, memberMap, allParticipantsList);
+                const splitParticipantIds = await Promise.all(splitNames.map(resolveNameToId));
 
                 for (const item of items) {
                     if (item.found_status === 'found') {
@@ -333,26 +365,46 @@ function AdminDashboardContent() {
                                 {
                                     name: item.name,
                                     price: item.price,
-                                    participants: splitNames,
+                                    participants: splitParticipantIds,
                                 },
-                                allParticipantsList
+                                allParticipantIds
                             )
                         );
                     }
                 }
             }
 
-            // 4. Create Split
+            // 4. Create Split + a despesa ligada (itemizada, sem pagador —
+            // "Falta pagador" até se definir quem pagou, tal como um split
+            // antigo migrado).
             const split = await splitsApi.create({
                 name: trip.name,
                 description: `Gerado automaticamente a partir da viagem "${trip.name}"`,
                 group_id: groupId,
                 created_by: user!.id,
-                participants: allParticipantsList,
+                participants: allParticipantIds,
                 items: splitItems,
             });
 
-            nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false });
+            const totals = calculateSplitTotals(split);
+            const shares = Object.entries(totals)
+                .filter(([, amount]) => amount > 0)
+                .map(([party, amount]) => ({ party, amount }));
+            const expense = await expensesApi.create({
+                group_id: groupId,
+                description: trip.name,
+                amount: calculateExportGrandTotal(split.items),
+                date: new Date().toISOString().slice(0, 10),
+                split_mode: 'itemized',
+                payers: [],
+                shares,
+                split_id: split.id,
+                trip_id: trip.id,
+                created_by: user!.id,
+            });
+            await db.expenses.put(expense);
+
+            nav.push(`/groups/${groupId}/expenses/${expense.id}/items`, { haptic: false });
 
         } catch (error) {
             console.error('Error generating split:', error);
@@ -446,8 +498,10 @@ function AdminDashboardContent() {
                     <GroupSetupChecklist
                         memberCount={currentGroup.members.length}
                         tripCount={trips.length}
+                        expenseCount={expensesForChecklist.length}
                         onInvite={() => setActiveTab('settings')}
                         onCreateTrip={() => setShowCreateModal(true)}
+                        onCreateExpense={() => nav.push(`/groups/${groupId}/expenses`)}
                     />
                 )}
 

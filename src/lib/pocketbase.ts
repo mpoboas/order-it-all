@@ -337,6 +337,17 @@ export const splitsApi = {
 
 // Expense API — livro-razão (despesas + pagamentos, ver src/lib/ledger/*)
 export const expensesApi = {
+  /** Para os links antigos de `/groups/[g]/splits/[s]` — encontra a despesa
+   *  ligada a um split (Fase 2 do livro-razão: um split é sempre editor de
+   *  itens de uma despesa itemizada). `null` se nenhuma despesa a referenciar. */
+  getBySplitId: async (splitId: string): Promise<Expense | null> => {
+    try {
+      return await pb.collection('expenses').getFirstListItem<Expense>(`split_id = "${splitId}"`);
+    } catch {
+      return null;
+    }
+  },
+
   getByGroups: async (groupIds: string[]): Promise<Expense[]> => {
     if (groupIds.length === 0) return [];
     const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');

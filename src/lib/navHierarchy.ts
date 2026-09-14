@@ -6,9 +6,10 @@
  *
  * Hierarquia:
  *   /groups
- *     /groups/[g]/(trips|splits|admin)        → /groups
+ *     /groups/[g]/(trips|expenses|admin)      → /groups
  *       /groups/[g]/trips/[t]                 → /groups/[g]/trips
- *       /groups/[g]/splits/[s]                → /groups/[g]/splits
+ *       /groups/[g]/expenses/[e]               → /groups/[g]/expenses
+ *         /groups/[g]/expenses/[e]/items        → /groups/[g]/expenses/[e]
  *       /groups/[g]/admin/trips/[t]           → /groups/[g]/admin
  */
 export function parentPath(pathname: string): string | null {
@@ -22,7 +23,10 @@ export function parentPath(pathname: string): string | null {
   const seg = rest.split('/');
   if (seg.length === 1) return '/groups'; // tab-root do grupo → lista de grupos
   if (seg[0] === 'admin') return `/groups/${groupId}/admin`; // admin/trips/[t] → admin
-  return `/groups/${groupId}/${seg[0]}`; // trips/[t] → trips ; splits/[s] → splits
+  if (seg[0] === 'expenses' && seg.length === 3 && seg[2] === 'items') {
+    return `/groups/${groupId}/expenses/${seg[1]}`; // expenses/[e]/items → expenses/[e]
+  }
+  return `/groups/${groupId}/${seg[0]}`; // trips/[t] → trips ; expenses/[e] → expenses
 }
 
 /* ---- Pilha de rotas visitadas (para escolher entre back() e push(pai)) ---- */

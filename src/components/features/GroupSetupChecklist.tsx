@@ -14,8 +14,10 @@ interface ChecklistStep {
 interface GroupSetupChecklistProps {
   memberCount: number;
   tripCount: number;
+  expenseCount: number;
   onInvite: () => void;
   onCreateTrip: () => void;
+  onCreateExpense: () => void;
 }
 
 /** Por utilizador, não por grupo — "uma vez na vida", não "uma vez por grupo". */
@@ -38,8 +40,10 @@ function storageKey(): string | null {
 export function GroupSetupChecklist({
   memberCount,
   tripCount,
+  expenseCount,
   onInvite,
   onCreateTrip,
+  onCreateExpense,
 }: GroupSetupChecklistProps) {
   const [dismissed, setDismissed] = useState(true); // true até ler o localStorage — evita flash
 
@@ -54,7 +58,8 @@ export function GroupSetupChecklist({
 
   const invited = memberCount > 1;
   const hasTrip = tripCount > 0;
-  const allDone = invited && hasTrip;
+  const hasExpense = expenseCount > 0;
+  const allDone = invited && hasTrip && hasExpense;
 
   // Assim que fica completa uma vez, grava já — apagar a viagem ou remover o
   // convidado depois não deve trazer isto de volta.
@@ -88,6 +93,7 @@ export function GroupSetupChecklist({
     { label: 'Criar o grupo', done: true },
     { label: 'Convidar alguém', done: invited, onClick: onInvite },
     { label: 'Criar a primeira viagem', done: hasTrip, onClick: onCreateTrip },
+    { label: 'Adicionar a primeira despesa', done: hasExpense, onClick: onCreateExpense },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 

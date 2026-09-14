@@ -26,15 +26,15 @@ export function BottomNav({ groupId, isAdmin }: BottomNavProps) {
     const navItems: NavItem[] = isAdmin
         ? [
             { href: `${basePath}/admin`, label: 'Admin', icon: 'admin_panel_settings' },
-            { href: `${basePath}/splits`, label: 'Divisões', icon: 'calculate' },
+            { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
         ]
         : [
             { href: `${basePath}/trips`, label: 'Viagens', icon: 'shopping_bag' },
-            { href: `${basePath}/splits`, label: 'Divisões', icon: 'calculate' },
+            { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
         ];
 
     // As rotas do fundo são fixas por papel — pré-carrega todas para a troca ser instantânea.
-    usePrefetchRoutes([`${basePath}/admin`, `${basePath}/splits`, `${basePath}/trips`]);
+    usePrefetchRoutes([`${basePath}/admin`, `${basePath}/expenses`, `${basePath}/trips`]);
 
     const isActive = (href: string) => {
         return pathname.startsWith(href);

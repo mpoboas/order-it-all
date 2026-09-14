@@ -18,9 +18,12 @@ interface HeaderProps {
     transparent?: boolean;
     groupId?: string;
     icon?: React.ReactNode;
+    /** Ações à direita (ex.: editar/apagar no detalhe de uma despesa) — antes
+     *  do avatar de perfil, sempre visíveis (não só desktop). */
+    actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, showBack, transparent = false, groupId, icon }: HeaderProps) {
+export function Header({ title, subtitle, showBack, transparent = false, groupId, icon, actions }: HeaderProps) {
     const { user, isLoggedIn } = useUser();
     const { currentGroup, isAdmin } = useGroup();
     const pathname = usePathname();
@@ -29,18 +32,18 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
 
     // Determine current section within a group
     const isInTrips = pathname.includes('/trips');
-    const isInSplits = pathname.includes('/splits');
+    const isInExpenses = pathname.includes('/expenses');
     const isInAdmin = pathname.includes('/admin');
     const isInGroup = !!groupId || pathname.startsWith('/groups/');
 
     const displayTitle = title || currentGroup?.name || 'Order It All!';
     const displaySubtitle = subtitle;
 
-    // Toggle to the other section (trips <-> splits) for non-admin users
+    // Toggle to the other section (trips <-> despesas) for non-admin users
     const getToggleHref = () => {
         if (!groupId) return null;
-        if (isInTrips) return `/groups/${groupId}/splits`;
-        if (isInSplits) return `/groups/${groupId}/trips`;
+        if (isInTrips) return `/groups/${groupId}/expenses`;
+        if (isInExpenses) return `/groups/${groupId}/trips`;
         return null;
     };
 
@@ -105,12 +108,12 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                         {showToggle && (
                             <button
                                 type="button"
-                                aria-label={isInTrips ? 'Ver Divisões' : 'Ver Viagens'}
+                                aria-label={isInTrips ? 'Ver Despesas' : 'Ver Viagens'}
                                 onClick={() => nav.push(toggleHref!)}
                                 className="hidden md:flex w-10 h-10 rounded-xl bg-white/20 backdrop-blur items-center justify-center hover:bg-white/30 transition-colors active:scale-95"
                             >
                                 <Icon
-                                    name={isInTrips ? 'calculate' : 'shopping_bag'}
+                                    name={isInTrips ? 'receipt_long' : 'shopping_bag'}
                                     className="text-xl text-white"
                                     strokeWidth={1.75}
                                 />
@@ -123,11 +126,13 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                                 <NavLink href={`/groups/${groupId}/admin`} current={isInAdmin}>
                                     Admin
                                 </NavLink>
-                                <NavLink href={`/groups/${groupId}/splits`} current={isInSplits}>
-                                    Divisões
+                                <NavLink href={`/groups/${groupId}/expenses`} current={isInExpenses}>
+                                    Despesas
                                 </NavLink>
                             </nav>
                         )}
+
+                        {actions}
 
                         {isLoggedIn && (
                             <button
