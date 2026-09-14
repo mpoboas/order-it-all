@@ -6,6 +6,7 @@ import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party
 import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
 import {
+  balanceFor,
   netByParty,
   netPairwise,
   pairwiseDebts,
@@ -238,7 +239,7 @@ export function usePlaceholders(groupId: string | undefined): Placeholder[] | un
   }, [groupId]);
 }
 
-function useAllPlaceholders(): Placeholder[] | undefined {
+export function useAllPlaceholders(): Placeholder[] | undefined {
   return useCachedLiveQuery('placeholders:all', async () => db.placeholders.toArray(), []);
 }
 
@@ -332,4 +333,53 @@ export function useComments(expenseId: string | undefined): ExpenseComment[] | u
     const byId = usersMap(users);
     return comments.map((c) => overlayUsers(c, byId));
   }, [expenseId]);
+}
+
+export interface PersonBalance {
+  /** Id de utilizador (com conta) — só pessoas com conta são somáveis entre
+   *  grupos; placeholders são por natureza locais a um grupo. */
+  userId: string;
+  party: Party;
+  /** Positivo = deve-te (no total, entre todos os grupos partilhados). */
+  netCents: number;
+  groups: { groupId: string; groupName: string; netCents: number }[];
+}
+
+/** Saldo por pessoa, somado a todos os grupos partilhados com o utilizador
+ *  (tab "Pessoas", Fase 7) — usa `useAllExpenses`/`useAllPlaceholders`
+ *  (já sincronizados globalmente) em vez de ir grupo a grupo. */
+export function usePeopleBalances(currentUserId: string | undefined): PersonBalance[] | undefined {
+  const groups = useGroups(currentUserId);
+  const allExpenses = useAllExpenses();
+  const allPlaceholders = useAllPlaceholders();
+
+  return useMemo(() => {
+    if (!currentUserId || groups === undefined || allExpenses === undefined || allPlaceholders === undefined) {
+      return undefined;
+    }
+    const byUser = new Map<string, PersonBalance>();
+
+    for (const group of groups) {
+      const parties = buildPartyMap(
+        groupMembersFromExpand(group),
+        allPlaceholders.filter((p) => p.group_id === group.id),
+      );
+      const resolve = (id: string) => canonicalPartyId(id, parties);
+      const groupExpenses = allExpenses.filter((e) => e.group_id === group.id && !e.deleted_at);
+      const net = netByParty(groupExpenses, resolve);
+      const pairwise = netPairwise(pairwiseDebts(groupExpenses, resolve));
+      const { lines } = balanceFor(currentUserId, pairwise, net);
+
+      for (const line of lines) {
+        const party = parties.get(line.party);
+        if (party?.kind !== 'user') continue; // placeholders não se somam entre grupos
+        const entry = byUser.get(party.id) ?? { userId: party.id, party, netCents: 0, groups: [] };
+        entry.netCents += line.amountCents;
+        entry.groups.push({ groupId: group.id, groupName: group.name, netCents: line.amountCents });
+        byUser.set(party.id, entry);
+      }
+    }
+
+    return Array.from(byUser.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents));
+  }, [currentUserId, groups, allExpenses, allPlaceholders]);
 }

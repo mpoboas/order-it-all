@@ -136,6 +136,16 @@ export default function GroupsPage() {
                         className="w-full h-full object-contain p-1"
                     />
                 }
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => nav.push('/people', { haptic: false })}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/20 text-white/90"
+                        aria-label="Pessoas"
+                    >
+                        <Icon name="group" className="text-lg" />
+                    </button>
+                }
             />
 
             <main className="container mx-auto px-4 py-6 md:py-8">
