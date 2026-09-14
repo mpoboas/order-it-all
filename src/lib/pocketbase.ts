@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder } from './types';
+import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase(
@@ -448,6 +448,31 @@ export const placeholdersApi = {
 
   delete: async (id: string): Promise<boolean> => {
     await pb.collection('placeholders').delete(id);
+    return true;
+  },
+};
+
+// Comentários numa despesa (Fase 5)
+export const commentsApi = {
+  getByExpense: async (expenseId: string): Promise<ExpenseComment[]> => {
+    return await pb.collection('expense_comments').getFullList<ExpenseComment>({
+      filter: `expense_id = "${expenseId}"`,
+      sort: 'created',
+      expand: 'user',
+    });
+  },
+
+  create: async (data: {
+    expense_id: string;
+    group_id: string;
+    user: string;
+    content: string;
+  }): Promise<ExpenseComment> => {
+    return await pb.collection('expense_comments').create<ExpenseComment>(data);
+  },
+
+  delete: async (id: string): Promise<boolean> => {
+    await pb.collection('expense_comments').delete(id);
     return true;
   },
 };

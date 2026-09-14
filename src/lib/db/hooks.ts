@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party, ExpenseComment } from '@/lib/types';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
 import {
@@ -318,4 +318,18 @@ export function useGroupLedger(groupId: string | undefined): GroupLedger | undef
     const pairwise = simplify ? simplifiedToPairwise(simplifyDebts(net)) : netPairwise(rawPairwise);
     return { net, pairwise, parties };
   }, [group, expenses, parties]);
+}
+
+/** Comentários de uma despesa (Fase 5), com o autor sobreposto por
+ *  `db.users` (mesmo padrão de `overlayUsers` dos outros hooks). */
+export function useComments(expenseId: string | undefined): ExpenseComment[] | undefined {
+  return useCachedLiveQuery(`comments:${expenseId ?? ''}`, async () => {
+    if (!expenseId) return [];
+    const [comments, users] = await Promise.all([
+      db.expense_comments.where('expense_id').equals(expenseId).sortBy('created'),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return comments.map((c) => overlayUsers(c, byId));
+  }, [expenseId]);
 }

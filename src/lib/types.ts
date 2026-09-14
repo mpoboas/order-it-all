@@ -223,6 +223,22 @@ export interface Expense {
   updated: string;
 }
 
+/** Comentário numa despesa (Fase 5). `group_id` está desnormalizado (copiado
+ *  da despesa ao criar) para a coleção sincronizar globalmente como
+ *  `expenses`/`placeholders` (ver `src/lib/db/sync.ts`). */
+export interface ExpenseComment {
+  id: string;
+  expense_id: string;
+  group_id: string;
+  user: string;
+  content: string;
+  expand?: {
+    user?: User;
+  };
+  created: string;
+  updated: string;
+}
+
 // Form types
 export interface OrderFormData {
   user_name: string;

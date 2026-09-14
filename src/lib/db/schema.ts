@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, ExpenseComment } from '@/lib/types';
 
 /**
  * Cache local-first (IndexedDB via Dexie). As leituras da app saem daqui através
@@ -61,6 +61,7 @@ class OrderItDB extends Dexie {
   meta!: Table<MetaRow, string>;
   expenses!: Table<Expense, string>;
   placeholders!: Table<Placeholder, string>;
+  expense_comments!: Table<ExpenseComment, string>;
 
   constructor() {
     super('orderit');
@@ -98,6 +99,12 @@ class OrderItDB extends Dexie {
       expenses: 'id, group_id, date, updated, deleted_at',
       placeholders: 'id, group_id, claimed_by',
     });
+    // v4: comentários numa despesa (Fase 5) — sincroniza globalmente como
+    // `expenses`/`placeholders` (o `group_id` está desnormalizado no próprio
+    // registo para reaproveitar o mesmo filtro/infra de sync).
+    this.version(4).stores({
+      expense_comments: 'id, expense_id, group_id, created',
+    });
   }
 }
 
@@ -116,7 +123,7 @@ export async function metaSet(key: string, value: string | null): Promise<void> 
 export async function clearAllData(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta, db.expenses, db.placeholders],
+    [db.groups, db.trips, db.orders, db.items, db.splits, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments],
     async () => {
       await Promise.all([
         db.groups.clear(),
@@ -128,6 +135,7 @@ export async function clearAllData(): Promise<void> {
         db.meta.clear(),
         db.expenses.clear(),
         db.placeholders.clear(),
+        db.expense_comments.clear(),
       ]);
     },
   );

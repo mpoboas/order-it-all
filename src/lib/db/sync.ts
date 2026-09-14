@@ -1,7 +1,7 @@
 import type { Table } from 'dexie';
 import type { RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import { pb } from '@/lib/pocketbase';
-import type { Group, User, Expense, Placeholder } from '@/lib/types';
+import type { Group, User, Expense, Placeholder, ExpenseComment } from '@/lib/types';
 import { db, extractUsersFromExpand, metaGet, metaSet } from './schema';
 
 /**
@@ -35,12 +35,13 @@ const GROUP_EXPAND: Record<GroupColl, string> = {
 
 const GROUPS_EXPAND = 'creator,admins,members';
 
-type GlobalColl = 'expenses' | 'placeholders';
-const GLOBAL_COLLS: GlobalColl[] = ['expenses', 'placeholders'];
+type GlobalColl = 'expenses' | 'placeholders' | 'expense_comments';
+const GLOBAL_COLLS: GlobalColl[] = ['expenses', 'placeholders', 'expense_comments'];
 
 const GLOBAL_EXPAND: Record<GlobalColl, string> = {
   expenses: 'created_by,updated_by,deleted_by',
   placeholders: 'claimed_by,created_by',
+  expense_comments: 'user',
 };
 
 type Syncable = { id: string; updated?: string; expand?: Record<string, unknown> };
@@ -98,19 +99,21 @@ export async function backfillUsersFromCache(): Promise<void> {
       db.splits.toArray(),
       db.expenses.toArray(),
       db.placeholders.toArray(),
+      db.expense_comments.toArray(),
     ])
   ).flat();
   await putUsers(extractUsersFromExpand(records));
 }
 
 async function referencedUserIds(): Promise<string[]> {
-  const [groups, trips, orders, splits, expenses, placeholders] = await Promise.all([
+  const [groups, trips, orders, splits, expenses, placeholders, comments] = await Promise.all([
     db.groups.toArray(),
     db.trips.toArray(),
     db.orders.toArray(),
     db.splits.toArray(),
     db.expenses.toArray(),
     db.placeholders.toArray(),
+    db.expense_comments.toArray(),
   ]);
   const s = new Set<string>();
   for (const g of groups) {
@@ -133,6 +136,7 @@ async function referencedUserIds(): Promise<string[]> {
     if (p.created_by) s.add(p.created_by);
     if (p.claimed_by) s.add(p.claimed_by);
   }
+  for (const c of comments) if (c.user) s.add(c.user);
   return [...s];
 }
 
@@ -157,7 +161,7 @@ async function fetchMissingUsers(): Promise<void> {
 
 export async function hydrateGroups(userId: string): Promise<void> {
   const globalScope = `group_id.members ~ "${userId}"`;
-  const [groups, expenses, placeholders] = await Promise.all([
+  const [groups, expenses, placeholders, comments] = await Promise.all([
     pb.collection('groups').getFullList<Group>({
       filter: `members ~ "${userId}"`,
       sort: '-created',
@@ -171,10 +175,14 @@ export async function hydrateGroups(userId: string): Promise<void> {
       filter: globalScope,
       expand: GLOBAL_EXPAND.placeholders,
     }),
+    pb.collection('expense_comments').getFullList<ExpenseComment>({
+      filter: globalScope,
+      expand: GLOBAL_EXPAND.expense_comments,
+    }),
   ]);
   await db.transaction(
     'rw',
-    [db.groups, db.users, db.meta, db.expenses, db.placeholders],
+    [db.groups, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments],
     async () => {
       await db.groups.clear();
       await db.groups.bulkPut(groups);
@@ -182,13 +190,17 @@ export async function hydrateGroups(userId: string): Promise<void> {
       await db.expenses.bulkPut(expenses);
       await db.placeholders.clear();
       await db.placeholders.bulkPut(placeholders);
-      await putUsers(extractUsersFromExpand([...groups, ...expenses, ...placeholders]));
+      await db.expense_comments.clear();
+      await db.expense_comments.bulkPut(comments);
+      await putUsers(extractUsersFromExpand([...groups, ...expenses, ...placeholders, ...comments]));
       const mark = maxUpdated(groups, null);
       if (mark) await metaSet('lastSync:groups', mark);
       const expMark = maxUpdated(expenses, null);
       if (expMark) await metaSet('lastSync:global:expenses', expMark);
       const phMark = maxUpdated(placeholders, null);
       if (phMark) await metaSet('lastSync:global:placeholders', phMark);
+      const cMark = maxUpdated(comments, null);
+      if (cMark) await metaSet('lastSync:global:expense_comments', cMark);
       await metaSet('session:userId', userId);
     },
   );
@@ -294,7 +306,7 @@ async function dropGroupData(gid: string): Promise<void> {
     : [];
   await db.transaction(
     'rw',
-    [db.trips, db.splits, db.orders, db.items, db.expenses, db.placeholders],
+    [db.trips, db.splits, db.orders, db.items, db.expenses, db.placeholders, db.expense_comments],
     async () => {
       await db.trips.where('group_id').equals(gid).delete();
       await db.splits.where('group_id').equals(gid).delete();
@@ -302,6 +314,7 @@ async function dropGroupData(gid: string): Promise<void> {
       if (orderIds.length) await db.items.where('order_id').anyOf(orderIds).delete();
       await db.expenses.where('group_id').equals(gid).delete();
       await db.placeholders.where('group_id').equals(gid).delete();
+      await db.expense_comments.where('group_id').equals(gid).delete();
     },
   );
   for (const c of GROUP_COLLS) await db.meta.delete(`lastSync:g:${gid}:${c}`);

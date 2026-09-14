@@ -13,6 +13,7 @@ import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
 import { partyLabel } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
+import { notify, notifiableUserIds } from '@/lib/notify';
 import type { Party } from '@/lib/types';
 
 interface SettleUpSheetProps {
@@ -113,6 +114,15 @@ export function SettleUpSheet({
       });
       await db.expenses.put(created);
       showToast('Pagamento registado', 'success');
+
+      const receiverUserIds = notifiableUserIds([receiverId], parties, currentUserId);
+      void notify({
+        targetUserIds: receiverUserIds,
+        title: '💸 Pagamento recebido',
+        message: `${partyLabel(payerId, parties)} pagou-te ${formatEUR(amount)}.`,
+        url: `/groups/${groupId}/expenses/${created.id}`,
+      });
+
       onSaved?.();
       onClose();
     } catch (error) {

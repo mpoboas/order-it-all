@@ -125,4 +125,5 @@ export const tables = {
   splits: db.splits,
   expenses: db.expenses,
   placeholders: db.placeholders,
+  expense_comments: db.expense_comments,
 } as const;

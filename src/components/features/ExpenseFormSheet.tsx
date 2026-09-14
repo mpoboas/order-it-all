@@ -16,6 +16,8 @@ import { guessCategory } from '@/lib/ledger/categories';
 import { computeShares, type ComputableSplitMode } from '@/lib/ledger/shares';
 import { toCents, fromCents } from '@/lib/ledger/money';
 import { partyLabel } from '@/lib/parties';
+import { notify, notifiableUserIds } from '@/lib/notify';
+import { formatEUR } from '@/lib/money';
 import type { Expense, ExpensePayer, ExpenseSplitMode, Party } from '@/lib/types';
 
 interface ExpenseFormSheetProps {
@@ -189,6 +191,17 @@ export function ExpenseFormSheet({
       onSaved(saved);
       if (splitMode === 'itemized') onOpenItems?.(saved);
       onClose();
+
+      const notifyPartyIds = Array.from(
+        new Set([...saved.payers.map((p) => p.party), ...saved.shares.map((s) => s.party)]),
+      );
+      const targets = notifiableUserIds(notifyPartyIds, parties, currentUserId);
+      void notify({
+        targetUserIds: targets,
+        title: isEditing ? '✏️ Despesa editada' : '💰 Nova despesa',
+        message: `${partyLabel(currentUserId, parties)} ${isEditing ? 'editou' : 'adicionou'} "${saved.description}" — ${formatEUR(saved.amount)}.`,
+        url: `/groups/${groupId}/expenses/${saved.id}`,
+      });
     } catch (error) {
       showToast(mutationErrorMessage(error, 'Erro ao guardar despesa'), 'error');
     } finally {

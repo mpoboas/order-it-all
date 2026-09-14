@@ -10,6 +10,10 @@ import { useExpense, useParties } from '@/lib/db/hooks';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
+import { notify, notifiableUserIds } from '@/lib/notify';
+import { partyLabel } from '@/lib/parties';
+import { formatEUR } from '@/lib/money';
+import { CommentsBar } from '@/components/features/CommentsBar';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
@@ -54,6 +58,19 @@ export default function ExpenseDetailPage() {
             const updated = await expensesApi.softDelete(expense.id, user.id);
             await db.expenses.put(updated);
             showToast('Despesa eliminada', 'success');
+
+            if (parties) {
+                const participantIds = Array.from(
+                    new Set([...updated.payers.map((p) => p.party), ...updated.shares.map((s) => s.party)]),
+                );
+                void notify({
+                    targetUserIds: notifiableUserIds(participantIds, parties, user.id),
+                    title: '🗑️ Despesa eliminada',
+                    message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" — ${formatEUR(updated.amount)}.`,
+                    url: `/groups/${groupId}/expenses`,
+                });
+            }
+
             nav.up();
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Erro ao eliminar despesa'), 'error');
@@ -141,6 +158,15 @@ export default function ExpenseDetailPage() {
                         <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1">Notas</p>
                         <p className="text-sm text-ink whitespace-pre-wrap">{expense.notes}</p>
                     </div>
+                )}
+
+                {parties && user?.id && (
+                    <CommentsBar
+                        expense={expense}
+                        groupId={groupId}
+                        parties={parties}
+                        currentUserId={user.id}
+                    />
                 )}
             </main>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
@@ -8,6 +8,9 @@ import { useGroupLedger } from '@/lib/db/hooks';
 import { balanceFor } from '@/lib/ledger/balances';
 import { fromCents } from '@/lib/ledger/money';
 import { partyLabel, isUnclaimedPlaceholder } from '@/lib/parties';
+import { notify, notifiableUserIds } from '@/lib/notify';
+import { formatEUR } from '@/lib/money';
+import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
@@ -26,6 +29,7 @@ export default function GroupBalancesPage() {
     const router = useRouter();
     const { user, isLoggedIn } = useUser();
     const { currentGroup } = useGroup();
+    const { showToast } = useToast();
 
     const ledger = useGroupLedger(groupId);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -34,6 +38,31 @@ export default function GroupBalancesPage() {
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
+
+    // "Lembrete de dívida" manual — 1 por dia por par, para não spammar.
+    const handleRemind = useCallback((debtorPartyId: string, amountCents: number) => {
+        if (!ledger || !user?.id) return;
+        const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+        const key = `debtReminder:${groupId}:${user.id}:${debtorPartyId}`;
+        const last = Number(localStorage.getItem(key) ?? '0');
+        if (Date.now() - last < REMINDER_COOLDOWN_MS) {
+            showToast('Já enviaste um lembrete a esta pessoa hoje', 'info');
+            return;
+        }
+        const targets = notifiableUserIds([debtorPartyId], ledger.parties, user.id);
+        if (targets.length === 0) {
+            showToast('Esta pessoa não tem conta para notificar', 'info');
+            return;
+        }
+        void notify({
+            targetUserIds: targets,
+            title: '🔔 Lembrete de dívida',
+            message: `${partyLabel(user.id, ledger.parties)} lembra-te que deves ${formatEUR(Math.abs(amountCents) / 100)}.`,
+            url: `/groups/${groupId}/balances`,
+        });
+        localStorage.setItem(key, String(Date.now()));
+        showToast('Lembrete enviado', 'success');
+    }, [ledger, user, groupId, showToast]);
 
     const rows = useMemo(() => {
         if (!ledger) return [];
@@ -98,20 +127,31 @@ export default function GroupBalancesPage() {
                                     {expanded && row.lines.length > 0 && (
                                         <div className="px-4 pb-3 pl-14 space-y-1.5">
                                             {row.lines.map((line) => (
-                                                <p key={line.party} className="text-sm text-ink-soft">
-                                                    {line.amountCents > 0 ? (
-                                                        <><span className="font-medium text-ink">{partyLabel(line.party, ledger.parties)}</span> deve-lhe{' '}
-                                                            <span className="font-semibold text-success-fg">
-                                                                <Money value={fromCents(line.amountCents)} />
-                                                            </span></>
-                                                    ) : (
-                                                        <>Deve{' '}
-                                                            <span className="font-semibold text-warning-fg">
-                                                                <Money value={fromCents(-line.amountCents)} />
-                                                            </span>{' '}
-                                                            a <span className="font-medium text-ink">{partyLabel(line.party, ledger.parties)}</span></>
+                                                <div key={line.party} className="flex items-center justify-between gap-2">
+                                                    <p className="text-sm text-ink-soft">
+                                                        {line.amountCents > 0 ? (
+                                                            <><span className="font-medium text-ink">{partyLabel(line.party, ledger.parties)}</span> deve-lhe{' '}
+                                                                <span className="font-semibold text-success-fg">
+                                                                    <Money value={fromCents(line.amountCents)} />
+                                                                </span></>
+                                                        ) : (
+                                                            <>Deve{' '}
+                                                                <span className="font-semibold text-warning-fg">
+                                                                    <Money value={fromCents(-line.amountCents)} />
+                                                                </span>{' '}
+                                                                a <span className="font-medium text-ink">{partyLabel(line.party, ledger.parties)}</span></>
+                                                        )}
+                                                    </p>
+                                                    {row.id === user?.id && line.amountCents > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemind(line.party, line.amountCents)}
+                                                            className="shrink-0 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                                                        >
+                                                            Lembrar
+                                                        </button>
                                                     )}
-                                                </p>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
