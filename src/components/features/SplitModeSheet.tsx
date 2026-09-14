@@ -112,7 +112,7 @@ export function SplitModeSheet({
       onClose={onClose}
       title="Como dividir"
       subtitle={formatEUR(totalAmount)}
-      size="large"
+      size="full"
       footer={
         <Button block disabled={!canSave} onClick={handleSave}>
           {mode === 'itemized' ? 'Continuar' : 'Confirmar'}

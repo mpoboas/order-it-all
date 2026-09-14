@@ -14,6 +14,10 @@ export interface User {
   onboarded?: boolean;
   /** Número de telemóvel MB WAY — mostrado como atalho ao acertar contas. */
   mbway_phone?: string;
+  /** Minúsculas, `[a-z0-9_.]{3,20}` — gerado automaticamente a partir do
+   *  nome na primeira configuração de perfil; editável depois no Perfil.
+   *  Utilizadores antigos ganham um por migração (`scripts/backfill-usernames.mjs`). */
+  username?: string;
 }
 
 export interface Group {
@@ -140,6 +144,8 @@ export interface Party {
   email?: string;
   /** Só para `kind === 'user'` — atalho "Copiar número" no acertar contas. */
   mbwayPhone?: string;
+  /** Só para `kind === 'user'` — mostrado como "@username" na página da pessoa. */
+  username?: string;
   kind: 'user' | 'placeholder';
   /** Só quando `kind === 'placeholder'` e já foi reclamado. */
   claimedBy?: string;

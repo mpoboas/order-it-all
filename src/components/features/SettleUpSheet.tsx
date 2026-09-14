@@ -142,7 +142,7 @@ export function SettleUpSheet({
       isOpen={isOpen}
       onClose={onClose}
       title="Acertar contas"
-      size={counterpartyId ? 'large' : 'medium'}
+      size={counterpartyId ? 'full' : 'medium'}
       footer={
         counterpartyId ? (
           <Button block loading={submitting} disabled={!canSubmit} onClick={handleSubmit}>

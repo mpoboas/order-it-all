@@ -76,7 +76,7 @@ export default function PersonDetailPage() {
         if (!person || !user?.id) return undefined;
         return new Map([
             [userId, person.party],
-            [user.id, { id: user.id, name: user.name || 'Tu', avatar: getUserAvatarUrl(user.id, user.avatar), kind: 'user' as const }],
+            [user.id, { id: user.id, name: user.name || 'Tu', avatar: getUserAvatarUrl(user.id, user.avatar), username: user.username, kind: 'user' as const }],
         ]);
     }, [person, user, userId]);
 
@@ -197,6 +197,7 @@ export default function PersonDetailPage() {
 
             <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-12 pb-4 space-y-4">
                 <h1 className="text-xl font-bold text-ink">{personName}</h1>
+                {person?.party.username && <p className="text-sm text-ink-faint -mt-3">@{person.party.username}</p>}
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />

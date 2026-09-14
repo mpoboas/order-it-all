@@ -244,7 +244,7 @@ export default function GroupsPage() {
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                size="medium"
+                size="full"
                 title="Criar Novo Grupo"
                 footer={
                     <div>

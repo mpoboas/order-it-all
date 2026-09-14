@@ -23,22 +23,23 @@ interface AddFriendSheetProps {
   onRequested: () => void;
 }
 
-type FoundUser = Pick<User, 'id' | 'name' | 'avatar'>;
+type FoundUser = Pick<User, 'id' | 'name' | 'avatar' | 'username'>;
 
-/** Sheet "Adicionar amigo" (Fase 8) — procura por email via `/api/friend-lookup`
- *  (a coleção `users` tem list rule restrita, não dá para pesquisar do
- *  cliente) e envia um pedido de amizade. Sem convite a quem não tem conta
- *  ainda — corte de âmbito explícito do plano. */
+/** Sheet "Adicionar amigo" (Fase 8/8b) — um único campo tenta email ou
+ *  username via `/api/friend-lookup` (a coleção `users` tem list rule
+ *  restrita, não dá para pesquisar do cliente) e envia um pedido de
+ *  amizade. Sem convite a quem não tem conta ainda — corte de âmbito
+ *  explícito do plano. */
 export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName, isAlreadyRelated, onRequested }: AddFriendSheetProps) {
   const { showToast } = useToast();
-  const [email, setEmail] = useState('');
+  const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [found, setFound] = useState<FoundUser | null>(null);
   const [requesting, setRequesting] = useState(false);
 
   const reset = () => {
-    setEmail('');
+    setQuery('');
     setSearching(false);
     setSearched(false);
     setFound(null);
@@ -46,7 +47,7 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
   };
 
   const handleSearch = async () => {
-    const trimmed = email.trim();
+    const trimmed = query.trim();
     if (!trimmed) return;
     setSearching(true);
     setSearched(false);
@@ -55,7 +56,7 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
       const res = await fetch('/api/friend-lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ query: trimmed }),
       });
       const data = await res.json();
       setFound(data.user ?? null);
@@ -98,30 +99,32 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              label="Email ou username"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="nome@email.com"
+              placeholder="nome@email.com ou @username"
               autoFocus
             />
           </div>
-          <Button variant="secondary" loading={searching} disabled={!email.trim()} onClick={handleSearch}>
+          <Button variant="secondary" loading={searching} disabled={!query.trim()} onClick={handleSearch}>
             Procurar
           </Button>
         </div>
 
         {searched && !found && (
           <p className="text-sm text-ink-faint text-center py-4">
-            Não encontrámos ninguém com este email.
+            Não encontrámos ninguém com isso.
           </p>
         )}
 
         {found && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-sunken">
             <Avatar name={found.name} src={getUserAvatarUrl(found.id, found.avatar)} size="sm" />
-            <span className="flex-1 min-w-0 font-medium text-ink truncate">{found.name}</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-ink truncate">{found.name}</p>
+              {found.username && <p className="text-xs text-ink-faint truncate">@{found.username}</p>}
+            </div>
             {found.id === currentUserId ? (
               <span className="text-xs text-ink-faint shrink-0">és tu</span>
             ) : alreadyRelated ? (

@@ -327,7 +327,7 @@ function AdminDashboardContent() {
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                size="medium"
+                size="full"
                 title="Nova Viagem"
                 footer={
                     <div>
@@ -370,7 +370,7 @@ function AdminDashboardContent() {
             <Sheet
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
-                size="large"
+                size="full"
                 title="Editar Viagem"
                 footer={
                     <Button block size="lg" onClick={() => handleUpdateTrip()}>

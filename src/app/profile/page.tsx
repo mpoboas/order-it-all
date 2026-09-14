@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -8,38 +8,56 @@ import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey } from '@/lib/utils';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
+import { isValidUsername } from '@/lib/username';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { EditFieldSheet } from '@/components/features/EditFieldSheet';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
+
+/** Linha de resumo (ícone + rótulo + valor atual) — toca para abrir o ecrã
+ *  "dinâmico" de edição (`EditFieldSheet`, Fase 9). */
+function SummaryRow({
+    icon, label, value, placeholder, onClick, prefix,
+}: {
+    icon: IconName;
+    label: string;
+    value: string;
+    placeholder: string;
+    onClick: () => void;
+    prefix?: string;
+}) {
+    return (
+        <button type="button" onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors">
+            <div className="w-9 h-9 rounded-xl bg-surface-sunken flex items-center justify-center text-ink-soft shrink-0">
+                <Icon name={icon} className="text-lg" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-ink-faint uppercase tracking-wide">{label}</p>
+                <p className={cn('text-ink truncate', !value && 'text-ink-faint')}>
+                    {value ? `${prefix ?? ''}${value}` : placeholder}
+                </p>
+            </div>
+            <Icon name="chevron_right" className="text-ink-faint shrink-0" />
+        </button>
+    );
+}
+
+type EditingField = 'name' | 'username' | 'mbway' | 'gemini' | null;
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
     const { theme, toggleTheme } = useTheme();
     const { showToast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const [name, setName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [mbway, setMbway] = useState('');
-    const [isSavingMbway, setIsSavingMbway] = useState(false);
-    const [geminiKeyInput, setGeminiKeyInput] = useState('');
-    const [isSavingKey, setIsSavingKey] = useState(false);
+    const [editingField, setEditingField] = useState<EditingField>(null);
     const { status: notifStatus, iosNeedsInstall, requestPermission } = useNotificationPermission();
     const [enablingNotifs, setEnablingNotifs] = useState(false);
 
     const currentGeminiKey = getUserGeminiApiKey(user) ?? '';
     const hasGeminiKey = Boolean(currentGeminiKey);
-
-    useEffect(() => {
-        if (user) {
-            setName(user.name || '');
-            setGeminiKeyInput(getUserGeminiApiKey(user) ?? '');
-            setMbway(user.mbway_phone || '');
-        }
-    }, [user]);
 
     const handleEnableNotifications = async () => {
         if (iosNeedsInstall) {
@@ -65,7 +83,6 @@ export default function ProfilePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Validate file size (e.g. 5MB)
         if (file.size > 5 * 1024 * 1024) {
             showToast('A imagem deve ter menos de 5MB', 'error');
             return;
@@ -85,52 +102,8 @@ export default function ProfilePage() {
         }
     };
 
-    const handleSaveName = async () => {
-        if (!name.trim()) return;
-        if (name === user?.name) return;
-
-        setIsSaving(true);
-        try {
-            await updateProfile({ name });
-        } catch (error) {
-            console.error(error);
-            showToast('Erro ao atualizar nome', 'error');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleSaveMbway = async () => {
-        const trimmed = mbway.trim();
-        if (trimmed === (user?.mbway_phone || '')) return;
-        setIsSavingMbway(true);
-        try {
-            await updateProfile({ mbway_phone: trimmed });
-        } catch (error) {
-            console.error(error);
-            showToast('Erro ao atualizar número MB WAY', 'error');
-        } finally {
-            setIsSavingMbway(false);
-        }
-    };
-
-    const handleSaveGeminiKey = async () => {
-        const key = geminiKeyInput.trim();
-        if (!key || key === currentGeminiKey) return;
-        setIsSavingKey(true);
-        try {
-            await updateProfile({ geminiApiKey: key });
-        } catch (error) {
-            console.error(error);
-            showToast('Erro ao atualizar chave', 'error');
-        } finally {
-            setIsSavingKey(false);
-        }
-    };
-
     const handleLogout = () => {
         void logout();
-        // Router push is handled in context but being safe
     };
 
     if (!user) {
@@ -155,10 +128,10 @@ export default function ProfilePage() {
 
             <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
 
-                {/* Profile Card */}
-                <div className="card p-6 flex flex-col items-center bg-surface border border-hairline shadow-sm">
-                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-hairline transition group-hover:ring-primary-100 dark:group-hover:ring-primary-900/30">
+                {/* Cabeçalho — avatar + nome + email, à Splitwise (linha, não cartão). */}
+                <div className="flex items-center gap-4 px-1">
+                    <div className="relative shrink-0 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-hairline">
                             {isLoading ? (
                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
                                     <LoadingSpinner size="sm" />
@@ -168,14 +141,12 @@ export default function ProfilePage() {
                                     name={user.name || user.email}
                                     src={getUserAvatarUrl(user.id, user.avatar)}
                                     size="lg"
-                                    className="w-full h-full text-2xl"
+                                    className="w-full h-full text-xl"
                                 />
                             )}
-
-                            {/* Overlay for upload hint */}
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Icon name="photo_camera" className="text-3xl text-white" />
-                            </div>
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-primary-600 ring-2 ring-app flex items-center justify-center text-white">
+                            <Icon name="photo_camera" className="text-[13px]" />
                         </div>
                         <input
                             type="file"
@@ -185,198 +156,139 @@ export default function ProfilePage() {
                             onChange={handleFileChange}
                         />
                     </div>
-
-                    <h2 className="mt-4 text-xl font-bold text-ink">{user.name || 'Sem nome'}</h2>
-                    <p className="text-sm text-ink-faint">{user.email}</p>
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-lg font-bold text-ink truncate">{user.name || 'Sem nome'}</h2>
+                        <p className="text-sm text-ink-faint truncate">{user.email}</p>
+                        {user.username && <p className="text-sm text-ink-faint truncate">@{user.username}</p>}
+                    </div>
                 </div>
 
-                {/* Settings Section */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-ink-faint uppercase tracking-wider ml-1">Definições</h3>
-
-                    {/* Name Input */}
-                    <div className="card p-4 bg-surface border border-hairline">
-                        <label className="block text-xs font-bold text-ink-faint uppercase mb-2">Nome de Exibição</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="input flex-1 bg-surface-sunken focus:bg-surface"
-                                placeholder="O teu nome..."
-                            />
-                            <button
-                                onClick={handleSaveName}
-                                disabled={isSaving || name === user.name}
-                                className={cn(
-                                    "px-4 rounded-xl font-semibold transition",
-                                    isSaving
-                                        ? "bg-primary-600 text-white btn-loading"
-                                        : name === user.name
-                                            ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
-                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
-                                )}
-                            >
-                                Guardar
-                            </button>
-                        </div>
+                {/* Perfil */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Perfil</h3>
+                    <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
+                        <SummaryRow
+                            icon="person"
+                            label="Nome de exibição"
+                            value={user.name || ''}
+                            placeholder="Definir nome"
+                            onClick={() => setEditingField('name')}
+                        />
+                        <SummaryRow
+                            icon="alternate_email"
+                            label="Username"
+                            value={user.username || ''}
+                            placeholder="Definir username"
+                            prefix="@"
+                            onClick={() => setEditingField('username')}
+                        />
                     </div>
+                </div>
 
-                    {/* Número MB WAY — atalho de "Copiar número" no acertar contas do livro-razão. */}
-                    <div className="card p-4 bg-surface border border-hairline">
-                        <label className="block text-xs font-bold text-ink-faint uppercase mb-2">Número MB WAY</label>
-                        <p className="text-xs text-ink-faint mb-2">
-                            Mostrado a quem tiver de te pagar, para copiar e pagar fora da app.
-                        </p>
-                        <div className="flex gap-2">
-                            <input
-                                type="tel"
-                                value={mbway}
-                                onChange={(e) => setMbway(e.target.value)}
-                                className="input flex-1 bg-surface-sunken focus:bg-surface"
-                                placeholder="912 345 678"
-                            />
-                            <button
-                                onClick={handleSaveMbway}
-                                disabled={isSavingMbway || mbway.trim() === (user.mbway_phone || '')}
-                                className={cn(
-                                    "px-4 rounded-xl font-semibold transition",
-                                    isSavingMbway
-                                        ? "bg-primary-600 text-white btn-loading"
-                                        : mbway.trim() === (user.mbway_phone || '')
-                                            ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
-                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
-                                )}
-                            >
-                                Guardar
-                            </button>
-                        </div>
+                {/* Pagamentos */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Pagamentos</h3>
+                    <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
+                        <SummaryRow
+                            icon="phone_iphone"
+                            label="Número MB WAY"
+                            value={user.mbway_phone || ''}
+                            placeholder="Adicionar número"
+                            onClick={() => setEditingField('mbway')}
+                        />
                     </div>
+                </div>
 
-                    {/* Chave Gemini — só para quem já tem uma definida (usada no scan de faturas). */}
-                    {hasGeminiKey && (
-                        <div className="card p-4 bg-surface border border-hairline">
-                            <label className="block text-xs font-bold text-ink-faint uppercase mb-1">Chave API Gemini</label>
-                            <p className="text-xs text-ink-faint mb-2">
-                                Usada para ler faturas. Cria uma nova em{' '}
-                                <a
-                                    href="https://aistudio.google.com/apikey"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary-600 dark:text-primary-400 underline"
-                                >
-                                    aistudio.google.com
-                                </a>
-                                .
-                            </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    autoComplete="off"
-                                    autoCapitalize="off"
-                                    autoCorrect="off"
-                                    spellCheck={false}
-                                    value={geminiKeyInput}
-                                    onChange={(e) => setGeminiKeyInput(e.target.value)}
-                                    className="input flex-1 font-mono text-sm bg-surface-sunken focus:bg-surface"
-                                    placeholder="A tua chave…"
-                                />
-                                <button
-                                    onClick={handleSaveGeminiKey}
-                                    disabled={
-                                        isSavingKey ||
-                                        !geminiKeyInput.trim() ||
-                                        geminiKeyInput.trim() === currentGeminiKey
-                                    }
-                                    className={cn(
-                                        "px-4 rounded-xl font-semibold transition",
-                                        isSavingKey
-                                            ? "bg-primary-600 text-white btn-loading"
-                                            : !geminiKeyInput.trim() ||
-                                                geminiKeyInput.trim() === currentGeminiKey
-                                                ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
-                                                : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
-                                    )}
-                                >
-                                    Guardar
-                                </button>
+                {/* Preferências */}
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Preferências</h3>
+                    <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
+                        {notifStatus !== 'unsupported' && (
+                            <div className="flex items-center gap-3 px-4 py-3">
+                                <div className={cn(
+                                    "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                                    notifStatus === 'granted'
+                                        ? "bg-success-bg text-success-fg"
+                                        : "bg-surface-sunken text-ink-soft"
+                                )}>
+                                    <Icon
+                                        name={
+                                            notifStatus === 'granted'
+                                                ? 'notifications_active'
+                                                : notifStatus === 'denied'
+                                                    ? 'notifications_off'
+                                                    : iosNeedsInstall
+                                                        ? 'phone_iphone'
+                                                        : 'notifications'
+                                        }
+                                        className="text-lg"
+                                    />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-ink text-sm">Notificações</p>
+                                    <p className="text-xs text-ink-faint">
+                                        {notifStatus === 'granted' && 'Ativas neste dispositivo'}
+                                        {notifStatus === 'denied' && 'Bloqueadas — ativa nas definições do navegador'}
+                                        {notifStatus === 'default' && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
+                                        {notifStatus === 'default' && !iosNeedsInstall && 'Recebe um aviso quando há viagens novas'}
+                                    </p>
+                                </div>
+                                {notifStatus === 'default' && (
+                                    <Button
+                                        size="sm"
+                                        variant={iosNeedsInstall ? 'secondary' : 'primary'}
+                                        loading={enablingNotifs}
+                                        onClick={handleEnableNotifications}
+                                    >
+                                        {iosNeedsInstall ? 'Como instalar' : 'Ativar'}
+                                    </Button>
+                                )}
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Notificações */}
-                    {notifStatus !== 'unsupported' && (
-                        <div className="card p-4 flex items-center gap-3 bg-surface border border-hairline">
+                        <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={toggleTheme}>
                             <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                                notifStatus === 'granted'
-                                    ? "bg-success-bg text-success-fg"
-                                    : "bg-surface-sunken text-ink-faint"
-                            )}>
-                                <Icon
-                                    name={
-                                        notifStatus === 'granted'
-                                            ? 'notifications_active'
-                                            : notifStatus === 'denied'
-                                                ? 'notifications_off'
-                                                : iosNeedsInstall
-                                                    ? 'phone_iphone'
-                                                    : 'notifications'
-                                    }
-                                    className="text-2xl"
-                                />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-ink">Notificações</p>
-                                <p className="text-xs text-ink-faint">
-                                    {notifStatus === 'granted' && 'Ativas neste dispositivo'}
-                                    {notifStatus === 'denied' && 'Bloqueadas — ativa nas definições do navegador'}
-                                    {notifStatus === 'default' && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
-                                    {notifStatus === 'default' && !iosNeedsInstall && 'Recebe um aviso quando há viagens novas'}
-                                </p>
-                            </div>
-                            {notifStatus === 'default' && (
-                                <Button
-                                    size="sm"
-                                    variant={iosNeedsInstall ? 'secondary' : 'primary'}
-                                    loading={enablingNotifs}
-                                    onClick={handleEnableNotifications}
-                                >
-                                    {iosNeedsInstall ? 'Como instalar' : 'Ativar'}
-                                </Button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Theme Toggle */}
-                    <div className="card p-4 flex items-center justify-between bg-surface border border-hairline cursor-pointer hover:border-hairline-strong transition-colors" onClick={toggleTheme}>
-                        <div className="flex items-center gap-3">
-                            <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
                                 theme === 'dark'
                                     ? "bg-surface-sunken text-primary-300"
                                     : "bg-warning-bg text-warning-fg"
                             )}>
-                                <Icon name={theme === 'dark' ? 'dark_mode' : 'light_mode'} className="text-2xl" />
+                                <Icon name={theme === 'dark' ? 'dark_mode' : 'light_mode'} className="text-lg" />
                             </div>
-                            <div>
-                                <p className="font-semibold text-ink">Tema Escuro</p>
+                            <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-ink text-sm">Tema escuro</p>
                                 <p className="text-xs text-ink-faint">Alternar entre claro e escuro</p>
                             </div>
-                        </div>
-                        <div className={cn(
-                            "w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out relative",
-                            theme === 'dark' ? "bg-primary-600" : "bg-hairline-strong"
-                        )}>
                             <div className={cn(
-                                "w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out",
-                                theme === 'dark' ? "translate-x-6" : "translate-x-0"
-                            )} />
+                                "w-11 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out relative shrink-0",
+                                theme === 'dark' ? "bg-primary-600" : "bg-hairline-strong"
+                            )}>
+                                <div className={cn(
+                                    "w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out",
+                                    theme === 'dark' ? "translate-x-5" : "translate-x-0"
+                                )} />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Logout Button */}
+                {/* Avançado — só para quem já tem uma chave Gemini definida (scan de faturas). */}
+                {hasGeminiKey && (
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Avançado</h3>
+                        <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
+                            <SummaryRow
+                                icon="key"
+                                label="Chave API Gemini"
+                                value={currentGeminiKey}
+                                placeholder="Definir chave"
+                                onClick={() => setEditingField('gemini')}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Terminar sessão */}
                 <button
                     onClick={handleLogout}
                     className="w-full py-4 rounded-xl text-danger-fg font-bold bg-danger-bg/50 hover:bg-danger-bg transition-colors border border-danger-fg/20 flex items-center justify-center gap-2"
@@ -390,6 +302,66 @@ export default function ProfilePage() {
                 </div>
             </div>
             <GlobalBottomNav />
+
+            <EditFieldSheet
+                isOpen={editingField === 'name'}
+                onClose={() => setEditingField(null)}
+                label="Nome de exibição"
+                value={user.name || ''}
+                placeholder="O teu nome"
+                onSave={(value) => updateProfile({ name: value })}
+                validate={(value) => (!value ? 'O nome não pode ficar vazio.' : null)}
+            />
+            <EditFieldSheet
+                isOpen={editingField === 'username'}
+                onClose={() => setEditingField(null)}
+                label="Username"
+                value={user.username || ''}
+                placeholder="username"
+                prefix="@"
+                onSave={(value) => updateProfile({ username: value.toLowerCase() })}
+                validate={(value) => {
+                    const v = value.toLowerCase();
+                    return isValidUsername(v) ? null : '3-20 letras minúsculas, números, "_" ou "." — sem ponto a abrir/fechar.';
+                }}
+                parseError={(err) => {
+                    const fieldError = (err as { response?: { data?: { username?: unknown } } })?.response?.data?.username;
+                    return fieldError ? 'Esse username já está a ser usado.' : 'Erro ao atualizar username';
+                }}
+            />
+            <EditFieldSheet
+                isOpen={editingField === 'mbway'}
+                onClose={() => setEditingField(null)}
+                label="Número MB WAY"
+                value={user.mbway_phone || ''}
+                placeholder="912 345 678"
+                type="tel"
+                onSave={(value) => updateProfile({ mbway_phone: value })}
+                helper="Mostrado a quem tiver de te pagar, para copiar e pagar fora da app."
+            />
+            <EditFieldSheet
+                isOpen={editingField === 'gemini'}
+                onClose={() => setEditingField(null)}
+                label="Chave API Gemini"
+                value={currentGeminiKey}
+                placeholder="A tua chave…"
+                onSave={(value) => updateProfile({ geminiApiKey: value })}
+                validate={(value) => (!value ? 'A chave não pode ficar vazia.' : null)}
+                helper={
+                    <>
+                        Usada para ler faturas. Cria uma nova em{' '}
+                        <a
+                            href="https://aistudio.google.com/apikey"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary-600 dark:text-primary-400 underline"
+                        >
+                            aistudio.google.com
+                        </a>
+                        .
+                    </>
+                }
+            />
         </div>
     );
 }

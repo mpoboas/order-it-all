@@ -257,7 +257,7 @@ export function SplitItemAllocationSheet({
       onClose={onClose}
       title={draft?.name?.trim() || 'Ajustar divisão'}
       subtitle={draft ? formatCurrency(draft.price) : undefined}
-      size="large"
+      size="full"
       minimizedAboveBottomNav={false}
       footer={
         <button

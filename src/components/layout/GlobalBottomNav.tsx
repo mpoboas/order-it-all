@@ -32,7 +32,7 @@ export function GlobalBottomNav() {
     const isActive = (href: string) => pathname.startsWith(href);
 
     return (
-        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-hairline z-50 md:hidden safe-bottom">
+        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-hairline z-50 md:hidden safe-bottom-nav">
             <div className="flex items-center justify-around h-16">
                 {ITEMS.map((item) => {
                     const active = isActive(item.href);
@@ -40,7 +40,7 @@ export function GlobalBottomNav() {
                     return (
                         <button
                             key={item.href}
-                            onClick={() => nav.push(item.href)}
+                            onClick={() => nav.push(item.href, { transition: 'none' })}
                             className={cn(
                                 'relative flex flex-col items-center justify-center flex-1 h-full transition duration-200',
                                 'active:scale-95',

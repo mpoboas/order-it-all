@@ -505,7 +505,7 @@ export function SplitMemberItemAllocationSheet({
       onClose={onClose}
       title={item?.name?.trim() || 'A tua parte'}
       subtitle={item ? formatCurrency(item.price) : undefined}
-      size="medium"
+      size="full"
       minimizedAboveBottomNav={false}
       footer={
         <button

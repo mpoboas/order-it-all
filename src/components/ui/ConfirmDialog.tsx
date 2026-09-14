@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { sheetSpring, sheetEase } from '@/lib/motion';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import type { ConfirmTone } from '@/context/ConfirmContext';
 
 interface ConfirmDialogProps {
@@ -64,13 +65,7 @@ export function ConfirmDialog({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onCancel]);
 
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   const backdropTransition = reduceMotion ? { duration: 0.01 } : sheetEase;
   const panelTransition = reduceMotion ? { duration: 0.01 } : sheetSpring;

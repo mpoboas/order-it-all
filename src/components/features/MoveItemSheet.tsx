@@ -297,7 +297,7 @@ export function MoveItemSheet({
       onClose={handleClose}
       title={sheetTitle}
       subtitle={item ? item.name : undefined}
-      size={step === 'new-participants' || step === 'existing' ? 'large' : 'medium'}
+      size="full"
       footerKey={step}
       onBack={showBack ? handleBack : undefined}
       minimizable

@@ -115,9 +115,9 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --header-height: 64px;
-  /* h-16 bar + .safe-bottom padding on nav (see BottomNav.tsx) */
+  /* h-16 bar + .safe-bottom-nav padding (see GlobalBottomNav.tsx) */
   --bottom-nav-height: 4rem;
-  --bottom-nav-total-height: calc(4rem + var(--safe-bottom) + 1rem);
+  --bottom-nav-total-height: calc(4rem + var(--safe-bottom));
   --minimized-dock-height: 5.25rem;
   --dock-gap: 0.5rem;
 
@@ -251,7 +251,10 @@ summary,
   user-select: none;
 }
 
-/* Campos editaveis: selecao, cursor e menu de contexto nativos de volta. */
+/* Campos editaveis: selecao, cursor e menu de contexto nativos de volta.
+   `touch-action: auto` tambem aqui — o `manipulation` global (acima) e
+   conhecido por interferir com o teclado nativo do iOS em modo PWA instalada
+   (bug documentado: o toque nao abre teclado nenhum nesses campos). */
 input,
 textarea,
 select,
@@ -259,6 +262,7 @@ select,
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;
+  touch-action: auto;
 }
 
 /* Marcar explicitamente conteudo que o utilizador possa querer copiar
@@ -289,8 +293,28 @@ body {
   padding-top: var(--safe-top);
 }
 
+/* Como `.safe-top`, mas com piso de 1rem — para cabecalhos full-screen que
+   precisam de respirar mesmo quando `--safe-top` e 0 (separador do browser,
+   sem barra de estado a evitar: so a WPA instalada tem um inset real ai). Sem
+   isto, o titulo ficava colado ao topo no browser so para caber por baixo da
+   status bar na WPA. */
+.safe-top-min {
+  padding-top: max(var(--safe-top), 1rem);
+}
+
 /* Ecras full-screen sem Header: mantem o conteudo fora das duas barras
    enquanto o fundo do proprio ecra sangra para dentro delas. */
+/* Barra de navegao inferior: so o inset real, sem soma-lo a mais um
+   respiro fixo. O tab bar nativo da Apple ja usa o proprio inset (34pt em
+   iPhones com indicador de gestos) como unica folga acima dele — somar
+   16px por cima (como `.safe-bottom`, pensado para botoes/rodapes) deixava
+   a barra deslocada demasiado para cima da barra de gestos. Sem inset
+   (Android, desktop) fica a 0 — a barra fica rente ao fundo do conteudo
+   visivel, que e como os tab bars nativos tambem se comportam ai. */
+.safe-bottom-nav {
+  padding-bottom: var(--safe-bottom);
+}
+
 .safe-screen {
   padding-top: max(var(--safe-top), 1rem);
   padding-bottom: max(var(--safe-bottom), 1rem);
@@ -643,6 +667,42 @@ textarea:focus-visible {
   ::view-transition-new(root) {
     animation: none;
   }
+}
+
+/* Fase 9 — navegação estilo iOS (push/pop). `data-nav-transition` em <html>
+   (marcado por `markNavDirection`, ver `src/lib/navTransition.ts`) troca o
+   crossfade acima por um slide direcional: "forward" = novo ecrã entra da
+   direita, o antigo desliza parcialmente para a esquerda (com leve
+   esbatimento, efeito de paralaxe); "back" = o atual sai para a direita, o
+   anterior volta a entrar da esquerda. Sem atributo = crossfade de sempre
+   (trocas de tab passam `transition: 'none'` a `useAppNavigate`, ver
+   `GlobalBottomNav`/`GroupTabs`). Especificidade do seletor de atributo
+   sobrepõe-se de propósito ao `animation` do bloco acima. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-nav-transition="forward"]::view-transition-old(root) {
+    animation: ios-slide-out-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="forward"]::view-transition-new(root) {
+    animation: ios-slide-in-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="back"]::view-transition-old(root) {
+    animation: ios-slide-out-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="back"]::view-transition-new(root) {
+    animation: ios-slide-in-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+}
+@keyframes ios-slide-in-right {
+  from { transform: translateX(100%); }
+}
+@keyframes ios-slide-out-left {
+  to { transform: translateX(-28%); opacity: 0.55; }
+}
+@keyframes ios-slide-out-right {
+  to { transform: translateX(100%); }
+}
+@keyframes ios-slide-in-left {
+  from { transform: translateX(-28%); opacity: 0.55; }
 }
 
 /* O Header e a BottomNav são casca persistente — nome próprio para ficarem

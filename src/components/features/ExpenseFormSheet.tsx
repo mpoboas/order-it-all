@@ -225,7 +225,7 @@ export function ExpenseFormSheet({
         isOpen={isOpen}
         onClose={onClose}
         title={isEditing ? 'Editar despesa' : 'Nova despesa'}
-        size="large"
+        size="full"
         footer={
           <Button block loading={submitting} disabled={!canSubmit} onClick={handleSubmit}>
             Guardar

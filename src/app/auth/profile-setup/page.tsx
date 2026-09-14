@@ -199,6 +199,22 @@ export default function ProfileSetupPage() {
             const formData = new FormData();
             formData.append('name', name);
 
+            // Username automático na primeira configuração de perfil (Fase 8b)
+            // — só aqui, nunca ao reeditar o nome mais tarde no Perfil.
+            if (!user?.username) {
+                try {
+                    const res = await fetch('/api/generate-username', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name }),
+                    });
+                    const data = await res.json();
+                    if (data.username) formData.append('username', data.username);
+                } catch {
+                    // Sem username por agora — dá para gerar mais tarde (perfil/migração).
+                }
+            }
+
             let fileToUpload = avatarFile;
             if (!fileToUpload && !avatarRemoved && googleAvatarUrl) {
                 fileToUpload = await urlToAvatarFile(googleAvatarUrl);

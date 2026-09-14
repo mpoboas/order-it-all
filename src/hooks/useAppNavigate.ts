@@ -7,8 +7,15 @@ import { useTryNavigate } from '@/context/UnsavedDraftContext';
 import { parentPath, previousVisit } from '@/lib/navHierarchy';
 import { navStart } from '@/lib/navProgress';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
+import { markNavDirection } from '@/lib/navTransition';
 
-type NavOpts = { haptic?: boolean };
+type NavOpts = {
+  haptic?: boolean;
+  /** 'none' para navegação lateral entre irmãos (trocar de tab) — sem isto,
+   *  `push`/`replace` marcam sempre a transição como "forward" (entrar num
+   *  ecrã, desliza da direita). Ver `src/lib/navTransition.ts`. */
+  transition?: 'auto' | 'none';
+};
 
 /** Mesma rota que a atual? (ignora query/hash e barra final) — nesse caso a
  *  navegação é um no-op e não deve acender a barra de progresso (que ficaria
@@ -35,6 +42,13 @@ function isSamePath(href: string, current: string): boolean {
  * `up()` = voltar ao **pai na hierarquia** (o comportamento certo para o chevron
  * da top bar): usa `back()` se o histórico já lá está (restaura scroll), senão
  * `push(pai)`.
+ *
+ * **Direção da animação (Fase 9)** — `push`/`replace` marcam a transição como
+ * "forward" (novo ecrã entra da direita) via `markNavDirection`, `back`/`up`
+ * marcam "back" (ecrã atual sai para a direita, o anterior entra da esquerda)
+ * — ver `src/lib/navTransition.ts` e as regras em `globals.css`. Passar
+ * `{ transition: 'none' }` para navegação lateral entre irmãos (trocar de
+ * tab) — sem direção marcada, fica o crossfade de sempre.
  */
 export function useAppNavigate() {
   const router = useSmartRouter();
@@ -49,6 +63,7 @@ export function useAppNavigate() {
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
         navStart();
+        if (opts?.transition !== 'none') markNavDirection('forward');
         router.push(href);
       });
     },
@@ -61,6 +76,7 @@ export function useAppNavigate() {
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
         navStart();
+        if (opts?.transition !== 'none') markNavDirection('forward');
         router.replace(href);
       });
     },
@@ -72,6 +88,7 @@ export function useAppNavigate() {
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
         navStart();
+        markNavDirection('back');
         plainRouter.back();
       });
     },
@@ -84,6 +101,10 @@ export function useAppNavigate() {
       const parent = parentPath(pathname);
       tryNavigate(() => {
         navStart();
+        // "Subir" é sempre semanticamente um "voltar", mesmo quando por baixo
+        // é implementado com `push(pai)` (histórico não alinhado) — a direção
+        // da animação segue a intenção, não o mecanismo.
+        markNavDirection('back');
         if (!parent) {
           plainRouter.back();
         } else if (previousVisit() === parent) {

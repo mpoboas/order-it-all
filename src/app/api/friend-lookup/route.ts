@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import PocketBase from 'pocketbase';
 
-// Procura um utilizador por email para o fluxo "Adicionar amigo" (Fase 8).
-// A coleção `users` tem list rule restrita — um utilizador normal não
-// consegue `getFirstListItem('email = "...")`, por isso isto autentica como
+// Procura um utilizador por email OU username (Fase 8/8b) para o fluxo
+// "Adicionar amigo" — um único campo, decide sozinho pelo "@". A coleção
+// `users` tem list rule restrita — um utilizador normal não consegue
+// `getFirstListItem('email = "...")`, por isso isto autentica como
 // superuser (mesmo padrão de `src/app/api/notify/route.ts`) e devolve só o
 // mínimo necessário, nunca a regra da coleção `users` em si.
 
@@ -13,20 +14,27 @@ interface PublicUser {
   id: string;
   name: string;
   avatar: string;
-  email: string;
+  username?: string;
 }
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Falta o email' }, { status: 400 });
+    const { query } = await request.json();
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return NextResponse.json({ error: 'Falta o email ou username' }, { status: 400 });
     }
+    const trimmed = query.trim();
+    // "@username" é a forma natural de escrever um username — só conta como
+    // email se tiver algo antes E depois do "@" (nome@domínio).
+    const isEmail = /^[^@]+@[^@]+$/.test(trimmed);
+    const forFilter = isEmail ? trimmed : trimmed.replace(/^@/, '');
+    const escaped = forFilter.toLowerCase().replace(/"/g, '\\"');
+    const filter = isEmail ? `email = "${escaped}"` : `username = "${escaped}"`;
 
     const adminEmail = process.env.POCKETBASE_ADMIN_EMAIL;
     const adminPass = process.env.POCKETBASE_ADMIN_PASSWORD;
     if (!adminEmail || !adminPass) {
-      console.warn('Admin credentials missing. Cannot look up users by email.');
+      console.warn('Admin credentials missing. Cannot look up users.');
       return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
     }
 
@@ -38,10 +46,8 @@ export async function POST(request: Request) {
     }
 
     try {
-      const user = await pb.collection('users').getFirstListItem<PublicUser>(
-        `email = "${email.trim().toLowerCase().replace(/"/g, '\\"')}"`,
-      );
-      return NextResponse.json({ user: { id: user.id, name: user.name, avatar: user.avatar } });
+      const user = await pb.collection('users').getFirstListItem<PublicUser>(filter);
+      return NextResponse.json({ user: { id: user.id, name: user.name, avatar: user.avatar, username: user.username } });
     } catch {
       return NextResponse.json({ user: null });
     }

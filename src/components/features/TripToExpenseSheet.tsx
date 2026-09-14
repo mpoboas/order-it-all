@@ -250,7 +250,7 @@ export function TripToExpenseSheet({
             onClose={onClose}
             title="Lançar despesa da viagem"
             subtitle={trip?.name}
-            size="large"
+            size="full"
             footer={
                 <Button
                     block

@@ -8,7 +8,7 @@ import {
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
-    Scale, Activity, Send, Settings, UserPlus,
+    Scale, Activity, Send, Settings, UserPlus, AtSign,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -103,6 +103,7 @@ const MAP = {
     send: Send,
     settings: Settings,
     person_add: UserPlus,
+    alternate_email: AtSign,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

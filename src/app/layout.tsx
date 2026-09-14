@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
 import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
+import { NavDirectionTracker } from "@/components/layout/NavDirectionTracker";
 import { GlobalProgress } from "@/components/layout/GlobalProgress";
 import { ViewTransitions } from "next-view-transitions";
 
@@ -64,6 +65,10 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   // Cor da status bar no Android: igual ao topo dos ecras (Header / gradient-mesh).
   themeColor: '#2563eb',
+  // Chrome/Android: encolhe o layout viewport quando o teclado abre (em vez
+  // de o sobrepor por cima) — o Safari ainda não implementa isto, daí o
+  // reforço via `useVisualViewport` no `<Sheet>` (funciona nos dois).
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({
@@ -91,6 +96,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ViewTransitions>
+          <NavDirectionTracker />
           <GlobalProgress />
           <UserProvider>
             <SyncProvider>

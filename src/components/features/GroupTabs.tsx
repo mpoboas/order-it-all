@@ -54,7 +54,7 @@ export function GroupTabs({ groupId, isAdmin }: GroupTabsProps) {
                         <button
                             key={item.href}
                             type="button"
-                            onClick={() => nav.push(item.href, { haptic: false })}
+                            onClick={() => nav.push(item.href, { haptic: false, transition: 'none' })}
                             className={cn(
                                 'flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors',
                                 active

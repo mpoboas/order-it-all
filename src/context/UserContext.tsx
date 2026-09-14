@@ -75,6 +75,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
             console.error('Failed to update profile:', error);
             // Revert on error (fetching fresh state)
             usersApi.authRefresh().then(u => setUser(u.record)).catch(() => { });
+            // Todos os call-sites já esperam isto (try/catch ou .catch()) — sem
+            // isto o erro fica sempre engolido e nenhum deles chega a disparar.
+            throw error;
         }
     }, [user]);
 

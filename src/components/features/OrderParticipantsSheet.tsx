@@ -101,7 +101,7 @@ export function OrderParticipantsSheet({
             isOpen={isOpen}
             onClose={onClose}
             title={title}
-            size="large"
+            size="full"
             minimizable={minimizable}
             draftActive={isDraftActive}
             minimized={minimized}

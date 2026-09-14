@@ -408,7 +408,7 @@ export function InvoiceScanSheet({
       onClose={handleClose}
       title={sheetTitle}
       subtitle={sheetSubtitle}
-      size="large"
+      size="full"
       footer={footer}
       footerKey={scanStep}
       minimizedAboveBottomNav

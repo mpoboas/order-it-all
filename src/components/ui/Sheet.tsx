@@ -10,8 +10,10 @@ import { getMinimizedSheetBottom } from '@/lib/bottomDock';
 import { UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
 import { useConfirm } from '@/context/ConfirmContext';
 import { Icon } from '@/components/ui/Icon';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
-export type SheetSize = 'auto' | 'medium' | 'large';
+export type SheetSize = 'auto' | 'medium' | 'large' | 'full';
 
 interface SheetProps {
     isOpen: boolean;
@@ -41,6 +43,14 @@ const sheetSizeClasses: Record<SheetSize, string> = {
     auto: 'max-h-[min(92dvh,92vh)]',
     medium: 'max-h-[min(92dvh,92vh)] min-h-[min(55dvh,55vh)]',
     large: 'max-h-[min(92dvh,92vh)] min-h-[min(82dvh,82vh)]',
+    // Ecrã inteiro (Fase 9) — para introdução/edição de dados (nova despesa,
+    // criar viagem, acertar contas…). Continua a entrar de baixo para cima
+    // como os outros tamanhos, mas cobre tudo: sem cantos arredondados nem
+    // largura máxima, e sem o "grabber" (não há gesto de arrastar).
+    // `h-full`, não `h-[100dvh]` — o pai (`fixed inset-0`, Sheet.tsx) já é
+    // ajustado em JS à altura real do teclado; herdar isso é o que faz o
+    // rodapé nunca ficar escondido atrás do teclado.
+    full: 'h-full max-h-full',
 };
 
 const DEFAULT_DISCARD_MESSAGE = UNSAVED_DRAFT_MESSAGE;
@@ -104,15 +114,7 @@ export function Sheet({
         });
     }, [onDiscard, onClose, discardConfirmMessage, confirmAction]);
 
-    useEffect(() => {
-        if (isExpanded) {
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = '';
-            };
-        }
-        document.body.style.overflow = '';
-    }, [isExpanded]);
+    useBodyScrollLock(isExpanded);
 
     useEffect(() => {
         if (!isOpen || !shouldMinimize || minimized) return;
@@ -129,6 +131,14 @@ export function Sheet({
 
     const panelTransition = reduceMotion ? { duration: 0.01 } : sheetSpring;
     const backdropTransition = reduceMotion ? { duration: 0.01 } : sheetEase;
+    const isFull = size === 'full';
+
+    // `100dvh`/`100vh` não encolhem com o teclado do telemóvel em todos os
+    // browsers (Android sobretudo) — sem isto, o rodapé ("Guardar" etc.) de
+    // um sheet `fixed` fica escondido atrás do teclado em vez de subir por
+    // cima. `window.visualViewport` encolhe sempre, em Android e iOS.
+    const viewport = useVisualViewport();
+    const viewportStyle = viewport ? { top: viewport.offsetTop, height: viewport.height } : undefined;
 
     const headerDismiss = handleDismiss;
 
@@ -136,20 +146,43 @@ export function Sheet({
         <AnimatePresence>
             {isOpen && (
                 <>
+                    {isExpanded && isFull && (
+                        // Forro solido a ecra inteiro, SEM o `style={viewportStyle}` do
+                        // container principal — cobre sempre o fisico todo, mesmo que o
+                        // `visualViewport` ainda nao tenha contabilizado a barra de
+                        // AutoFill do iOS (chave/cartao/localizacao) por cima do teclado,
+                        // o que deixava por instantes a pagina de fundo a espreitar por
+                        // uma fresta em vez de mostrar a mesma cor do sheet.
+                        <div className="fixed inset-0 z-[99] bg-surface" />
+                    )}
                     {isExpanded && (
-                        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-end sm:p-4 pointer-events-none">
-                            <motion.div
-                                className="absolute inset-0 bg-black/50 pointer-events-auto"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={backdropTransition}
-                                onClick={handleDismiss}
-                            />
+                        <div
+                            className={cn(
+                                'fixed inset-0 z-[100] flex items-end justify-center pointer-events-none',
+                                isFull ? 'sm:items-end' : 'sm:items-end sm:p-4'
+                            )}
+                            style={viewportStyle}
+                        >
+                            {!isFull && (
+                                <motion.div
+                                    className="absolute inset-0 bg-black/50 pointer-events-auto"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={backdropTransition}
+                                    onClick={handleDismiss}
+                                />
+                            )}
 
                             <motion.div
                                 className={cn(
-                                    'relative w-full max-w-lg sm:max-w-xl flex flex-col bg-surface rounded-t-[32px] sm:rounded-[28px] shadow-2xl pointer-events-auto',
+                                    'relative w-full flex flex-col bg-surface pointer-events-auto',
+                                    // Sem sombra em ecrã inteiro: o painel encolhe com o
+                                    // `visualViewport` quando o teclado abre, e a sombra da
+                                    // aresta de baixo caía sobre o forro solido por trás
+                                    // (o mesmo `bg-surface`) como uma faixa cinzenta visível
+                                    // — parecia uma fresta em vez de continuação lisa.
+                                    isFull ? 'max-w-none rounded-none' : 'max-w-lg sm:max-w-xl rounded-t-[32px] sm:rounded-[28px] shadow-2xl',
                                     sheetSizeClasses[size]
                                 )}
                                 role="dialog"
@@ -159,8 +192,17 @@ export function Sheet({
                                 exit={{ y: '100%' }}
                                 transition={panelTransition}
                             >
-                                <div className="shrink-0 pt-3 pb-2 px-4 sm:px-6 border-b border-hairline">
-                                    <div className="w-12 h-1.5 bg-hairline-strong rounded-full mx-auto mb-4" />
+                                <div className={cn(
+                                    'shrink-0 pt-3 pb-2 px-4 sm:px-6 border-b border-hairline',
+                                    // Ecrã inteiro chega mesmo ao topo (y=0) — sem isto o
+                                    // título colide com a status bar/notch na app instalada
+                                    // (iOS). `-min`, não `.safe-top` puro: no separador do
+                                    // browser (sem status bar a evitar) o inset é 0 e o
+                                    // título ficava colado ao URL bar — o piso de 1rem só
+                                    // entra aí, a WPA continua a usar o inset real (maior).
+                                    isFull && 'safe-top-min'
+                                )}>
+                                    {!isFull && <div className="w-12 h-1.5 bg-hairline-strong rounded-full mx-auto mb-4" />}
                                     <div className="flex justify-between items-center mb-2 gap-2">
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                             <AnimatePresence mode="popLayout">

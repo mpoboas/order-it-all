@@ -370,10 +370,9 @@ export function OrderFormSheet({
 
     const showBackButton = useCreateWizard && (step === 'participants' || step === 'items');
 
-    const sheetSize: SheetSize =
-        step === 'participants' ? 'large' :
-            step === 'items' ? 'large' :
-                'medium';
+    // Ecrã inteiro em todos os passos (Fase 9) — introdução de dados; um
+    // wizard não deve mudar de tamanho a meio do fluxo.
+    const sheetSize: SheetSize = 'full';
 
     const supportsMinimize = useCreateWizard || flow === 'edit';
 
