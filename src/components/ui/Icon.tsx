@@ -8,6 +8,7 @@ import {
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
+    Scale, Activity,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -96,6 +97,9 @@ const MAP = {
     flight: Plane,
     pets: PawPrint,
     more_horiz: MoreHorizontal,
+    // Livro-razão — saldos e atividade.
+    balance: Scale,
+    activity: Activity,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

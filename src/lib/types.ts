@@ -138,6 +138,8 @@ export interface Party {
   avatar?: string;
   /** Só para `kind === 'user'` — usado na pesquisa do seletor de participantes. */
   email?: string;
+  /** Só para `kind === 'user'` — atalho "Copiar número" no acertar contas. */
+  mbwayPhone?: string;
   kind: 'user' | 'placeholder';
   /** Só quando `kind === 'placeholder'` e já foi reclamado. */
   claimedBy?: string;

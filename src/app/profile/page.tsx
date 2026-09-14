@@ -12,6 +12,7 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
+import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
@@ -22,6 +23,8 @@ export default function ProfilePage() {
     const [name, setName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [mbway, setMbway] = useState('');
+    const [isSavingMbway, setIsSavingMbway] = useState(false);
     const [geminiKeyInput, setGeminiKeyInput] = useState('');
     const [isSavingKey, setIsSavingKey] = useState(false);
     const { status: notifStatus, iosNeedsInstall, requestPermission } = useNotificationPermission();
@@ -34,6 +37,7 @@ export default function ProfilePage() {
         if (user) {
             setName(user.name || '');
             setGeminiKeyInput(getUserGeminiApiKey(user) ?? '');
+            setMbway(user.mbway_phone || '');
         }
     }, [user]);
 
@@ -96,6 +100,20 @@ export default function ProfilePage() {
         }
     };
 
+    const handleSaveMbway = async () => {
+        const trimmed = mbway.trim();
+        if (trimmed === (user?.mbway_phone || '')) return;
+        setIsSavingMbway(true);
+        try {
+            await updateProfile({ mbway_phone: trimmed });
+        } catch (error) {
+            console.error(error);
+            showToast('Erro ao atualizar número MB WAY', 'error');
+        } finally {
+            setIsSavingMbway(false);
+        }
+    };
+
     const handleSaveGeminiKey = async () => {
         const key = geminiKeyInput.trim();
         if (!key || key === currentGeminiKey) return;
@@ -122,7 +140,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-app pb-20 transition-colors">
+        <div className="min-h-screen bg-app pb-20 transition-colors has-bottom-nav">
             <Header title="Meu Perfil" showBack />
 
             <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
@@ -185,6 +203,37 @@ export default function ProfilePage() {
                                     isSaving
                                         ? "bg-primary-600 text-white btn-loading"
                                         : name === user.name
+                                            ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
+                                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
+                                )}
+                            >
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Número MB WAY — atalho de "Copiar número" no acertar contas do livro-razão. */}
+                    <div className="card p-4 bg-surface border border-hairline">
+                        <label className="block text-xs font-bold text-ink-faint uppercase mb-2">Número MB WAY</label>
+                        <p className="text-xs text-ink-faint mb-2">
+                            Mostrado a quem tiver de te pagar, para copiar e pagar fora da app.
+                        </p>
+                        <div className="flex gap-2">
+                            <input
+                                type="tel"
+                                value={mbway}
+                                onChange={(e) => setMbway(e.target.value)}
+                                className="input flex-1 bg-surface-sunken focus:bg-surface"
+                                placeholder="912 345 678"
+                            />
+                            <button
+                                onClick={handleSaveMbway}
+                                disabled={isSavingMbway || mbway.trim() === (user.mbway_phone || '')}
+                                className={cn(
+                                    "px-4 rounded-xl font-semibold transition",
+                                    isSavingMbway
+                                        ? "bg-primary-600 text-white btn-loading"
+                                        : mbway.trim() === (user.mbway_phone || '')
                                             ? "bg-surface-sunken text-ink-faint cursor-not-allowed"
                                             : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/30",
                                 )}
@@ -330,6 +379,7 @@ export default function ProfilePage() {
                     <p className="text-xs text-ink-faint">Versão 1.0.0 • Order It All!</p>
                 </div>
             </div>
+            <GlobalBottomNav />
         </div>
     );
 }

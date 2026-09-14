@@ -4,18 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { useExpenses, useParties } from '@/lib/db/hooks';
+import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
 import { useSyncStatus } from '@/context/SyncProvider';
-import { canonicalPartyId } from '@/lib/parties';
-import { netByParty } from '@/lib/ledger/balances';
-import { fromCents } from '@/lib/ledger/money';
+import { balanceFor } from '@/lib/ledger/balances';
 import { groupExpensesByMonth } from '@/lib/expenseDisplay';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { BalanceBand } from '@/components/features/BalanceBand';
+import { ActionChipRow } from '@/components/features/ActionChipRow';
 import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
+import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
@@ -33,23 +33,24 @@ export default function GroupExpensesPage() {
         () => (expensesQuery ?? []).filter((e) => !e.deleted_at),
         [expensesQuery],
     );
-    const parties = useParties(groupId);
+    const ledger = useGroupLedger(groupId);
+    const parties = ledger?.parties;
     const { groupSyncing } = useSyncStatus();
-    const loading = expensesQuery === undefined || parties === undefined || (expenses.length === 0 && groupSyncing);
+    const loading = expensesQuery === undefined || ledger === undefined || (expenses.length === 0 && groupSyncing);
 
     const [showForm, setShowForm] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
+    const [showSettleUp, setShowSettleUp] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
 
     const userId = user?.id;
-    const net = useMemo(() => {
-        if (!parties || !userId) return 0;
-        const cents = netByParty(expenses, (id) => canonicalPartyId(id, parties));
-        return fromCents(cents[userId] ?? 0);
-    }, [expenses, parties, userId]);
+    const myBalance = useMemo(() => {
+        if (!ledger || !userId) return null;
+        return balanceFor(userId, ledger.pairwise, ledger.net);
+    }, [ledger, userId]);
 
     const monthGroups = useMemo(() => groupExpensesByMonth(expenses), [expenses]);
     // Não é só `currentGroup.members` — inclui placeholders (membros sem
@@ -61,8 +62,23 @@ export default function GroupExpensesPage() {
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
             <Header title={currentGroup?.name} showBack groupId={groupId} />
-            {!loading && parties && (
-                <BalanceBand net={net} memberCount={memberCount} onMembersClick={() => setShowMembers(true)} />
+            {!loading && parties && myBalance && (
+                <>
+                    <BalanceBand
+                        netCents={myBalance.netCents}
+                        lines={myBalance.lines}
+                        parties={parties}
+                        memberCount={memberCount}
+                        onMembersClick={() => setShowMembers(true)}
+                        onSeeAllClick={() => nav.push(`/groups/${groupId}/balances`)}
+                    />
+                    <ActionChipRow
+                        chips={[
+                            { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true) },
+                            { icon: 'balance', label: 'Saldos', onClick: () => nav.push(`/groups/${groupId}/balances`) },
+                        ]}
+                    />
+                </>
             )}
 
             <main className="container mx-auto max-w-2xl">
@@ -130,6 +146,17 @@ export default function GroupExpensesPage() {
                     currentUserId={user.id}
                     onSaved={() => setShowForm(false)}
                     onOpenItems={(expense) => nav.push(`/groups/${groupId}/expenses/${expense.id}/items`, { haptic: false })}
+                />
+            )}
+
+            {ledger && user?.id && (
+                <SettleUpSheet
+                    isOpen={showSettleUp}
+                    onClose={() => setShowSettleUp(false)}
+                    groupId={groupId}
+                    parties={ledger.parties}
+                    pairwise={ledger.pairwise}
+                    currentUserId={user.id}
                 />
             )}
 

@@ -14,10 +14,13 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { useGroups } from '@/lib/db/hooks';
+import { useGroups, useGroupBalances } from '@/lib/db/hooks';
+import { fromCents } from '@/lib/ledger/money';
+import { Money } from '@/components/ui/Money';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
@@ -44,6 +47,15 @@ export default function GroupsPage() {
     const { hydrating } = useSyncStatus();
     const loading = groupsQuery === undefined || (groups.length === 0 && hydrating);
     const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+    const balances = useGroupBalances(user?.id);
+    const [showSettled, setShowSettled] = useState(false);
+
+    const totalNetCents = balances
+        ? Array.from(balances.values()).reduce((sum, c) => sum + c, 0)
+        : 0;
+    const settledGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) < 1);
+    const activeGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) >= 1);
+    const visibleGroups = showSettled ? groups : activeGroups;
 
     // Redirect if not logged in
     useEffect(() => {
@@ -112,7 +124,7 @@ export default function GroupsPage() {
     if (!isLoggedIn) return null;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)]">
+        <div className="min-h-screen bg-[var(--bg-primary)] has-bottom-nav">
             <Header
                 title="Meus Grupos"
                 subtitle="Escolhe um grupo para começar"
@@ -133,6 +145,17 @@ export default function GroupsPage() {
                         Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">{user?.name || 'amigo'}</span>! 👋
                     </h2>
                     <p className="text-[var(--text-secondary)]">Seleciona um grupo ou cria um novo</p>
+                    {!loading && groups.length > 0 && (
+                        <p className="mt-2 text-sm font-semibold">
+                            {Math.abs(totalNetCents) < 1 ? (
+                                <span className="text-ink-faint">Contas em dia em todo o lado</span>
+                            ) : totalNetCents > 0 ? (
+                                <span className="text-success-fg">No total, devem-te <Money value={fromCents(totalNetCents)} /></span>
+                            ) : (
+                                <span className="text-warning-fg">No total, deves <Money value={fromCents(-totalNetCents)} /></span>
+                            )}
+                        </p>
+                    )}
                 </div>
 
                 {/* Loading */}
@@ -168,18 +191,40 @@ export default function GroupsPage() {
                                 </Button>
                             </div>
                         ) : (
-                            /* Groups Grid */
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {groups.map((group, index) => (
-                                    <GroupCard
-                                        key={group.id}
-                                        group={group}
-                                        userId={user?.id}
-                                        onSelect={() => handleSelectGroup(group)}
-                                        style={{ animationDelay: `${index * 0.05}s` }}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                {/* Groups Grid */}
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {visibleGroups.map((group, index) => (
+                                        <GroupCard
+                                            key={group.id}
+                                            group={group}
+                                            userId={user?.id}
+                                            netCents={balances?.get(group.id)}
+                                            onSelect={() => handleSelectGroup(group)}
+                                            style={{ animationDelay: `${index * 0.05}s` }}
+                                        />
+                                    ))}
+                                </div>
+
+                                {!showSettled && settledGroups.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettled(true)}
+                                        className="w-full mt-4 py-2.5 rounded-xl border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                    >
+                                        Mostrar {settledGroups.length} {settledGroups.length === 1 ? 'grupo em dia' : 'grupos em dia'}
+                                    </button>
+                                )}
+                                {showSettled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettled(false)}
+                                        className="w-full mt-4 py-2.5 rounded-xl border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                    >
+                                        Ocultar grupos em dia
+                                    </button>
+                                )}
+                            </>
                         )}
                     </>
                 )}
@@ -260,6 +305,7 @@ export default function GroupsPage() {
             {showNotificationPrompt && (
                 <NotificationInstallPrompt onClose={() => setShowNotificationPrompt(false)} />
             )}
+            <GlobalBottomNav />
         </div>
     );
 }

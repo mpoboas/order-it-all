@@ -54,6 +54,11 @@ migrate(
           collectionId: users.id,
           maxSelect: 1,
         },
+        // No PocketBase moderno (v0.23+) `created`/`updated` NÃO são
+        // automáticos — sem isto ficam vazios (partiu a ordenação por data
+        // e a Atividade, apanhado ao testar a Fase 3).
+        { name: 'created', type: 'autodate', onCreate: true },
+        { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
       ],
       indexes: [
         'CREATE INDEX idx_placeholders_group ON placeholders (group_id)',
@@ -146,6 +151,9 @@ migrate(
           collectionId: users.id,
           maxSelect: 1,
         },
+        // Ver nota em `placeholders` acima — idem aqui.
+        { name: 'created', type: 'autodate', onCreate: true },
+        { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
       ],
       indexes: [
         'CREATE INDEX idx_expenses_group ON expenses (group_id)',

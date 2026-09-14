@@ -597,6 +597,12 @@ export const groupsApi = {
     });
   },
 
+  toggleSimplifyDebts: async (groupId: string, active: boolean): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(groupId, {
+      simplify_debts: active,
+    });
+  },
+
   regenerateInviteCode: async (groupId: string): Promise<Group> => {
     return await pb.collection('groups').update<Group>(groupId, {
       invite_code: generateInviteCode(),

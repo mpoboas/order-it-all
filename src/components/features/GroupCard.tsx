@@ -22,12 +22,35 @@ import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 import { Icon } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
+import { fromCents } from '@/lib/ledger/money';
 
 const MAX_VISIBLE_AVATARS = 4;
+const EPS_CENTS = 1;
+
+function GroupBalanceAside({ netCents }: { netCents: number }) {
+  if (Math.abs(netCents) < EPS_CENTS) {
+    return <span className="text-xs font-medium text-ink-faint shrink-0">Em dia</span>;
+  }
+  const net = fromCents(netCents);
+  return (
+    <div className="text-right shrink-0">
+      <p className={cn('text-[10px] font-bold uppercase tracking-wide', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
+        {net > 0 ? 'devem-te' : 'deves'}
+      </p>
+      <Money
+        value={Math.abs(net)}
+        className={cn('text-sm font-bold', net > 0 ? 'text-success-fg' : 'text-warning-fg')}
+      />
+    </div>
+  );
+}
 
 interface GroupCardProps {
   group: Group;
   userId?: string;
+  /** Saldo líquido do utilizador neste grupo, em cêntimos. `undefined` enquanto carrega. */
+  netCents?: number;
   onSelect: () => void;
   className?: string;
   style?: React.CSSProperties;
@@ -36,6 +59,7 @@ interface GroupCardProps {
 export function GroupCard({
   group,
   userId,
+  netCents,
   onSelect,
   className,
   style,
@@ -93,6 +117,7 @@ export function GroupCard({
               {group.name}
             </EntityCardTitle>
           </div>
+          {typeof netCents === 'number' && <GroupBalanceAside netCents={netCents} />}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

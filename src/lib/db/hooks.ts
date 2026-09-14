@@ -5,7 +5,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party } from '@/lib/types';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
-import { netByParty } from '@/lib/ledger/balances';
+import {
+  netByParty,
+  netPairwise,
+  pairwiseDebts,
+  simplifiedToPairwise,
+  simplifyDebts,
+} from '@/lib/ledger/balances';
 import { db } from './schema';
 
 /**
@@ -284,4 +290,32 @@ export function useGroupBalances(userId: string | undefined): Map<string, number
     }
     return result;
   }, [userId, groups, allExpenses, allPlaceholders]);
+}
+
+export interface GroupLedger {
+  /** Saldo líquido por id canónico de parte, em cêntimos. */
+  net: Record<string, number>;
+  /** debtor → credor → cêntimos — já simplificado ou não, consoante
+   *  `group.simplify_debts` (default true). */
+  pairwise: Record<string, Record<string, number>>;
+  parties: Map<string, Party>;
+}
+
+/** Saldos de um grupo — usado pela faixa de saldo, o ecrã de Saldos e a
+ *  lista de membros. Respeita `groups.simplify_debts` do próprio grupo. */
+export function useGroupLedger(groupId: string | undefined): GroupLedger | undefined {
+  const group = useGroup(groupId);
+  const expenses = useExpenses(groupId);
+  const parties = useParties(groupId);
+
+  return useMemo(() => {
+    if (group === undefined || expenses === undefined || parties === undefined) return undefined;
+    const resolve = (id: string) => canonicalPartyId(id, parties);
+    const active = expenses.filter((e) => !e.deleted_at);
+    const net = netByParty(active, resolve);
+    const rawPairwise = pairwiseDebts(active, resolve);
+    const simplify = group?.simplify_debts ?? true;
+    const pairwise = simplify ? simplifiedToPairwise(simplifyDebts(net)) : netPairwise(rawPairwise);
+    return { net, pairwise, parties };
+  }, [group, expenses, parties]);
 }

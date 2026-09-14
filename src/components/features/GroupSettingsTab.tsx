@@ -159,6 +159,24 @@ export function GroupSettingsTab({
     }
   };
 
+  const handleToggleSimplifyDebts = async (active: boolean) => {
+    if (!active) {
+      if (!(await confirmAction({
+        title: 'Desligar "Simplificar dívidas"?',
+        description: 'Os saldos passam a mostrar os pares originais — quem pagou o quê a quem, sem os reorganizar.',
+        tone: 'warning',
+        confirmLabel: 'Desligar',
+      }))) return;
+    }
+    try {
+      await groupsApi.toggleSimplifyDebts(groupId, active);
+      showToast(active ? 'Dívidas simplificadas' : 'Dívidas por simplificar', 'success');
+      onGroupUpdated();
+    } catch {
+      showToast('Erro ao alterar estado', 'error');
+    }
+  };
+
   const handleRegenerateInvite = async () => {
     if (!(await confirmAction({
       title: 'Gerar novo código de convite?',
@@ -477,6 +495,37 @@ export function GroupSettingsTab({
               className={cn(
                 'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ml-1',
                 group.show_all_orders && 'translate-x-5'
+              )}
+            />
+          </button>
+        </div>
+      </section>
+
+      {/* Simplify debts */}
+      <section className="card p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Icon name="calculate" className="text-primary-600 text-xl" />
+              Simplificar dívidas
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Reduz o número de pagamentos necessários — nunca muda quanto cada pessoa deve no total.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggleSimplifyDebts(!(group.simplify_debts ?? true))}
+            className={cn(
+              'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
+              (group.simplify_debts ?? true) ? 'bg-primary-600' : 'bg-hairline-strong'
+            )}
+            aria-pressed={group.simplify_debts ?? true}
+          >
+            <span
+              className={cn(
+                'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ml-1',
+                (group.simplify_debts ?? true) && 'translate-x-5'
               )}
             />
           </button>

@@ -15,6 +15,7 @@ export function buildPartyMap(
       name: m.name || m.email || 'Sem nome',
       avatar: getUserAvatarUrl(m.id, m.avatar),
       email: m.email,
+      mbwayPhone: m.mbway_phone,
       kind: 'user',
     });
   }

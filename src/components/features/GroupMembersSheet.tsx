@@ -3,8 +3,15 @@
 import { useMemo } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { Avatar } from '@/components/ui/Avatar';
+import { Money } from '@/components/ui/Money';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
+import { useGroupLedger } from '@/lib/db/hooks';
+import { canonicalPartyId } from '@/lib/parties';
+import { fromCents } from '@/lib/ledger/money';
+import { cn } from '@/lib/utils';
 import type { Group, User } from '@/lib/types';
+
+const EPS_CENTS = 1;
 
 interface GroupMembersSheetProps {
     isOpen: boolean;
@@ -15,6 +22,7 @@ interface GroupMembersSheetProps {
 export function GroupMembersSheet({ isOpen, onClose, group }: GroupMembersSheetProps) {
     const members: User[] = useMemo(() => group.expand?.members ?? [], [group.expand?.members]);
     const admins = useMemo(() => group.admins ?? [], [group.admins]);
+    const ledger = useGroupLedger(isOpen ? group.id : undefined);
 
     // Creator first, then admins, then everyone else — each group alphabetical.
     const sorted = useMemo(() => {
@@ -77,6 +85,23 @@ export function GroupMembersSheet({ isOpen, onClose, group }: GroupMembersSheetP
                                     </p>
                                 )}
                             </div>
+                            {ledger && (() => {
+                                const netCents = ledger.net[canonicalPartyId(member.id, ledger.parties)] ?? 0;
+                                const settled = Math.abs(netCents) < EPS_CENTS;
+                                return (
+                                    <div className="text-right shrink-0">
+                                        <p className={cn('text-[10px] font-bold uppercase', settled ? 'text-ink-faint' : netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
+                                            {settled ? 'em dia' : netCents > 0 ? 'recebe' : 'deve'}
+                                        </p>
+                                        {!settled && (
+                                            <Money
+                                                value={Math.abs(fromCents(netCents))}
+                                                className={cn('text-sm font-bold', netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     );
                 })}
