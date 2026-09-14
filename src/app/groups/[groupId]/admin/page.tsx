@@ -2,11 +2,9 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi, expensesApi, placeholdersApi } from '@/lib/pocketbase';
-import { findPlaceholderByName } from '@/lib/parties';
-import { calculateExportGrandTotal, calculateSplitTotals } from '@/lib/splitShare';
-import type { Trip, Group, SplitItem } from '@/lib/types';
-import { useExpenses, useTrips } from '@/lib/db/hooks';
+import { tripsApi, groupsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import type { Trip, Group } from '@/lib/types';
+import { useExpenses, useParties, useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { db } from '@/lib/db/schema';
 import {
@@ -33,15 +31,9 @@ import { Icon } from '@/components/ui/Icon';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
-import {
-    getSplitParticipantNames,
-    participantIdsToNames,
-    isGroupDisplayLabel,
-    isAggregatedOrderLabel,
-} from '@/lib/orderParticipants';
-import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
+import { TripToExpenseSheet } from '@/components/features/TripToExpenseSheet';
 import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
 import { GroupSetupChecklist } from '@/components/features/GroupSetupChecklist';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
@@ -86,8 +78,10 @@ function AdminDashboardContent() {
     const [editTripDescription, setEditTripDescription] = useState('');
     const [editTripStatus, setEditTripStatus] = useState<'open' | 'in_progress' | 'closed'>('open');
 
-    // Gerar divisão a partir de uma viagem (operação de vários segundos).
-    const [splittingTripId, setSplittingTripId] = useState<string | null>(null);
+    // Viagem → Despesa: sheet de pré-visualização, aberto ao fechar uma
+    // viagem ou manualmente numa já fechada.
+    const [tripToExpense, setTripToExpense] = useState<Trip | null>(null);
+    const parties = useParties(groupId) ?? new Map();
 
     // Tab State
     const [activeTab, setActiveTab] = useState<'trips' | 'members' | 'settings'>('trips');
@@ -246,172 +240,17 @@ function AdminDashboardContent() {
                 commit: () => tripsApi.close(id),
             });
             showToast('Viagem terminada', 'success');
+            const closedTrip = trips.find((t) => t.id === id);
+            if (closedTrip) setTripToExpense({ ...closedTrip, status: 'closed' });
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Falha ao terminar viagem'), 'error');
         }
     };
 
-    const handleCreateSplitFromTrip = async (e: React.MouseEvent, trip: Trip) => {
+    const openTripToExpense = (e: React.MouseEvent, trip: Trip) => {
         e.preventDefault();
         e.stopPropagation();
-
-        if (splittingTripId) return;
-        if (!(await confirmAction({
-            title: 'Gerar uma divisão de contas a partir desta viagem?',
-            confirmLabel: 'Gerar divisão',
-        }))) return;
-
-        setSplittingTripId(trip.id);
-        try {
-            assertOnline();
-
-            // 1. Fetch Orders and Items
-            const orders = await ordersApi.getByTrip(trip.id);
-
-            // 2. Prepare Data Structures
-            // We need a complete set of ALL participants first (Group Members + Ad-hoc names on orders)
-            // This is crucial so that 'Geral' orders can be split among EVERYONE.
-            const allParticipantsSet = new Set<string>();
-            const memberMap = new Map<string, string>(); // ID -> Name
-
-            // 2a. Add all registered group members (creator, admins, members)
-            const groupPeople: { id: string; name: string }[] = [];
-            if (currentGroup?.expand?.creator) groupPeople.push(currentGroup.expand.creator);
-            if (currentGroup?.expand?.admins) groupPeople.push(...currentGroup.expand.admins);
-            if (currentGroup?.expand?.members) groupPeople.push(...currentGroup.expand.members);
-            const seenIds = new Set<string>();
-            for (const m of groupPeople) {
-                if (!m?.id || seenIds.has(m.id)) continue;
-                seenIds.add(m.id);
-                memberMap.set(m.id, m.name);
-                allParticipantsSet.add(m.name);
-            }
-
-            // 2b. Include order participant IDs and legacy single-name orders (not aggregate labels)
-            for (const order of orders) {
-                if (order.participants?.length) {
-                    participantIdsToNames(
-                        order.participants,
-                        memberMap,
-                        order.expand?.participants
-                    ).forEach((name) => allParticipantsSet.add(name));
-                }
-
-                const orderUserId = order.user || order.expand?.user?.id;
-                if (orderUserId && memberMap.has(orderUserId)) {
-                    allParticipantsSet.add(memberMap.get(orderUserId)!);
-                } else if (
-                    order.user_name?.trim() &&
-                    !isGroupDisplayLabel(order.user_name) &&
-                    !isAggregatedOrderLabel(order.user_name)
-                ) {
-                    allParticipantsSet.add(order.user_name.trim());
-                }
-            }
-
-            // Always add creator if missing
-            const creatorName = memberMap.get(user?.id || '') || user?.name || 'Eu';
-            allParticipantsSet.add(creatorName);
-
-            // Convert to array for 'Geral' usage
-            const allParticipantsList = Array.from(allParticipantsSet);
-
-            // Nomes → ids de parte (membro com conta, ou placeholder — ver
-            // Fase 1 do livro-razão): `Split.participants`/`item.participants`
-            // já não guardam nomes. Reaproveita um placeholder do grupo já
-            // existente com o mesmo nome; só cria um novo se preciso.
-            const nameById = new Map<string, string>();
-            for (const [id, name] of memberMap) nameById.set(name.trim().toLowerCase(), id);
-            const existingPlaceholders = await placeholdersApi.getByGroups([groupId]);
-            const nameToId = new Map<string, string>();
-            const resolveNameToId = async (name: string): Promise<string> => {
-                const norm = name.trim().toLowerCase();
-                const cached = nameToId.get(norm);
-                if (cached) return cached;
-                const memberId = nameById.get(norm);
-                if (memberId) {
-                    nameToId.set(norm, memberId);
-                    return memberId;
-                }
-                const existing = findPlaceholderByName(name, existingPlaceholders);
-                if (existing) {
-                    nameToId.set(norm, existing.id);
-                    return existing.id;
-                }
-                const created = await placeholdersApi.create({
-                    group_id: groupId,
-                    name: name.trim(),
-                    created_by: user!.id,
-                });
-                existingPlaceholders.push(created);
-                await db.placeholders.put(created);
-                nameToId.set(norm, created.id);
-                return created.id;
-            };
-            const allParticipantIds = await Promise.all(allParticipantsList.map(resolveNameToId));
-
-            const splitItems: SplitItem[] = [];
-
-            // 3. Process Orders and Items
-            for (const order of orders) {
-                const items = await itemsApi.getByOrder(order.id);
-                const splitNames = getSplitParticipantNames(order, memberMap, allParticipantsList);
-                const splitParticipantIds = await Promise.all(splitNames.map(resolveNameToId));
-
-                for (const item of items) {
-                    if (item.found_status === 'found') {
-                        splitItems.push(
-                            reconcileItemLock(
-                                {
-                                    name: item.name,
-                                    price: item.price,
-                                    participants: splitParticipantIds,
-                                },
-                                allParticipantIds
-                            )
-                        );
-                    }
-                }
-            }
-
-            // 4. Create Split + a despesa ligada (itemizada, sem pagador —
-            // "Falta pagador" até se definir quem pagou, tal como um split
-            // antigo migrado).
-            const split = await splitsApi.create({
-                name: trip.name,
-                description: `Gerado automaticamente a partir da viagem "${trip.name}"`,
-                group_id: groupId,
-                created_by: user!.id,
-                participants: allParticipantIds,
-                items: splitItems,
-            });
-
-            const totals = calculateSplitTotals(split);
-            const shares = Object.entries(totals)
-                .filter(([, amount]) => amount > 0)
-                .map(([party, amount]) => ({ party, amount }));
-            const expense = await expensesApi.create({
-                group_id: groupId,
-                description: trip.name,
-                amount: calculateExportGrandTotal(split.items),
-                date: new Date().toISOString().slice(0, 10),
-                split_mode: 'itemized',
-                payers: [],
-                shares,
-                split_id: split.id,
-                trip_id: trip.id,
-                created_by: user!.id,
-            });
-            await db.expenses.put(expense);
-
-            nav.push(`/groups/${groupId}/expenses/${expense.id}/items`, { haptic: false });
-
-        } catch (error) {
-            console.error('Error generating split:', error);
-            showToast(mutationErrorMessage(error, 'Erro ao gerar divisão'), 'error');
-        } finally {
-            setSplittingTripId(null);
-        }
+        setTripToExpense(trip);
     };
 
     // Member Management — patch optimista no grupo em cache; `refreshGroup`
@@ -560,8 +399,7 @@ function AdminDashboardContent() {
                                         onEdit={handleOpenEditModal}
                                         onClose={handleCloseTrip}
                                         onDelete={handleDeleteTrip}
-                                        onSplit={handleCreateSplitFromTrip}
-                                        isSplitting={splittingTripId === trip.id}
+                                        onSplit={openTripToExpense}
                                     />
                                 ))
                             )}
@@ -739,6 +577,19 @@ function AdminDashboardContent() {
                     </div>
                 </div>
             </Sheet>
+
+            <TripToExpenseSheet
+                isOpen={!!tripToExpense}
+                onClose={() => setTripToExpense(null)}
+                trip={tripToExpense}
+                groupId={groupId}
+                group={currentGroup}
+                parties={parties}
+                onCreated={(expenseId) => {
+                    setTripToExpense(null);
+                    nav.push(`/groups/${groupId}/expenses/${expenseId}/items`, { haptic: false });
+                }}
+            />
         </div>
     );
 }
