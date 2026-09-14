@@ -14,6 +14,7 @@ export function buildPartyMap(
       id: m.id,
       name: m.name || m.email || 'Sem nome',
       avatar: getUserAvatarUrl(m.id, m.avatar),
+      email: m.email,
       kind: 'user',
     });
   }
@@ -64,6 +65,23 @@ export function partyAvatarUrl(id: string, parties: Map<string, Party>): string 
   return parties.get(canonical)?.avatar ?? parties.get(id)?.avatar;
 }
 
+/** Resolve nome/avatar de um id de parte — a mesma forma serve tanto o lado
+ *  autenticado (`partyResolver`, sobre o `Map<string, Party>` do grupo) como
+ *  o lado público do link partilhado (`publicPartyResolver` em
+ *  `splitShare.ts`, sobre a lista `parties` do payload), para os sheets de
+ *  alocação (`SplitMemberItemAllocationSheet`) não precisarem de dois caminhos. */
+export interface PartyResolver {
+  label: (id: string) => string;
+  avatarUrl: (id: string) => string | undefined;
+}
+
+export function partyResolver(parties: Map<string, Party>): PartyResolver {
+  return {
+    label: (id) => partyLabel(id, parties),
+    avatarUrl: (id) => partyAvatarUrl(id, parties),
+  };
+}
+
 export function isPlaceholder(id: string, parties: Map<string, Party>): boolean {
   return parties.get(id)?.kind === 'placeholder';
 }
@@ -73,4 +91,57 @@ export function isPlaceholder(id: string, parties: Map<string, Party>): boolean 
 export function isUnclaimedPlaceholder(id: string, parties: Map<string, Party>): boolean {
   const party = parties.get(id);
   return party?.kind === 'placeholder' && !party.claimedBy;
+}
+
+/** Partes do grupo que ainda não estão numa lista de participantes — para os
+ *  candidatos do seletor "+ Pessoa". */
+export function partiesNotIn(
+  parties: Map<string, Party>,
+  participantIds: string[],
+): Party[] {
+  const already = new Set(participantIds);
+  return Array.from(parties.values()).filter((p) => !already.has(p.id));
+}
+
+/** Placeholder do grupo com este nome (comparação sem maiúsculas/acentos triviais)
+ *  — evita criar um duplicado quando alguém escreve um nome já usado por outro
+ *  placeholder que ainda não está nesta divisão em particular. */
+export function findPlaceholderByName(
+  name: string,
+  placeholders: Placeholder[],
+): Placeholder | undefined {
+  const norm = name.trim().toLowerCase();
+  return placeholders.find((p) => p.name.trim().toLowerCase() === norm);
+}
+
+/**
+ * A parte do utilizador atual numa lista de participantes — id direto se for
+ * membro, o placeholder que já reclamou (histórico não reescrito), ou por
+ * fim uma correspondência de nome com um placeholder ainda não reclamado
+ * (ajuda quem abre um link de partilha pela primeira vez a encontrar-se na
+ * lista antes de reclamar). `null` se não encontrar nada.
+ */
+export function findMyPartyId(
+  participantIds: string[],
+  parties: Map<string, Party>,
+  user: Pick<User, 'id' | 'name' | 'email'> | null | undefined,
+): string | null {
+  if (!user) return null;
+  if (participantIds.includes(user.id)) return user.id;
+
+  const claimed = participantIds.find((id) => parties.get(id)?.claimedBy === user.id);
+  if (claimed) return claimed;
+
+  const candidates = [user.name, user.email]
+    .filter((v): v is string => Boolean(v))
+    .map((v) => v.trim().toLowerCase());
+  const emailLocal = user.email?.split('@')[0]?.trim().toLowerCase();
+  if (emailLocal) candidates.push(emailLocal);
+
+  for (const id of participantIds) {
+    const party = parties.get(id);
+    if (!party || party.kind !== 'placeholder' || party.claimedBy) continue;
+    if (candidates.includes(party.name.trim().toLowerCase())) return id;
+  }
+  return null;
 }

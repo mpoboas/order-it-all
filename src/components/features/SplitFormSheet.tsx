@@ -8,7 +8,6 @@ import { OrderParticipantsPicker } from '@/components/features/OrderParticipants
 import { SplitAllowedModesToggleList } from '@/components/features/SplitAllowedModesSheet';
 import { splitsApi } from '@/lib/pocketbase';
 import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
-import { participantDisplayName } from '@/lib/splitShare';
 import { MEMBER_ALLOCATION_MODES } from '@/lib/splitItemAllocation';
 import type { Split, SplitItemMode, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -32,7 +31,6 @@ interface SplitFormSheetProps {
   groupId: string;
   groupMembers: User[];
   currentUserId: string;
-  currentUserName: string;
 }
 
 export function SplitFormSheet({
@@ -42,7 +40,6 @@ export function SplitFormSheet({
   groupId,
   groupMembers,
   currentUserId,
-  currentUserName,
 }: SplitFormSheetProps) {
   const { trigger } = useWebHaptics();
   const { showToast } = useToast();
@@ -103,18 +100,12 @@ export function SplitFormSheet({
     try {
       assertOnline();
       const idsToUse = participantIdsOverride ?? selectedParticipantIds;
-      const namesFromIds = idsToUse
-        .map((id) => groupMembers.find((m) => m.id === id))
-        .filter((m): m is User => Boolean(m))
-        .map(participantDisplayName)
-        .filter(Boolean);
-
-      let participants = Array.from(new Set(namesFromIds));
-      if (!participants.some((p) => p.toLowerCase() === currentUserName.toLowerCase())) {
-        participants = [currentUserName, ...participants];
+      let participants = Array.from(new Set(idsToUse));
+      if (currentUserId && !participants.includes(currentUserId)) {
+        participants = [currentUserId, ...participants];
       }
-      if (participants.length === 0) {
-        participants = [currentUserName];
+      if (participants.length === 0 && currentUserId) {
+        participants = [currentUserId];
       }
 
       const created = await splitsApi.create({

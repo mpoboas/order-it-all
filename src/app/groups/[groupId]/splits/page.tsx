@@ -15,7 +15,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitCard } from '@/components/features/SplitCard';
 import { SplitFormSheet } from '@/components/features/SplitFormSheet';
-import { collectGroupMembers } from '@/lib/splitShare';
+import { groupMembersFromExpand } from '@/lib/parties';
 import { useSplits } from '@/lib/db/hooks';
 import { db } from '@/lib/db/schema';
 import { optimisticEdit, optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
@@ -40,8 +40,6 @@ export default function GroupSplitsPage() {
     const router = useRouter();
     const nav = useAppNavigate();
 
-    const userName = user?.name || user?.email || '';
-
     const splitsQuery = useSplits(groupId);
     const splits = splitsQuery ?? [];
     const { groupSyncing } = useSyncStatus();
@@ -50,7 +48,7 @@ export default function GroupSplitsPage() {
     const displayedSplits = splits.filter(split =>
         isAdmin ||
         split.created_by === user?.id ||
-        split.participants.includes(userName)
+        (!!user?.id && split.participants.includes(user.id))
     );
     usePrefetchRoutes(displayedSplits.map((s) => `/groups/${groupId}/splits/${s.id}`));
 
@@ -58,7 +56,7 @@ export default function GroupSplitsPage() {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
 
-    const groupMembers = collectGroupMembers(currentGroup);
+    const groupMembers = groupMembersFromExpand(currentGroup);
 
     const canManageSplit = (split: Split) =>
         isAdmin || split.created_by === user?.id;
@@ -248,7 +246,6 @@ export default function GroupSplitsPage() {
                 groupId={groupId}
                 groupMembers={groupMembers}
                 currentUserId={user?.id || ''}
-                currentUserName={userName}
             />
         </div>
     );

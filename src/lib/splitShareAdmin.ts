@@ -1,6 +1,7 @@
 import PocketBase, { ClientResponseError } from 'pocketbase';
-import type { Split, SplitItem } from '@/lib/types';
+import type { Group, Placeholder, Split, SplitItem, User } from '@/lib/types';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
+import { getAdminPb } from '@/lib/pbAdmin';
 
 const pb = new PocketBase(
   process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top'
@@ -54,6 +55,47 @@ export async function getActiveSplitByShareCode(
   } catch {
     return null;
   }
+}
+
+export interface PublicParty {
+  id: string;
+  name: string;
+}
+
+/**
+ * Nomes de todas as partes do grupo (membros + placeholders) para o visitante
+ * anónimo do link resolver `split.participants`/`item.participants` (ids) em
+ * texto. `groups`/`placeholders` não têm regra de leitura pública — por isso
+ * autentica como super-utilizador (mesmo padrão de `/api/notify`). Só nome +
+ * id; nada de email/avatar sai daqui.
+ */
+export async function getGroupPartiesForShare(groupId: string): Promise<PublicParty[]> {
+  const adminPb = await getAdminPb();
+  const [group, placeholders] = await Promise.all([
+    adminPb.collection('groups').getOne<Group>(groupId, {
+      expand: 'creator,admins,members',
+    }),
+    adminPb.collection('placeholders').getFullList<Placeholder>({
+      filter: `group_id = "${groupId}"`,
+    }),
+  ]);
+
+  const members: User[] = [];
+  const seen = new Set<string>();
+  const pushMember = (u?: User) => {
+    if (u?.id && !seen.has(u.id)) {
+      seen.add(u.id);
+      members.push(u);
+    }
+  };
+  pushMember(group.expand?.creator);
+  group.expand?.admins?.forEach(pushMember);
+  group.expand?.members?.forEach(pushMember);
+
+  return [
+    ...members.map((m) => ({ id: m.id, name: m.name || m.email || 'Sem nome' })),
+    ...placeholders.map((p) => ({ id: p.id, name: p.name })),
+  ];
 }
 
 /**

@@ -6,12 +6,12 @@ import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
-import { splitsApi } from '@/lib/pocketbase';
+import { placeholdersApi, splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
-import { useSplit } from '@/lib/db/hooks';
-import { optimisticDelete, mutationErrorMessage } from '@/lib/db/mutations';
+import { useParties, usePlaceholders, useSplit } from '@/lib/db/hooks';
+import { assertOnline, optimisticDelete, optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
 import { navStart } from '@/lib/navProgress';
-import type { Split, SplitItem } from '@/lib/types';
+import type { Party, Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
 const SplitShareSheet = dynamic(
@@ -35,15 +35,18 @@ import {
     getItemModeShortLabel,
     getSplitItemMode,
     removeParticipantFromItem,
-    renameParticipantInItem,
 } from '@/lib/splitItemAllocation';
 import {
     calculateSplitTotals,
-    getParticipantAvatarUrl,
     getStoredParticipantsExpanded,
-    listGroupMembersNotInParticipants,
     setStoredParticipantsExpanded,
 } from '@/lib/splitShare';
+import {
+    findPlaceholderByName,
+    partiesNotIn,
+    partyAvatarUrl,
+    partyLabel,
+} from '@/lib/parties';
 import {
     cloneSplitItems,
     getRemoveItemConfirmMessage,
@@ -116,7 +119,7 @@ export default function GroupSplitDetailPage() {
     const splitId = params.splitId as string;
     const router = useSmartRouter();
     const { user, isLoggedIn, updateProfile } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
+    const { isAdmin } = useGroup();
     const { showToast } = useToast();
     const confirmAction = useConfirm();
     const { startTimer } = useEditTimer();
@@ -154,14 +157,31 @@ export default function GroupSplitDetailPage() {
         setTimeout(() => setShakeLockIdx((cur) => (cur === idx ? null : cur)), 450);
     };
 
+    const parties = useParties(groupId);
+    const placeholders = usePlaceholders(groupId);
+    const partiesMap = useMemo(() => parties ?? new Map<string, Party>(), [parties]);
+
     const participantAvatar = useCallback(
-        (name: string) => getParticipantAvatarUrl(name, currentGroup),
-        [currentGroup]
+        (id: string) => partyAvatarUrl(id, partiesMap),
+        [partiesMap]
+    );
+    const participantLabel = useCallback(
+        (id: string) => partyLabel(id, partiesMap),
+        [partiesMap]
+    );
+    /** Só um placeholder ainda não reclamado tem nome editável aqui — o de um
+     *  membro com conta vem do perfil dele. */
+    const isEditableParticipant = useCallback(
+        (id: string) => {
+            const party = partiesMap.get(id);
+            return party?.kind === 'placeholder' && !party.claimedBy;
+        },
+        [partiesMap]
     );
 
-    const groupMembersToAdd = useMemo(
-        () => listGroupMembersNotInParticipants(currentGroup, split?.participants ?? []),
-        [currentGroup, split?.participants]
+    const partiesToAdd = useMemo(
+        () => partiesNotIn(partiesMap, split?.participants ?? []),
+        [partiesMap, split?.participants]
     );
 
     useEffect(() => {
@@ -319,16 +339,56 @@ export default function GroupSplitDetailPage() {
         void db.splits.put(updated);
     }, []);
 
-    const addParticipantByName = async (name: string) => {
+    const addParticipantById = async (partyId: string) => {
         if (!split) return;
-        const trimmed = name.trim();
-        if (!trimmed) return;
-        if (split.participants.includes(trimmed)) {
+        if (split.participants.includes(partyId)) {
             showToast('Já existe', 'error');
             return;
         }
-        await saveSplit({ participants: [...split.participants, trimmed] });
+        await saveSplit({ participants: [...split.participants, partyId] });
         setNewParticipant('');
+    };
+
+    /** Nome sem correspondência entre as partes do grupo — cria um placeholder
+     *  (membro sem conta) e junta-o à divisão. Reaproveita um placeholder já
+     *  existente com o mesmo nome em vez de duplicar. */
+    const addNewParticipant = async (name: string) => {
+        if (!split || !user) return;
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        try {
+            assertOnline();
+            const existing = findPlaceholderByName(trimmed, placeholders ?? []);
+            const placeholder =
+                existing ??
+                (await placeholdersApi.create({
+                    group_id: groupId,
+                    name: trimmed,
+                    created_by: user.id,
+                }));
+            if (!existing) await db.placeholders.put(placeholder);
+            await addParticipantById(placeholder.id);
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao adicionar participante'), 'error');
+        }
+    };
+
+    /** Só faz sentido para um placeholder (membro sem conta) — o nome de um
+     *  membro com conta vem do perfil dele, não se edita aqui. */
+    const renamePlaceholder = async (placeholderId: string, newName: string) => {
+        const trimmed = newName.trim();
+        const party = partiesMap.get(placeholderId);
+        if (!trimmed || !party || party.kind !== 'placeholder' || trimmed === party.name) return;
+        try {
+            await optimisticEdit({
+                table: db.placeholders,
+                id: placeholderId,
+                patch: { name: trimmed },
+                commit: () => placeholdersApi.rename(placeholderId, trimmed),
+            });
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao atualizar nome'), 'error');
+        }
     };
 
     const focusParticipantInput = () => {
@@ -340,34 +400,21 @@ export default function GroupSplitDetailPage() {
         el?.focus();
     };
 
-    const removeParticipant = async (name: string) => {
+    const removeParticipant = async (partyId: string) => {
         if (!split || split.participants.length <= 1) return;
         if (!(await confirmAction({
-            title: `Remover ${name}?`,
+            title: `Remover ${participantLabel(partyId)}?`,
             tone: 'danger',
             confirmLabel: 'Remover',
         }))) return;
 
-        const nextParticipants = split.participants.filter((p) => p !== name);
+        const nextParticipants = split.participants.filter((p) => p !== partyId);
         await saveSplitItems(
             (items) =>
                 items.map((item) =>
-                    reconcileItemLock(removeParticipantFromItem(item, name), nextParticipants),
+                    reconcileItemLock(removeParticipantFromItem(item, partyId), nextParticipants),
                 ),
             { participants: nextParticipants },
-        );
-    };
-
-    const updateParticipantName = async (oldName: string, newName: string) => {
-        if (!split || !newName.trim() || oldName === newName.trim()) return;
-        if (split.participants.includes(newName.trim())) {
-            showToast('Nome já existe', 'error');
-            return;
-        }
-        const trimmed = newName.trim();
-        await saveSplitItems(
-            (items) => items.map((item) => renameParticipantInItem(item, oldName, trimmed)),
-            { participants: split.participants.map((p) => (p === oldName ? trimmed : p)) },
         );
     };
 
@@ -712,8 +759,9 @@ export default function GroupSplitDetailPage() {
                         <SplitParticipantNameInput
                             value={newParticipant}
                             onChange={setNewParticipant}
-                            onAdd={(name) => void addParticipantByName(name)}
-                            candidates={groupMembersToAdd}
+                            onSelectExisting={(id) => void addParticipantById(id)}
+                            onAddNew={(name) => void addNewParticipant(name)}
+                            candidates={partiesToAdd}
                             inputRef={participantInputDesktopRef}
                         />
                     </div>
@@ -737,13 +785,19 @@ export default function GroupSplitDetailPage() {
                                         {split.participants.map((p, idx) => (
                                             <th key={idx} className="px-3 py-3 text-center font-semibold min-w-[100px] relative group">
                                                 <div className="flex flex-col items-center">
-                                                    <Avatar name={p} src={participantAvatar(p)} size="sm" className="mb-1" />
-                                                    <EditableInput
-                                                        type="text"
-                                                        value={p}
-                                                        onSave={val => updateParticipantName(p, val)}
-                                                        className="w-full text-center bg-transparent border-0 focus:outline-none focus:bg-white/20 rounded px-1 text-xs font-medium"
-                                                    />
+                                                    <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="sm" className="mb-1" />
+                                                    {isEditableParticipant(p) ? (
+                                                        <EditableInput
+                                                            type="text"
+                                                            value={participantLabel(p)}
+                                                            onSave={val => renamePlaceholder(p, val)}
+                                                            className="w-full text-center bg-transparent border-0 focus:outline-none focus:bg-white/20 rounded px-1 text-xs font-medium"
+                                                        />
+                                                    ) : (
+                                                        <span className="w-full text-center px-1 text-xs font-medium truncate">
+                                                            {participantLabel(p)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <button
                                                     onClick={() => removeParticipant(p)}
@@ -926,18 +980,18 @@ export default function GroupSplitDetailPage() {
                                 {split.participants.map(p => (
                                     <div
                                         key={p}
-                                        title={p}
+                                        title={participantLabel(p)}
                                         className="inline-flex max-w-full items-center gap-1.5 bg-surface-sunken rounded-full pl-1 pr-1 py-1 text-sm"
                                     >
-                                        <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
+                                        <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" className="shrink-0" />
                                         <span className="font-medium text-ink break-words leading-tight max-w-[9.5rem]">
-                                            {p}
+                                            {participantLabel(p)}
                                         </span>
                                         <button
                                             type="button"
                                             onClick={() => removeParticipant(p)}
                                             className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-ink-faint hover:text-danger hover:bg-danger-bg"
-                                            aria-label={`Remover ${p}`}
+                                            aria-label={`Remover ${participantLabel(p)}`}
                                         >
                                             ×
                                         </button>
@@ -947,8 +1001,9 @@ export default function GroupSplitDetailPage() {
                             <SplitParticipantNameInput
                                 value={newParticipant}
                                 onChange={setNewParticipant}
-                                onAdd={(name) => void addParticipantByName(name)}
-                                candidates={groupMembersToAdd}
+                                onSelectExisting={(id) => void addParticipantById(id)}
+                                onAddNew={(name) => void addNewParticipant(name)}
+                                candidates={partiesToAdd}
                                 inputRef={participantInputMobileRef}
                             />
                         </div>
@@ -1097,8 +1152,8 @@ export default function GroupSplitDetailPage() {
                                                         )}
                                                     >
                                                         {isSelected && <Icon name="check" className="text-[15px] shrink-0" strokeWidth={3} />}
-                                                        <Avatar name={p} src={participantAvatar(p)} size="xs" className="shrink-0" />
-                                                        {p}
+                                                        <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" className="shrink-0" />
+                                                        {participantLabel(p)}
                                                     </button>
                                                 );
                                             })}
@@ -1110,8 +1165,8 @@ export default function GroupSplitDetailPage() {
                                                     key={p}
                                                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-hairline bg-app"
                                                 >
-                                                    <Avatar name={p} src={participantAvatar(p)} size="xs" />
-                                                    <span className="text-ink">{p}</span>
+                                                    <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" />
+                                                    <span className="text-ink">{participantLabel(p)}</span>
                                                     <span className="font-bold text-primary-600 dark:text-primary-400">
                                                         <Money value={computeParticipantAmount(item, p)} />
                                                     </span>
@@ -1151,9 +1206,9 @@ export default function GroupSplitDetailPage() {
                 <Collapse open={totalsExpanded}>
                     <div className="px-4 pb-3 border-t border-hairline bg-surface">
                         <div className="py-2 text-sm space-y-1">
-                            {sortedTotals.map(([name, amount]) => (
-                                <div key={name} className="flex justify-between">
-                                    <span className="text-ink-soft">{name}</span>
+                            {sortedTotals.map(([id, amount]) => (
+                                <div key={id} className="flex justify-between">
+                                    <span className="text-ink-soft">{participantLabel(id)}</span>
                                     <span className="font-medium text-primary-600 dark:text-primary-400"><Money value={amount} /></span>
                                 </div>
                             ))}
@@ -1177,9 +1232,9 @@ export default function GroupSplitDetailPage() {
                         </div>
                     </div>
                     <div>
-                        {sortedTotals.map(([name, amount]) => (
-                            <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-                                <span style={{ color: '#374151' }}>{name}</span>
+                        {sortedTotals.map(([id, amount]) => (
+                            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                                <span style={{ color: '#374151' }}>{participantLabel(id)}</span>
                                 <span style={{ fontWeight: 600, color: '#2563eb' }}><Money value={amount} /></span>
                             </div>
                         ))}
@@ -1225,8 +1280,8 @@ export default function GroupSplitDetailPage() {
                                             {split.participants.map((p, idx) => (
                                                 <th key={idx} className="px-2 py-2 text-center font-semibold min-w-[100px]">
                                                     <div className="flex flex-col items-center">
-                                                        <Avatar name={p} src={participantAvatar(p)} size="sm" className="mb-1" />
-                                                        <span className="text-xs font-medium truncate max-w-[90px]">{p}</span>
+                                                        <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="sm" className="mb-1" />
+                                                        <span className="text-xs font-medium truncate max-w-[90px]">{participantLabel(p)}</span>
                                                     </div>
                                                 </th>
                                             ))}
@@ -1382,7 +1437,7 @@ export default function GroupSplitDetailPage() {
                 itemIndex={allocationSheetIdx}
                 item={allocationSheetIdx !== null ? split.items[allocationSheetIdx] ?? null : null}
                 allParticipants={split.participants}
-                group={currentGroup}
+                parties={partiesMap}
                 onSave={(item) => void handleSaveItemAllocation(item)}
             />
 

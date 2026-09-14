@@ -6,6 +6,7 @@ import { useGroup } from '@/context/GroupContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { cn } from '@/lib/utils';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { Icon } from '@/components/ui/Icon';
@@ -137,7 +138,7 @@ export function Header({ title, subtitle, showBack, transparent = false, groupId
                             >
                                 <Avatar
                                     name={userName}
-                                    src={user?.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined}
+                                    src={user ? getUserAvatarUrl(user.id, user.avatar) : undefined}
                                     size="md"
                                     className="ring-2 ring-white/30 hover:ring-white/50 transition"
                                 />

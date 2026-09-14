@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   getActiveSplitByShareCode,
+  getGroupPartiesForShare,
   withSplitItemsOCC,
   SplitVersionConflictError,
 } from '@/lib/splitShareAdmin';
@@ -47,7 +48,8 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json(toPublicSplitPayload(split));
+    const parties = await getGroupPartiesForShare(split.group_id);
+    return NextResponse.json(toPublicSplitPayload(split, parties));
   } catch (error) {
     console.error('Split share GET error:', error);
     if ((error as Error).message === 'Server misconfiguration') {
@@ -245,7 +247,8 @@ export async function PATCH(
       withSplitItemsOCC(shareCode, applyIntent)
     );
 
-    return NextResponse.json(toPublicSplitPayload(updated), { status: 200 });
+    const parties = await getGroupPartiesForShare(updated.group_id);
+    return NextResponse.json(toPublicSplitPayload(updated, parties), { status: 200 });
   } catch (error) {
     if (error instanceof PatchReject) {
       return NextResponse.json({ error: error.reason }, { status: error.httpStatus });

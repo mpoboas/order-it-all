@@ -2,7 +2,8 @@ import type { Order, User } from './types';
 
 export type OrderAudienceType = 'me' | 'several' | 'all';
 
-const PB_FILES = 'https://pb-orderit.povoas.top/api/files/users';
+const PB_BASE = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top';
+const PB_FILES = `${PB_BASE}/api/files/users`;
 
 export function getUserAvatarUrl(userId: string, avatarFile?: string): string | undefined {
   const file = avatarFile?.trim();

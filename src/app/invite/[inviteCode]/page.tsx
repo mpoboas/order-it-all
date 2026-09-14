@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
 import { navStart } from '@/lib/navProgress';
+import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 
 export default function InvitePage() {
     const params = useParams();
@@ -124,7 +125,7 @@ export default function InvitePage() {
                 <div className="w-24 h-24 mx-auto mb-6 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-inner text-4xl overflow-hidden border border-white/30">
                     {group.avatar && group.avatar.length > 2 ? (
                         <img
-                            src={`https://pb-orderit.povoas.top/api/files/groups/${group.id}/${group.avatar}`}
+                            src={getGroupAvatarUrl(group.id, group.avatar) ?? undefined}
                             alt={group.name}
                             className="w-full h-full object-cover"
                         />

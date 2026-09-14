@@ -13,6 +13,7 @@ import {
     optimisticDelete,
     mutationErrorMessage,
 } from '@/lib/db/mutations';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import { usePrefetchRoutes } from '@/hooks/usePrefetch';
@@ -527,7 +528,7 @@ function AdminDashboardContent() {
                                 return (
                                     <div key={member.id} className="card p-3 flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <Avatar name={member.name} src={member.avatar ? `https://pb-orderit.povoas.top/api/files/users/${member.id}/${member.avatar}` : undefined} />
+                                            <Avatar name={member.name} src={getUserAvatarUrl(member.id, member.avatar)} />
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-ink flex items-center gap-2">
                                                     <span className="truncate">{member.name}</span>

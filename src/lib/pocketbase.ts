@@ -2,7 +2,9 @@ import PocketBase from 'pocketbase';
 import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder } from './types';
 
 // PocketBase client singleton
-const pb = new PocketBase('https://pb-orderit.povoas.top/');
+const pb = new PocketBase(
+  process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top/'
+);
 
 // Disable auto-cancellation for real-time updates
 pb.autoCancellation(false);

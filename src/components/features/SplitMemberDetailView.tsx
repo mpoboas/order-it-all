@@ -4,13 +4,10 @@ import { useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { SplitParticipantItemsView } from '@/components/features/SplitParticipantItemsView';
 import { SplitMemberItemAllocationSheet } from '@/components/features/SplitMemberItemAllocationSheet';
-import { useGroup } from '@/context/GroupContext';
+import { useParties } from '@/lib/db/hooks';
+import { findMyPartyId, partyLabel, partyResolver } from '@/lib/parties';
 import { getAllowedMemberModes, getSplitItemMode } from '@/lib/splitItemAllocation';
-import {
-  findSuggestedParticipant,
-  getParticipantAvatarUrl,
-  toggleItemParticipant,
-} from '@/lib/splitShare';
+import { toggleItemParticipant } from '@/lib/splitShare';
 import { reconcileSplitItems } from '@/lib/splitItems';
 import { canMembersEditSplit } from '@/lib/splitStatus';
 import { splitsApi } from '@/lib/pocketbase';
@@ -31,20 +28,21 @@ export function SplitMemberDetailView({
   onSplitUpdate,
 }: SplitMemberDetailViewProps) {
   const { showToast } = useToast();
-  const { currentGroup } = useGroup();
+  const parties = useParties(groupId);
+
   const [togglingIdx, setTogglingIdx] = useState<number | null>(null);
   const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(
     null
   );
 
-  const participantAvatar = useMemo(
-    () => (name: string) => getParticipantAvatarUrl(name, currentGroup),
-    [currentGroup]
+  const resolver = useMemo(
+    () => partyResolver(parties ?? new Map()),
+    [parties]
   );
 
   const myName = useMemo(
-    () => findSuggestedParticipant(split.participants, user),
-    [split.participants, user]
+    () => (parties ? findMyPartyId(split.participants, parties, user) : null),
+    [split.participants, parties, user]
   );
 
   /**
@@ -167,7 +165,8 @@ export function SplitMemberDetailView({
           </p>
           {split.participants.length > 0 && (
             <p className="text-xs text-ink-faint mt-4 break-words">
-              Participantes: {split.participants.join(', ')}
+              Participantes:{' '}
+              {split.participants.map((id) => partyLabel(id, parties ?? new Map())).join(', ')}
             </p>
           )}
         </main>
@@ -186,7 +185,7 @@ export function SplitMemberDetailView({
       <div className="px-4 py-2.5 border-b border-hairline bg-surface">
         <p className="text-sm text-ink-soft max-w-lg mx-auto">
           A marcar como:{' '}
-          <strong className="text-ink">{myName}</strong>
+          <strong className="text-ink">{resolver.label(myName)}</strong>
         </p>
         {!membersCanEdit && (
           <p className="text-xs text-warning-fg mt-1 max-w-lg mx-auto font-medium">
@@ -206,7 +205,7 @@ export function SplitMemberDetailView({
           readOnly={!membersCanEdit}
           showFooter
           footerOffset="safe"
-          participantAvatarUrl={participantAvatar}
+          participantAvatarUrl={resolver.avatarUrl}
         />
       </main>
 
@@ -221,7 +220,7 @@ export function SplitMemberDetailView({
         }
         allParticipants={split.participants}
         myName={myName}
-        group={currentGroup}
+        resolver={resolver}
         readOnly={!membersCanEdit}
         allowedModes={getAllowedMemberModes(split)}
         onConfirm={(item) => void handleConfirmAllocation(item)}

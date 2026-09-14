@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey } from '@/lib/utils';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
@@ -137,7 +138,7 @@ export default function ProfilePage() {
                             ) : (
                                 <Avatar
                                     name={user.name || user.email}
-                                    src={user.avatar ? `https://pb-orderit.povoas.top/api/files/users/${user.id}/${user.avatar}` : undefined}
+                                    src={getUserAvatarUrl(user.id, user.avatar)}
                                     size="lg"
                                     className="w-full h-full text-2xl"
                                 />

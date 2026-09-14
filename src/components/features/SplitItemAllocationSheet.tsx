@@ -12,9 +12,9 @@ import {
   normalizeSplitItem,
   SPLIT_ITEM_MODE_LABELS,
 } from '@/lib/splitItemAllocation';
-import type { Group, SplitItem, SplitItemMode } from '@/lib/types';
+import type { Party, SplitItem, SplitItemMode } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
-import { getParticipantAvatarUrl } from '@/lib/splitShare';
+import { partyAvatarUrl, partyLabel } from '@/lib/parties';
 
 const MODES: SplitItemMode[] = ['equal', 'unequal', 'percentage', 'shares'];
 
@@ -24,7 +24,7 @@ interface SplitItemAllocationSheetProps {
   itemIndex: number | null;
   item: SplitItem | null;
   allParticipants: string[];
-  group: Pick<Group, 'expand'> | null | undefined;
+  parties: Map<string, Party>;
   onSave: (item: SplitItem) => void;
 }
 
@@ -34,7 +34,7 @@ export function SplitItemAllocationSheet({
   itemIndex,
   item,
   allParticipants,
-  group,
+  parties,
   onSave,
 }: SplitItemAllocationSheetProps) {
   const [draft, setDraft] = useState<SplitItem | null>(null);
@@ -54,8 +54,8 @@ export function SplitItemAllocationSheet({
     [draft]
   );
 
-  const participantAvatar = (name: string) =>
-    getParticipantAvatarUrl(name, group);
+  const participantAvatar = (id: string) => partyAvatarUrl(id, parties);
+  const participantLabel = (id: string) => partyLabel(id, parties);
 
   const setMode = (nextMode: SplitItemMode) => {
     if (!draft) return;
@@ -103,20 +103,20 @@ export function SplitItemAllocationSheet({
     onClose();
   };
 
-  const renderEqualRow = (name: string) => {
-    const checked = draft?.participants.includes(name) ?? false;
+  const renderEqualRow = (id: string) => {
+    const checked = draft?.participants.includes(id) ?? false;
     return (
       <li
-        key={name}
+        key={id}
         className="flex items-center gap-3 py-2.5 border-b border-hairline last:border-0"
       >
-        <Avatar name={name} src={participantAvatar(name)} size="sm" />
+        <Avatar name={participantLabel(id)} src={participantAvatar(id)} size="sm" />
         <span className="flex-1 font-medium text-ink truncate">
-          {name}
+          {participantLabel(id)}
         </span>
         <button
           type="button"
-          onClick={() => toggleEqualParticipant(name)}
+          onClick={() => toggleEqualParticipant(id)}
           className={cn(
             'w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-colors',
             checked
@@ -134,25 +134,25 @@ export function SplitItemAllocationSheet({
   };
 
   const renderValueRow = (
-    name: string,
+    id: string,
     suffix: string,
     inputMode: 'decimal' | 'numeric'
   ) => {
-    const value = draft?.allocations?.[name] ?? 0;
-    const amount = draft ? computeParticipantAmount(draft, name) : 0;
+    const value = draft?.allocations?.[id] ?? 0;
+    const amount = draft ? computeParticipantAmount(draft, id) : 0;
     const active = value > 0;
 
     return (
       <li
-        key={name}
+        key={id}
         className={cn(
           'flex items-center gap-3 py-3 border-b border-hairline last:border-0',
           !active && 'opacity-60'
         )}
       >
-        <Avatar name={name} src={participantAvatar(name)} size="sm" />
+        <Avatar name={participantLabel(id)} src={participantAvatar(id)} size="sm" />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-ink truncate">{name}</p>
+          <p className="font-medium text-ink truncate">{participantLabel(id)}</p>
           {active && mode !== 'unequal' && (
             <p className="text-xs text-primary-600 dark:text-primary-400">
               {formatCurrency(amount)}
@@ -169,7 +169,7 @@ export function SplitItemAllocationSheet({
             min={0}
             step={mode === 'percentage' ? 1 : mode === 'shares' ? 1 : 0.01}
             value={value === 0 ? '' : value}
-            onChange={(e) => setAllocationValue(name, e.target.value)}
+            onChange={(e) => setAllocationValue(id, e.target.value)}
             placeholder="0"
             className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-hairline focus:border-primary-500 outline-none py-1"
           />

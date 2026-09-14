@@ -136,6 +136,8 @@ export interface Party {
   id: string;
   name: string;
   avatar?: string;
+  /** Só para `kind === 'user'` — usado na pesquisa do seletor de participantes. */
+  email?: string;
   kind: 'user' | 'placeholder';
   /** Só quando `kind === 'placeholder'` e já foi reclamado. */
   claimedBy?: string;
