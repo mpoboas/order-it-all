@@ -412,6 +412,21 @@ export const expensesApi = {
       deleted_by: null,
     });
   },
+
+  /** Anexa/substitui a foto do recibo (Fase 6). */
+  uploadReceipt: async (id: string, file: Blob, updatedByUserId: string): Promise<Expense> => {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    formData.append('updated_by', updatedByUserId);
+    return await pb.collection('expenses').update<Expense>(id, formData);
+  },
+
+  removeReceipt: async (id: string, updatedByUserId: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      receipt: null,
+      updated_by: updatedByUserId,
+    });
+  },
 };
 
 // Placeholder API — membros de grupo sem conta na app

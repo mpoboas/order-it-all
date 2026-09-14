@@ -3,6 +3,14 @@ import { canonicalPartyId, partyLabel } from '@/lib/parties';
 import { toCents, fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 
+const PB_BASE = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top';
+
+/** URL da foto do recibo (Fase 6) — `undefined` se a despesa não tiver uma. */
+export function expenseReceiptUrl(expense: Expense): string | undefined {
+  if (!expense.receipt) return undefined;
+  return `${PB_BASE}/api/files/expenses/${expense.id}/${expense.receipt}`;
+}
+
 /** Nunca `Intl` com `month: 'short'` (dá numérico em pt-PT) — tabela própria
  *  para a coluna de data empilhada da lista de despesas. */
 const MONTH_ABBREV_PT = [

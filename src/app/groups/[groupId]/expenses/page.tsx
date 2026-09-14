@@ -17,6 +17,10 @@ import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
+import { TotalsSheet } from '@/components/features/TotalsSheet';
+import { expensesToCsv } from '@/lib/ledger/csv';
+import { partyLabel } from '@/lib/parties';
+import { getCategory } from '@/lib/ledger/categories';
 import { getFabBottom } from '@/lib/bottomDock';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
@@ -41,6 +45,9 @@ export default function GroupExpensesPage() {
     const [showForm, setShowForm] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [showSettleUp, setShowSettleUp] = useState(false);
+    const [showTotals, setShowTotals] = useState(false);
+    const [search, setSearch] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
@@ -52,10 +59,41 @@ export default function GroupExpensesPage() {
         return balanceFor(userId, ledger.pairwise, ledger.net);
     }, [ledger, userId]);
 
-    const monthGroups = useMemo(() => groupExpensesByMonth(expenses), [expenses]);
+    // Pesquisa por descrição, categoria ou pessoa (pagador/participante) —
+    // sem acentos/maiúsculas, à semelhança do resto da app.
+    const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    const searchNorm = normalize(search.trim());
+    const filteredExpenses = useMemo(() => {
+        if (!searchNorm || !parties) return expenses;
+        return expenses.filter((e) => {
+            const haystack = [
+                e.description,
+                getCategory(e.category).label,
+                ...e.payers.map((p) => partyLabel(p.party, parties)),
+                ...e.shares.map((s) => partyLabel(s.party, parties)),
+            ]
+                .map(normalize)
+                .join(' ');
+            return haystack.includes(searchNorm);
+        });
+    }, [expenses, searchNorm, parties]);
+
+    const monthGroups = useMemo(() => groupExpensesByMonth(filteredExpenses), [filteredExpenses]);
     // Não é só `currentGroup.members` — inclui placeholders (membros sem
     // conta), que também são partes válidas nas despesas do grupo.
     const memberCount = parties?.size || currentGroup?.members?.length || 0;
+
+    const handleExport = () => {
+        if (!parties) return;
+        const csv = expensesToCsv(expenses, parties);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentGroup?.name || 'despesas'}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     if (!isLoggedIn) return null;
 
@@ -76,8 +114,23 @@ export default function GroupExpensesPage() {
                         chips={[
                             { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true) },
                             { icon: 'balance', label: 'Saldos', onClick: () => nav.push(`/groups/${groupId}/balances`) },
+                            { icon: 'calculate', label: 'Totais', onClick: () => setShowTotals(true) },
+                            { icon: 'drive_file_move', label: 'Exportar', onClick: handleExport },
+                            { icon: 'filter_list', label: 'Pesquisar', onClick: () => setShowSearch((v) => !v) },
                         ]}
                     />
+                    {showSearch && (
+                        <div className="px-4 py-2 border-b border-hairline bg-surface">
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Pesquisar por descrição, categoria ou pessoa…"
+                                autoFocus
+                                className="w-full px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-sm"
+                            />
+                        </div>
+                    )}
                 </>
             )}
 
@@ -96,6 +149,10 @@ export default function GroupExpensesPage() {
                         <button onClick={() => setShowForm(true)} className="btn btn-primary px-6 py-3">
                             Adicionar despesa
                         </button>
+                    </div>
+                ) : filteredExpenses.length === 0 ? (
+                    <div className="text-center py-20 px-4 animate-fade-in-up">
+                        <p className="text-ink-soft">Nenhuma despesa encontrada.</p>
                     </div>
                 ) : (
                     <div className="px-2 sm:px-4 py-4 space-y-4">
@@ -162,6 +219,16 @@ export default function GroupExpensesPage() {
 
             {currentGroup && (
                 <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
+            )}
+
+            {parties && user?.id && (
+                <TotalsSheet
+                    isOpen={showTotals}
+                    onClose={() => setShowTotals(false)}
+                    expenses={expenses}
+                    parties={parties}
+                    currentUserId={user.id}
+                />
             )}
         </div>
     );

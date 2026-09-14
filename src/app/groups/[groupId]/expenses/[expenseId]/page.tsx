@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { ShareTree } from '@/components/features/ShareTree';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { formatRelativeOrDate } from '@/lib/utils';
+import { expenseReceiptUrl } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function ExpenseDetailPage() {
@@ -41,6 +42,33 @@ export default function ExpenseDetailPage() {
 
     const [showEdit, setShowEdit] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+    const handleReceiptChange = async (file: File | undefined) => {
+        if (!file || !expense || !user?.id) return;
+        setUploadingReceipt(true);
+        try {
+            const updated = await expensesApi.uploadReceipt(expense.id, file, user.id);
+            await db.expenses.put(updated);
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao anexar recibo'), 'error');
+        } finally {
+            setUploadingReceipt(false);
+        }
+    };
+
+    const handleRemoveReceipt = async () => {
+        if (!expense || !user?.id) return;
+        setUploadingReceipt(true);
+        try {
+            const updated = await expensesApi.removeReceipt(expense.id, user.id);
+            await db.expenses.put(updated);
+        } catch (error) {
+            showToast(mutationErrorMessage(error, 'Erro ao remover recibo'), 'error');
+        } finally {
+            setUploadingReceipt(false);
+        }
+    };
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
@@ -159,6 +187,41 @@ export default function ExpenseDetailPage() {
                         <p className="text-sm text-ink whitespace-pre-wrap">{expense.notes}</p>
                     </div>
                 )}
+
+                <div>
+                    <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1.5">Recibo</p>
+                    {expenseReceiptUrl(expense) ? (
+                        <div className="relative w-28">
+                            <img
+                                src={expenseReceiptUrl(expense)}
+                                alt="Recibo"
+                                className="w-28 h-28 object-cover rounded-xl border border-hairline"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleRemoveReceipt}
+                                disabled={uploadingReceipt}
+                                className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-danger text-white shadow"
+                                aria-label="Remover recibo"
+                            >
+                                <Icon name="close" className="text-sm" />
+                            </button>
+                        </div>
+                    ) : (
+                        <label className="flex flex-col items-center justify-center w-28 h-28 rounded-xl border-2 border-dashed border-hairline-strong text-ink-faint cursor-pointer hover:border-primary-400 transition-colors">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                disabled={uploadingReceipt}
+                                onChange={(e) => handleReceiptChange(e.target.files?.[0])}
+                            />
+                            <Icon name="photo_camera" className="text-2xl" />
+                            <span className="text-[11px] mt-1">{uploadingReceipt ? 'A carregar…' : 'Adicionar'}</span>
+                        </label>
+                    )}
+                </div>
 
                 {parties && user?.id && (
                     <CommentsBar
