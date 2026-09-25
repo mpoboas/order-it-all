@@ -17,13 +17,12 @@ import { friendshipsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
-import { coverGradientFor } from '@/lib/coverColor';
+import { HeroHeader } from '@/components/features/HeroHeader';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
-import { Avatar } from '@/components/ui/Avatar';
 import { Sheet } from '@/components/ui/Sheet';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
@@ -169,35 +168,20 @@ export default function PersonDetailPage() {
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
-            <div className="relative">
-                <div className="h-28" style={{ background: coverGradientFor(personName) }}>
-                    <button
-                        type="button"
-                        aria-label="Voltar"
-                        onClick={() => nav.up()}
-                        className="absolute top-3 left-3 w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
-                    >
-                        <Icon name="chevron_left" className="text-xl" />
-                    </button>
-                    {isFriend && (
-                        <button
-                            type="button"
-                            aria-label="Adicionar despesa"
-                            onClick={() => setShowAddExpense(true)}
-                            className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
-                        >
-                            <Icon name="add" className="text-xl" />
-                        </button>
-                    )}
-                </div>
-                <div className="absolute left-4 -bottom-8 ring-4 ring-app rounded-full">
-                    <Avatar name={personName} src={person?.party.avatar} size="lg" />
-                </div>
-            </div>
+            <HeroHeader
+                title={personName}
+                subtitle={person?.party.username ? `@${person.party.username}` : undefined}
+                background={{ kind: 'gradient', seed: personName }}
+                avatars={[{ name: personName, src: person?.party.avatar }]}
+                onBack={() => nav.up()}
+                topRightAction={isFriend ? {
+                    icon: 'add',
+                    label: 'Adicionar despesa',
+                    onClick: () => setShowAddExpense(true),
+                } : undefined}
+            />
 
-            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-12 pb-4 space-y-4">
-                <h1 className="text-xl font-bold text-ink">{personName}</h1>
-                {person?.party.username && <p className="text-sm text-ink-faint -mt-3">@{person.party.username}</p>}
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pb-4 space-y-4">
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />

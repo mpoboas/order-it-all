@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
-import { friendshipsApi } from '@/lib/pocketbase';
+import { friendshipsApi, authHeaders } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { notify } from '@/lib/notify';
@@ -55,7 +55,7 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
     try {
       const res = await fetch('/api/friend-lookup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ query: trimmed }),
       });
       const data = await res.json();

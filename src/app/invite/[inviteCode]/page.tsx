@@ -5,7 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { groupsApi } from '@/lib/pocketbase';
-import type { Group } from '@/lib/types';
+import type { InvitePreview } from '@/lib/types';
 import { navStart } from '@/lib/navProgress';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 
@@ -16,7 +16,7 @@ export default function InvitePage() {
     const { user, isLoggedIn } = useUser();
     const { showToast } = useToast();
 
-    const [group, setGroup] = useState<Group | null>(null);
+    const [group, setGroup] = useState<InvitePreview | null>(null);
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState('');
@@ -24,7 +24,7 @@ export default function InvitePage() {
     useEffect(() => {
         const loadGroup = async () => {
             try {
-                const groupData = await groupsApi.getByInviteCode(inviteCode);
+                const groupData = await groupsApi.previewInvite(inviteCode);
                 if (groupData) {
                     setGroup(groupData);
                 } else {
@@ -41,9 +41,11 @@ export default function InvitePage() {
         if (inviteCode) {
             loadGroup();
         }
-    }, [inviteCode]);
+        // `isLoggedIn` nas deps: a pré-visualização só sabe se "já és membro"
+        // quando o pedido leva sessão.
+    }, [inviteCode, isLoggedIn]);
 
-    const isMember = user && group && group.members.includes(user.id);
+    const isMember = !!user && !!group?.isMember;
 
     const searchParams = useSearchParams();
     const shouldAutoJoin = searchParams.get('autoJoin') === 'true';
@@ -53,7 +55,7 @@ export default function InvitePage() {
         if (!loading && group && isLoggedIn) {
             if (isMember) {
                 // Already a member, just go there
-                router.push(`/groups/${group.id}/trips`);
+                router.push(`/groups/${group.groupId}/trips`);
             } else if (shouldAutoJoin && !joining) {
                 // Not a member, logged in, not currently joining, and HAS flag -> Auto Join
                 handleJoin();
@@ -73,10 +75,10 @@ export default function InvitePage() {
 
         setJoining(true);
         try {
-            await groupsApi.addMember(group.id, user!.id);
+            const groupId = await groupsApi.joinByInvite(inviteCode);
             showToast(`Bem-vindo ao grupo ${group.name}!`, 'success');
             navStart();
-            router.push(`/groups/${group.id}/trips`);
+            router.push(`/groups/${groupId}/trips`);
         } catch (err) {
             console.error(err);
             showToast('Erro ao entrar no grupo.', 'error');
@@ -125,7 +127,7 @@ export default function InvitePage() {
                 <div className="w-24 h-24 mx-auto mb-6 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-inner text-4xl overflow-hidden border border-white/30">
                     {group.avatar && group.avatar.length > 2 ? (
                         <img
-                            src={getGroupAvatarUrl(group.id, group.avatar) ?? undefined}
+                            src={getGroupAvatarUrl(group.groupId, group.avatar) ?? undefined}
                             alt={group.name}
                             className="w-full h-full object-cover"
                         />
@@ -139,8 +141,8 @@ export default function InvitePage() {
                 </h1>
 
                 <p className="text-white/80 mb-8">
-                    {group.expand?.creator?.name
-                        ? `${group.expand.creator.name} convidou-te para entrar neste grupo.`
+                    {group.creatorName
+                        ? `${group.creatorName} convidou-te para entrar neste grupo.`
                         : 'Foste convidado para entrar neste grupo.'}
                 </p>
 
@@ -150,7 +152,7 @@ export default function InvitePage() {
                             Já és membro deste grupo!
                         </div>
                         <button
-                            onClick={() => router.push(`/groups/${group.id}/trips`)}
+                            onClick={() => router.push(`/groups/${group.groupId}/trips`)}
                             className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition"
                         >
                             Ver Grupo

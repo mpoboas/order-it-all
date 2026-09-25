@@ -6,23 +6,18 @@ import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
 import { useSyncStatus } from '@/context/SyncProvider';
-import { balanceFor } from '@/lib/ledger/balances';
 import { groupExpensesByMonth } from '@/lib/expenseDisplay';
-import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { HeroHeader } from '@/components/features/HeroHeader';
 import { GroupTabs } from '@/components/features/GroupTabs';
+import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
+import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
-import { BalanceBand } from '@/components/features/BalanceBand';
-import { ActionChipRow } from '@/components/features/ActionChipRow';
 import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
-import { SettleUpSheet } from '@/components/features/SettleUpSheet';
-import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
-import { TotalsSheet } from '@/components/features/TotalsSheet';
-import { expensesToCsv } from '@/lib/ledger/csv';
 import { partyLabel } from '@/lib/parties';
 import { getCategory } from '@/lib/ledger/categories';
-import { getFabBottom } from '@/lib/bottomDock';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 export default function GroupExpensesPage() {
@@ -44,21 +39,12 @@ export default function GroupExpensesPage() {
     const loading = expensesQuery === undefined || ledger === undefined || (expenses.length === 0 && groupSyncing);
 
     const [showForm, setShowForm] = useState(false);
-    const [showMembers, setShowMembers] = useState(false);
-    const [showSettleUp, setShowSettleUp] = useState(false);
-    const [showTotals, setShowTotals] = useState(false);
     const [search, setSearch] = useState('');
     const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
-
-    const userId = user?.id;
-    const myBalance = useMemo(() => {
-        if (!ledger || !userId) return null;
-        return balanceFor(userId, ledger.pairwise, ledger.net);
-    }, [ledger, userId]);
 
     // Pesquisa por descrição, categoria ou pessoa (pagador/participante) —
     // sem acentos/maiúsculas, à semelhança do resto da app.
@@ -83,65 +69,55 @@ export default function GroupExpensesPage() {
     // Não é só `currentGroup.members` — inclui placeholders (membros sem
     // conta), que também são partes válidas nas despesas do grupo.
     const memberCount = parties?.size || currentGroup?.members?.length || 0;
-
-    const handleExport = () => {
-        if (!parties) return;
-        const csv = expensesToCsv(expenses, parties);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentGroup?.name || 'despesas'}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
+    const heroAvatars = currentGroup ? groupHeroAvatars(currentGroup) : [];
 
     if (!isLoggedIn) return null;
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
             {currentGroup && (
-                <GroupCoverHeader
-                    group={currentGroup}
-                    memberCount={memberCount}
-                    onMembersClick={() => setShowMembers(true)}
-                    isAdmin={isAdmin}
+                <HeroHeader
+                    title={currentGroup.name}
+                    background={getGroupHeroBackground(currentGroup)}
+                    avatars={heroAvatars}
+                    avatarOverflowCount={Math.max(0, memberCount - heroAvatars.length)}
+                    onBack={() => nav.up()}
+                    topRightAction={isAdmin ? {
+                        icon: 'settings',
+                        label: 'Definições do grupo',
+                        onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
+                    } : undefined}
                 />
             )}
+            <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />
-            {!loading && parties && myBalance && (
-                <>
-                    <BalanceBand
-                        netCents={myBalance.netCents}
-                        lines={myBalance.lines}
-                        parties={parties}
-                        onSeeAllClick={() => nav.push(`/groups/${groupId}/balances`)}
-                    />
-                    <ActionChipRow
-                        chips={[
-                            { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true) },
-                            { icon: 'balance', label: 'Saldos', onClick: () => nav.push(`/groups/${groupId}/balances`) },
-                            { icon: 'calculate', label: 'Totais', onClick: () => setShowTotals(true) },
-                            { icon: 'drive_file_move', label: 'Exportar', onClick: handleExport },
-                            { icon: 'filter_list', label: 'Pesquisar', onClick: () => setShowSearch((v) => !v) },
-                        ]}
-                    />
-                    {showSearch && (
-                        <div className="px-4 py-2 border-b border-hairline bg-surface">
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Pesquisar por descrição, categoria ou pessoa…"
-                                autoFocus
-                                className="w-full px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-sm"
-                            />
-                        </div>
-                    )}
-                </>
-            )}
 
-            <main className="container mx-auto max-w-2xl">
+            <main className="container mx-auto max-w-2xl pb-24">
+                {!loading && expenses.length > 0 && (
+                    <div className="flex justify-end px-2 sm:px-4 pt-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowSearch((v) => !v)}
+                            aria-label="Pesquisar despesas"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft"
+                        >
+                            <Icon name="filter_list" className="text-xl" />
+                        </button>
+                    </div>
+                )}
+                {showSearch && (
+                    <div className="px-2 sm:px-4 pb-2">
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Pesquisar por descrição, categoria ou pessoa…"
+                            autoFocus
+                            className="w-full px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-sm"
+                        />
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />
@@ -190,15 +166,7 @@ export default function GroupExpensesPage() {
             </main>
 
             {parties && (
-                <button
-                    type="button"
-                    onClick={() => setShowForm(true)}
-                    className="fixed right-4 z-30 h-14 px-5 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 flex items-center gap-2 font-semibold active:scale-95 transition"
-                    style={{ bottom: getFabBottom(true) }}
-                >
-                    <Icon name="add" className="text-xl" />
-                    Despesa
-                </button>
+                <ExpandableFab icon="add" label="Despesa" onClick={() => setShowForm(true)} />
             )}
 
             {parties && user?.id && (
@@ -210,31 +178,6 @@ export default function GroupExpensesPage() {
                     currentUserId={user.id}
                     onSaved={() => setShowForm(false)}
                     onOpenItems={(expense) => nav.push(`/groups/${groupId}/expenses/${expense.id}/items`, { haptic: false })}
-                />
-            )}
-
-            {ledger && user?.id && (
-                <SettleUpSheet
-                    isOpen={showSettleUp}
-                    onClose={() => setShowSettleUp(false)}
-                    groupId={groupId}
-                    parties={ledger.parties}
-                    pairwise={ledger.pairwise}
-                    currentUserId={user.id}
-                />
-            )}
-
-            {currentGroup && (
-                <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
-            )}
-
-            {parties && user?.id && (
-                <TotalsSheet
-                    isOpen={showTotals}
-                    onClose={() => setShowTotals(false)}
-                    expenses={expenses}
-                    parties={parties}
-                    currentUserId={user.id}
                 />
             )}
         </div>

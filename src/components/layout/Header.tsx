@@ -6,6 +6,7 @@ import { getGroupAvatarUrl } from '@/lib/groupAvatars';
 import { cn } from '@/lib/utils';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { Icon } from '@/components/ui/Icon';
+import { StatusBarTint } from '@/components/ui/StatusBarTint';
 
 interface HeaderProps {
     title?: string;
@@ -42,6 +43,7 @@ export function Header({ title, subtitle, showBack, transparent = false, icon, a
                 transparent ? 'bg-transparent border-transparent' : 'bg-surface'
             )}
         >
+            {!transparent && <StatusBarTint background="var(--surface)" />}
             <div className="px-4 py-3 md:py-4">
                 <div className="flex items-center justify-between max-w-6xl mx-auto">
                     {/* Left side */}

@@ -15,21 +15,25 @@ interface NavItem {
 }
 
 const ITEMS: NavItem[] = [
-    { href: '/groups', label: 'Grupos', icon: 'groups' },
-    { href: '/people', label: 'Amigos', icon: 'person' },
+    { href: '/groups', label: 'Início', icon: 'home' },
     { href: '/activity', label: 'Atividade', icon: 'activity' },
     { href: '/profile', label: 'Perfil', icon: 'person' },
 ];
 
-/** Barra inferior global — Grupos · Amigos · Atividade · Perfil, à
- *  Splitwise. O separador "Perfil" usa o avatar do utilizador em vez de um
- *  ícone genérico. */
+/** Barra inferior global — Início · Atividade · Perfil. Grupos e Amigos
+ *  fundiram-se na tab "Início" (segmented control interno, ver `HomeTabs`),
+ *  por isso o separador "Início" (`/groups`) fica ativo também em `/people`.
+ *  O separador "Perfil" usa o avatar do utilizador em vez de um ícone
+ *  genérico. */
 export function GlobalBottomNav() {
     const pathname = usePathname();
     const nav = useAppNavigate();
     const { user } = useUser();
 
-    const isActive = (href: string) => pathname.startsWith(href);
+    const isActive = (href: string) =>
+        href === '/groups'
+            ? pathname.startsWith('/groups') || pathname.startsWith('/people')
+            : pathname.startsWith(href);
 
     return (
         <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-hairline z-50 md:hidden safe-bottom-nav">

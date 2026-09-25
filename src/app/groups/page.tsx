@@ -14,13 +14,14 @@ import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { HomeOverview } from '@/components/features/HomeOverview';
+import { HomeTabs } from '@/components/features/HomeTabs';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { useGroups, useGroupBalances } from '@/lib/db/hooks';
-import { fromCents } from '@/lib/ledger/money';
-import { Money } from '@/components/ui/Money';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
@@ -50,9 +51,6 @@ export default function GroupsPage() {
     const balances = useGroupBalances(user?.id);
     const [showSettled, setShowSettled] = useState(false);
 
-    const totalNetCents = balances
-        ? Array.from(balances.values()).reduce((sum, c) => sum + c, 0)
-        : 0;
     const settledGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) < 1);
     const activeGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) >= 1);
     const visibleGroups = showSettled ? groups : activeGroups;
@@ -135,52 +133,17 @@ export default function GroupsPage() {
                         className="w-full h-full object-contain p-1"
                     />
                 }
-                actions={
-                    <button
-                        type="button"
-                        onClick={() => setShowCreateModal(true)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft"
-                        aria-label="Criar grupo"
-                    >
-                        <Icon name="add" className="text-xl" />
-                    </button>
-                }
             />
 
-            <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Greeting */}
-                <div className="mb-8 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-ink mb-1">
-                        Olá, <span className="text-primary-600">{user?.name || 'amigo'}</span>! 👋
-                    </h2>
-                    <p className="text-ink-soft">Seleciona um grupo ou cria um novo</p>
-                    {!loading && groups.length > 0 && (
-                        <p className="mt-2 text-sm font-semibold">
-                            {Math.abs(totalNetCents) < 1 ? (
-                                <span className="text-ink-faint">Contas em dia em todo o lado</span>
-                            ) : totalNetCents > 0 ? (
-                                <span className="text-success-fg">No total, devem-te <Money value={fromCents(totalNetCents)} /></span>
-                            ) : (
-                                <span className="text-warning-fg">No total, deves <Money value={fromCents(-totalNetCents)} /></span>
-                            )}
-                        </p>
-                    )}
-                </div>
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-4 pb-24">
+                <HomeOverview className="mb-6" />
+                <HomeTabs />
 
                 {/* Loading */}
                 {loading ? (
                     <EntityCardSkeletonGrid count={3} />
                 ) : (
                     <>
-                        {/* Create Group Button */}
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="w-full mb-6 p-4 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-2xl text-info-fg font-semibold hover:bg-info-bg hover:border-primary-400 dark:hover:border-primary-600 transition flex items-center justify-center gap-2 animate-fade-in-up"
-                        >
-                            <Icon name="add" className="text-xl" />
-                            Criar Novo Grupo
-                        </button>
-
                         {groups.length === 0 ? (
                             /* Estado vazio — onboarding: primeira ação acionável, não só texto
                                (ver plano de onboarding). */
@@ -201,16 +164,14 @@ export default function GroupsPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Groups Grid */}
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    {visibleGroups.map((group, index) => (
+                                <div className="card divide-y divide-hairline overflow-hidden">
+                                    {visibleGroups.map((group) => (
                                         <GroupCard
                                             key={group.id}
                                             group={group}
                                             userId={user?.id}
                                             netCents={balances?.get(group.id)}
                                             onSelect={() => handleSelectGroup(group)}
-                                            style={{ animationDelay: `${index * 0.05}s` }}
                                         />
                                     ))}
                                 </div>
@@ -219,7 +180,7 @@ export default function GroupsPage() {
                                     <button
                                         type="button"
                                         onClick={() => setShowSettled(true)}
-                                        className="w-full mt-4 py-2.5 rounded-xl border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                        className="w-full mt-4 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
                                     >
                                         Mostrar {settledGroups.length} {settledGroups.length === 1 ? 'grupo em dia' : 'grupos em dia'}
                                     </button>
@@ -228,7 +189,7 @@ export default function GroupsPage() {
                                     <button
                                         type="button"
                                         onClick={() => setShowSettled(false)}
-                                        className="w-full mt-4 py-2.5 rounded-xl border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                        className="w-full mt-4 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
                                     >
                                         Ocultar grupos em dia
                                     </button>
@@ -314,6 +275,7 @@ export default function GroupsPage() {
             {showNotificationPrompt && (
                 <NotificationInstallPrompt onClose={() => setShowNotificationPrompt(false)} />
             )}
+            <ExpandableFab icon="add" label="Criar Grupo" onClick={() => setShowCreateModal(true)} />
             <GlobalBottomNav />
         </div>
     );

@@ -16,6 +16,8 @@ export function invoiceScanFailureMessage(failure: ScanFailure): string {
       return 'Não consegui ler a fatura. Tenta uma foto mais nítida, direita e com boa luz.';
     case 'no_key':
       return 'Adiciona a tua chave Gemini para leres faturas.';
+    case 'unauthenticated':
+      return 'A tua sessão expirou. Entra outra vez e tenta de novo.';
     case 'no_image':
       return 'Escolhe uma fatura primeiro.';
     default:

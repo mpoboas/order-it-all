@@ -137,7 +137,14 @@ export function ExpenseFormSheet({
     }
   }
 
-  const canSubmit = description.trim().length > 0 && amount > 0 && payers.length > 0 && !submitting;
+  // Invariante do livro-razão: o que os pagadores pagaram tem de ser
+  // exatamente o total (em cêntimos). Com vários pagadores o `handleAmountChange`
+  // não sabe como repartir uma mudança de total — sem esta guarda gravava-se
+  // uma despesa cujos saldos deixam de somar zero.
+  const payersCents = payers.reduce((sum, p) => sum + toCents(p.amount), 0);
+  const payersMatch = payersCents === toCents(amount);
+
+  const canSubmit = description.trim().length > 0 && amount > 0 && payers.length > 0 && payersMatch && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -149,6 +156,14 @@ export function ExpenseFormSheet({
       let sharesPayload: Expense['shares'];
       if (splitMode === 'itemized') {
         sharesPayload = expense?.shares ?? [];
+        // Editar o total de uma despesa por itens não recalcula as partes
+        // (vêm dos itens) — não gravar partes que já não somam o total.
+        const sharesCents = sharesPayload.reduce((sum, s) => sum + toCents(s.amount), 0);
+        if (isEditing && sharesCents !== amountCents) {
+          showToast('O total mudou — revê a divisão por itens antes de gravar.', 'error');
+          setSubmitting(false);
+          return;
+        }
       } else {
         const ids = splitMode === 'equal' ? participantIds : allParties.map((p) => p.id);
         const { shares, error } = computeShares(splitMode as ComputableSplitMode, amountCents, ids, splitInputs);
@@ -263,6 +278,16 @@ export function ExpenseFormSheet({
               {splitSummary}
             </button>
           </p>
+
+          {!payersMatch && amount > 0 && payers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowPayerSheet(true)}
+              className="block w-full text-center text-sm font-semibold text-warning-fg"
+            >
+              Os pagadores somam {formatEUR(fromCents(payersCents))} de {formatEUR(amount)} — ajustar
+            </button>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

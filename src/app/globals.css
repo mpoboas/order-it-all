@@ -99,7 +99,7 @@
   --border-strong: var(--slate-300);
 
   /* Estado — cada cor com um papel (par fg/bg, contraste AA) */
-  --success-fg: var(--green-800);  --success-bg: var(--green-100);
+  --success-fg: var(--green-800);  --success-bg: var(--green-100);  --success-solid: #16a34a;
   --warning-fg: var(--amber-800);  --warning-bg: var(--amber-100);
   --danger-fg:  var(--red-800);    --danger-bg:  var(--red-100);   --danger-solid: var(--red-600);
   --info-fg:    var(--primary-700); --info-bg:    var(--primary-50);
@@ -114,6 +114,11 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Altura da faixa que o iOS/iPadOS 27 (beta) borra por cima da WPA
+     instalada — ver `.status-bar-tint` mais abaixo. Valor empírico (testado
+     na mesma beta por quem reportou o problema); pode precisar de ajuste
+     depois de veres num aparelho real. */
+  --status-tint-h: 16px;
   --header-height: 64px;
   /* h-16 bar + .safe-bottom-nav padding (see GlobalBottomNav.tsx) */
   --bottom-nav-height: 4rem;
@@ -154,7 +159,7 @@
   --border:        var(--slate-800);
   --border-strong: var(--slate-700);
 
-  --success-fg: var(--green-300);  --success-bg: var(--green-900);
+  --success-fg: var(--green-300);  --success-bg: var(--green-900);  --success-solid: #22c55e;
   --warning-fg: var(--amber-300);  --warning-bg: var(--amber-950);
   --danger-fg:  var(--red-300);    --danger-bg:  var(--red-950);   --danger-solid: #ef4444;
   --info-fg:    var(--primary-300); --info-bg:   var(--primary-950);
@@ -208,6 +213,7 @@
   --color-danger-fg:  var(--danger-fg);
   --color-danger-bg:  var(--danger-bg);
   --color-danger:     var(--danger-solid);
+  --color-success:    var(--success-solid);
   --color-info-fg:    var(--info-fg);
   --color-info-bg:    var(--info-bg);
 
@@ -237,6 +243,14 @@ html {
      o do ecra atual) em faixas no topo e no fundo. O pull-to-refresh que isto
      desliga esta reimplementado em PullToRefresh.tsx. */
   overscroll-behavior-y: none;
+  /* iOS/iPadOS 27: o sistema passou a pintar uma faixa de blur por cima do
+     topo da WPA instalada (chrome novo, fora do nosso controlo — não há
+     `backdrop-filter` nosso ali, é o próprio WebKit). Garante que um
+     scroll para uma âncora/elemento não pára com a primeira linha
+     escondida por baixo dessa faixa. Não resolve a faixa em si (isso é a
+     Apple, sem API pública ainda para o momento), só evita o efeito
+     secundário mais visível. */
+  scroll-padding-top: var(--safe-top);
 }
 
 /* Elementos de chrome / interacao: nada de selecao de texto acidental ao tocar. */
@@ -857,5 +871,69 @@ header {
 @media (prefers-reduced-motion: reduce) {
   .btn-loading::after {
     animation-duration: 1.2s;
+  }
+}
+
+/* ===== web-haptics: manter o switch escondido "no layout" no iOS =====
+   O pacote `useWebHaptics()` (haptic feedback nos toques — ver GroupCard,
+   ExpandableFab, etc.) simula um toque físico no iPhone clicando num
+   <input type="checkbox" switch> escondido: o iOS 17.4+/18 dá um toque
+   háptico real de sistema ao alternar esse tipo de switch, ao contrário de
+   `navigator.vibrate()`, que o Safari nunca implementou (WebKit é o motor
+   de qualquer browser no iOS, incluindo dentro da WPA instalada).
+   Por omissão a biblioteca esconde esse switch com `display: none` inline
+   — mas um elemento fora do layout não recebe o mesmo tratamento de
+   sistema no WebKit, o que impede o toque de sequer disparar. Cada
+   `useWebHaptics()` cria a sua própria instância (`label[for="web-haptics-N"]`,
+   N incremental), por isso o seletor tem de apanhar todas. Só uma regra de
+   stylesheet com `!important` vence um `style.display` inline — por isso
+   isto tem de ser CSS, não conseguimos mudar o comportamento a partir de
+   onde a biblioteca é chamada. Mantém-se completamente impercetível
+   (1x1px, sem opacidade, sem intercetar toques). */
+label[for^="web-haptics-"] {
+  display: block !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+label[for^="web-haptics-"] input {
+  display: block !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ===== status-bar-tint: disfarçar a faixa de blur do iOS/iPadOS 27 =====
+   Só entra em ação em WPA instalada (`display-mode: standalone`), retrato,
+   e num aparelho iOS/iPadOS (`.is-ios` posto no <html> por um script em
+   `layout.tsx`, antes do 1º paint — não há forma fiável de detetar isto só
+   com CSS/media queries). Fora dessas condições fica sempre `display:none`,
+   zero efeito no resto da app (Android, desktop, Safari em separador
+   normal). `<StatusBarTint>` (`components/ui/StatusBarTint.tsx`) é só uma
+   `<div>` com esta classe; cada sítio que a usa passa-lhe a MESMA cor/
+   gradiente que já tem no topo, para a faixa parecer uma continuação lisa
+   do ecrã em vez de uma tarja destacada. */
+.status-bar-tint {
+  display: none;
+}
+@media (display-mode: standalone) and (orientation: portrait) {
+  html.is-ios .status-bar-tint {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--status-tint-h);
+    z-index: 2000;
+    pointer-events: none;
   }
 }

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { HeroHeader } from '@/components/features/HeroHeader';
 import { GroupTabs } from '@/components/features/GroupTabs';
-import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
+import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
+import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { TripCard } from '@/components/features/TripCard';
 import { Icon } from '@/components/ui/Icon';
@@ -24,7 +25,6 @@ export default function GroupTripsPage() {
     const { currentGroup, isAdmin } = useGroup();
     const router = useRouter();
     const nav = useAppNavigate();
-    const [showMembers, setShowMembers] = useState(false);
 
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
@@ -40,24 +40,30 @@ export default function GroupTripsPage() {
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
 
+    const heroAvatars = currentGroup ? groupHeroAvatars(currentGroup) : [];
+
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
             {currentGroup && (
-                <GroupCoverHeader
-                    group={currentGroup}
-                    memberCount={currentGroup.members.length}
-                    onMembersClick={() => setShowMembers(true)}
-                    isAdmin={isAdmin}
+                <HeroHeader
+                    title={currentGroup.name}
+                    background={getGroupHeroBackground(currentGroup)}
+                    avatars={heroAvatars}
+                    avatarOverflowCount={Math.max(0, currentGroup.members.length - heroAvatars.length)}
+                    onBack={() => nav.up()}
+                    topRightAction={isAdmin ? {
+                        icon: 'settings',
+                        label: 'Definições do grupo',
+                        onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
+                    } : undefined}
                 />
             )}
+            <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
             <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Título — utilizadores normais não criam viagens, por isso é só o cabeçalho (como em Divisões). */}
-                <div className="mb-6 animate-fade-in-up">
-                    <h2 className="text-2xl font-bold text-ink">Viagens</h2>
-                    <p className="text-sm text-ink-soft">Escolhe uma viagem para fazer o teu pedido</p>
-                </div>
+                {/* Sem título — já vem do separador ativo ("Viagens") logo acima. */}
+                <p className="mb-6 text-sm text-ink-soft animate-fade-in-up">Escolhe uma viagem para fazer o teu pedido</p>
 
                 {/* Loading */}
                 {loading ? (
@@ -102,10 +108,6 @@ export default function GroupTripsPage() {
                         Atualizar
                     </button>
                 </div>
-            )}
-
-            {currentGroup && (
-                <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
             )}
         </div>
     );

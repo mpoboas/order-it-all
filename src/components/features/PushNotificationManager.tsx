@@ -19,8 +19,9 @@ export default function PushNotificationManager() {
             // gesto do utilizador falha logo no iOS, e em todo o lado é má
             // prática (queima o prompt nativo, que só se pode mostrar uma vez).
             // O pedido passa a viver num ecrã próprio (Fase 1).
+            // `Notification` nem existe no Safari do iOS fora da WPA instalada.
             registerServiceWorker().then(() => {
-                if (Notification.permission === 'granted') {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
                     subscribeToPushNotifications();
                 }
             });

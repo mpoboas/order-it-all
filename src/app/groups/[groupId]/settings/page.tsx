@@ -10,7 +10,7 @@ import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
 
 /** Definições do grupo — combina as antigas abas "Membros" e "Definições"
  *  do Admin numa só página, reachável pela engrenagem no cabeçalho do
- *  grupo (`GroupCoverHeader`). Só admins chegam aqui. */
+ *  grupo (`HeroHeader`). Só admins chegam aqui. */
 export default function GroupSettingsPage() {
     const params = useParams();
     const groupId = params.groupId as string;

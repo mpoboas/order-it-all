@@ -43,6 +43,7 @@ export type ScanFailure =
   | { code: 'invalid_key' }
   | { code: 'unreadable' }
   | { code: 'no_key' }
+  | { code: 'unauthenticated' }
   | { code: 'no_image' }
   | { code: 'error' };
 

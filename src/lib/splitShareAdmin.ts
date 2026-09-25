@@ -43,13 +43,25 @@ function normalizeSplit(record: Split): Split {
   });
 }
 
-/** Public PocketBase rules allow read when share_active + share_code match. */
+/**
+ * Cabeçalho que prova ao PocketBase que quem pede tem o código — as regras de
+ * `splits` (ver `pb/migrations/5_lock_legacy.js`) só deixam um pedido anónimo
+ * ler/escrever uma divisão com `share_active = true` cujo `share_code` seja
+ * igual a `@request.headers.x_share_code`. Continua a ser um pedido anónimo
+ * (não superuser) de propósito: a condição de versão (`items_version`) também
+ * está na regra de update, e um superuser ignora as regras.
+ */
+function shareHeaders(shareCode: string) {
+  return { headers: { 'X-Share-Code': shareCode } };
+}
+
 export async function getActiveSplitByShareCode(
   shareCode: string
 ): Promise<Split | null> {
   try {
     const record = await pb.collection('splits').getFirstListItem<Split>(
-      `share_code = "${escapeShareCode(shareCode)}" && share_active = true`
+      `share_code = "${escapeShareCode(shareCode)}" && share_active = true`,
+      shareHeaders(shareCode)
     );
     return normalizeSplit(record);
   } catch {
@@ -106,15 +118,17 @@ export async function getGroupPartiesForShare(groupId: string): Promise<PublicPa
  * reler e repetir.
  */
 export async function updateSplitItems(
+  shareCode: string,
   splitId: string,
   items: Split['items'],
   expectedVersion: number
 ): Promise<Split> {
   try {
-    const record = await pb.collection('splits').update<Split>(splitId, {
-      items,
-      items_version: expectedVersion + 1,
-    });
+    const record = await pb.collection('splits').update<Split>(
+      splitId,
+      { items, items_version: expectedVersion + 1 },
+      shareHeaders(shareCode)
+    );
     return normalizeSplit(record);
   } catch (error) {
     // O PocketBase devolve 404 (não 403) quando a regra de Update falha — para
@@ -154,7 +168,7 @@ export async function withSplitItemsOCC(
     if (items === null) return split;
 
     try {
-      return await updateSplitItems(split.id, items, split.items_version ?? 0);
+      return await updateSplitItems(shareCode, split.id, items, split.items_version ?? 0);
     } catch (error) {
       lastError = error;
       if (error instanceof SplitVersionConflictError) {

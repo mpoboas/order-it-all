@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { reconcileWithGeminiImage } from '@/app/actions/ai';
-import { ordersApi, itemsApi } from '@/lib/pocketbase';
+import { ordersApi, itemsApi, pb } from '@/lib/pocketbase';
 import { buildOrderCreatePayload } from '@/lib/orderParticipants';
 import type { User } from '@/lib/types';
 import { db } from '@/lib/db/schema';
@@ -222,7 +222,8 @@ export function InvoiceScanSheet({
       const outcome = await reconcileWithGeminiImage(
         invoiceFile,
         tripItems,
-        geminiApiKey
+        geminiApiKey,
+        pb.authStore.token
       );
 
       if (!outcome.ok) {

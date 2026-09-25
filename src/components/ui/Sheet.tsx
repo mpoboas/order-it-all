@@ -10,6 +10,7 @@ import { getMinimizedSheetBottom } from '@/lib/bottomDock';
 import { UNSAVED_DRAFT_MESSAGE } from '@/lib/confirmDiscard';
 import { useConfirm } from '@/context/ConfirmContext';
 import { Icon } from '@/components/ui/Icon';
+import { StatusBarTint } from '@/components/ui/StatusBarTint';
 import { useVisualViewport } from '@/hooks/useVisualViewport';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -192,6 +193,7 @@ export function Sheet({
                                 exit={{ y: '100%' }}
                                 transition={panelTransition}
                             >
+                                {isFull && <StatusBarTint background="var(--surface)" />}
                                 <div className={cn(
                                     'shrink-0 pt-3 pb-2 px-4 sm:px-6 border-b border-hairline',
                                     // Ecrã inteiro chega mesmo ao topo (y=0) — sem isto o

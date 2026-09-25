@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { PriceInput } from '@/components/ui/PriceInput';
 import { Button } from '@/components/ui/Button';
+import { toCents, fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import type { ExpensePayer, Party } from '@/lib/types';
@@ -38,12 +39,14 @@ export function PayerPickerSheet({
     setAmounts(Object.fromEntries(payers.map((p) => [p.party, p.amount])));
   }, [isOpen, payers]);
 
-  const assigned = useMemo(
-    () => parties.reduce((sum, p) => sum + (amounts[p.id] ?? 0), 0),
+  // Em cêntimos — a mesma comparação exata que o formulário faz antes de gravar.
+  const assignedCents = useMemo(
+    () => parties.reduce((sum, p) => sum + toCents(amounts[p.id] ?? 0), 0),
     [parties, amounts],
   );
-  const remaining = totalAmount - assigned;
-  const isValid = Math.abs(remaining) < EPS && assigned > EPS;
+  const assigned = fromCents(assignedCents);
+  const remaining = fromCents(toCents(totalAmount) - assignedCents);
+  const isValid = assignedCents === toCents(totalAmount) && assignedCents > 0;
 
   const selectSingle = (partyId: string) => {
     onConfirm([{ party: partyId, amount: totalAmount }]);

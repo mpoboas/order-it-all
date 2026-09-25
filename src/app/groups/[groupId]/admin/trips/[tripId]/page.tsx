@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
-import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi, authHeaders } from '@/lib/pocketbase';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
@@ -525,6 +525,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             // Notify Users (menos quem terminou a viagem — já vê o resultado)
             const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
+                headers: authHeaders(),
                 body: JSON.stringify({
                     groupId: trip.group_id,
                     excludeUserId: user?.id,
@@ -560,6 +561,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             // Notify Users (menos quem fechou a viagem — já vê o resultado)
             const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
+                headers: authHeaders(),
                 body: JSON.stringify({
                     groupId: trip.group_id,
                     excludeUserId: user?.id,

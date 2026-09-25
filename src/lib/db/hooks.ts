@@ -472,6 +472,30 @@ export function usePeopleBalances(currentUserId: string | undefined): PersonBala
   }, [currentUserId, groups, allExpenses, allPlaceholders, allUsers, friendships]);
 }
 
+export interface BalanceOverview {
+  /** Soma das partes positivas de `netCents` de todas as pessoas — a receber no total. */
+  receiveCents: number;
+  /** Soma dos valores absolutos das partes negativas — a pagar no total. */
+  payCents: number;
+  netCents: number;
+}
+
+/** Resumo agregado "a receber vs a pagar" para o topo do Início — soma
+ *  `usePeopleBalances` (já inclui grupos partilhados + despesas diretas). */
+export function useBalanceOverview(userId: string | undefined): BalanceOverview | undefined {
+  const people = usePeopleBalances(userId);
+  return useMemo(() => {
+    if (!people) return undefined;
+    let receiveCents = 0;
+    let payCents = 0;
+    for (const p of people) {
+      if (p.netCents > 0) receiveCents += p.netCents;
+      else payCents += -p.netCents;
+    }
+    return { receiveCents, payCents, netCents: receiveCents - payCents };
+  }, [people]);
+}
+
 /** Amigos aceites / pedidos recebidos / pedidos enviados (Fase 8). */
 export interface FriendshipsView {
   accepted: Friendship[];

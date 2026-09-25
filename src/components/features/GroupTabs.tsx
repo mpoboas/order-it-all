@@ -17,36 +17,35 @@ interface GroupTabsProps {
     isAdmin: boolean;
 }
 
-/** Segmented control por baixo do cabeçalho do grupo — Admin/Viagens ·
- *  Despesas · Saldos. Substitui a antiga 2ª barra de baixo (`BottomNav`):
- *  agora só há uma barra de baixo, a global (`GlobalBottomNav`), sempre
- *  visível em toda a app. Responde a "que secção do grupo estou a ver", não
- *  a "onde estou na app" — por isso é um *segmented control* no topo, não
- *  uma *tab bar* no fundo (ver Apple HIG). Aparece nos 4 ecrãs "raiz" do
- *  grupo (Admin, Viagens, Despesas, Saldos), não em sub-ecrãs (detalhe de
- *  despesa/viagem, itens). Funciona em todas as larguras — no desktop
- *  substitui os links que estavam no `Header`. */
+/** Segmented control por baixo do cabeçalho do grupo — Despesas · Viagens
+ *  (a de admin aponta para o dashboard `/admin`, a de membro para `/trips`,
+ *  mas o rótulo/ícone são sempre os mesmos "Viagens" — deixou de haver uma
+ *  tab "Admin" separada). Saldos já não é tab — passou a chip do
+ *  `GroupOverviewBar`, a faixa idêntica nas duas tabs (saldo + ações) entre
+ *  o nome do grupo e este segmented control; é também onde vive agora o
+ *  separador (antes no fundo deste componente).
+ *  Substitui a antiga 2ª barra de baixo (`BottomNav`): agora só há uma
+ *  barra de baixo, a global (`GlobalBottomNav`), sempre visível em toda a
+ *  app. Responde a "que secção do grupo estou a ver", não a "onde estou na
+ *  app" — por isso é um *segmented control* no topo, não uma *tab bar* no
+ *  fundo (ver Apple HIG). Aparece nos 4 ecrãs "raiz" do grupo (Admin,
+ *  Viagens, Despesas, Saldos), não em sub-ecrãs (detalhe de despesa/viagem,
+ *  itens). Funciona em todas as larguras — no desktop substitui os links
+ *  que estavam no `Header`. */
 export function GroupTabs({ groupId, isAdmin }: GroupTabsProps) {
     const pathname = usePathname();
     const nav = useAppNavigate();
     const basePath = `/groups/${groupId}`;
 
-    const items: TabItem[] = isAdmin
-        ? [
-            { href: `${basePath}/admin`, label: 'Admin', icon: 'admin_panel_settings' },
-            { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
-            { href: `${basePath}/balances`, label: 'Saldos', icon: 'balance' },
-        ]
-        : [
-            { href: `${basePath}/trips`, label: 'Viagens', icon: 'shopping_bag' },
-            { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
-            { href: `${basePath}/balances`, label: 'Saldos', icon: 'balance' },
-        ];
+    const items: TabItem[] = [
+        { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
+        { href: isAdmin ? `${basePath}/admin` : `${basePath}/trips`, label: 'Viagens', icon: 'shopping_bag' },
+    ];
 
-    usePrefetchRoutes([`${basePath}/admin`, `${basePath}/expenses`, `${basePath}/trips`, `${basePath}/balances`]);
+    usePrefetchRoutes([`${basePath}/expenses`, `${basePath}/admin`, `${basePath}/trips`]);
 
     return (
-        <div className="bg-app px-4 pt-3 pb-2 border-b border-hairline">
+        <div className="bg-app px-4 pt-3 pb-2">
             <div className="flex p-1 bg-surface-sunken rounded-xl max-w-6xl mx-auto">
                 {items.map((item) => {
                     const active = pathname.startsWith(item.href);

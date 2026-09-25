@@ -44,3 +44,6 @@ docs/
 
 # codegraph index
 .codegraph/
+
+# Playwright MCP (logs/screenshots de sessões de teste)
+.playwright-mcp/

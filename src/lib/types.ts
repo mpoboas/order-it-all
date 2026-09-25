@@ -42,6 +42,18 @@ export interface Group {
   updated: string;
 }
 
+/** O que `/api/groups/invite/[code]` devolve — só o necessário para o ecrã
+ *  de convite (quem não é membro não pode ler o grupo em si). */
+export interface InvitePreview {
+  groupId: string;
+  name: string;
+  avatar: string;
+  creatorName: string | null;
+  memberCount: number;
+  /** Só vem a `true` quando o pedido traz sessão e esse utilizador já é membro. */
+  isMember: boolean;
+}
+
 export interface Trip {
   id: string;
   name: string;

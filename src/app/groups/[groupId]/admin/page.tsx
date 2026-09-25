@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi, authHeaders } from '@/lib/pocketbase';
 import type { Trip } from '@/lib/types';
 import { useExpenses, useParties, useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
@@ -23,7 +23,8 @@ import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
-import { GroupCoverHeader } from '@/components/features/GroupCoverHeader';
+import { HeroHeader } from '@/components/features/HeroHeader';
+import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -31,8 +32,9 @@ import { cn } from '@/lib/utils';
 import { useUser } from '@/context/UserContext';
 import { TripCard } from '@/components/features/TripCard';
 import { GroupTabs } from '@/components/features/GroupTabs';
+import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { TripToExpenseSheet } from '@/components/features/TripToExpenseSheet';
-import { GroupMembersSheet } from '@/components/features/GroupMembersSheet';
 import { GroupSetupChecklist } from '@/components/features/GroupSetupChecklist';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
 
@@ -46,7 +48,6 @@ function AdminDashboardContent() {
     const nav = useAppNavigate();
     const { showToast } = useToast();
     const confirmAction = useConfirm();
-    const [showMembers, setShowMembers] = useState(false);
 
     // Data (local-first: cache do Dexie via SyncProvider)
     const tripsQuery = useTrips(groupId);
@@ -100,6 +101,7 @@ function AdminDashboardContent() {
             // Notify Users (menos quem acabou de criar — já vê a viagem no ecrã)
             const notifyRes = await fetch('/api/notify', {
                 method: 'POST',
+                headers: authHeaders(),
                 body: JSON.stringify({
                     groupId,
                     excludeUserId: user?.id,
@@ -254,18 +256,26 @@ function AdminDashboardContent() {
     }
 
     const isCreator = currentGroup.creator === user?.id;
+    const heroAvatars = groupHeroAvatars(currentGroup);
 
     return (
         <div className="min-h-screen bg-app has-bottom-nav">
-            <GroupCoverHeader
-                group={currentGroup}
-                memberCount={currentGroup.members.length}
-                onMembersClick={() => setShowMembers(true)}
-                isAdmin={isAdmin}
+            <HeroHeader
+                title={currentGroup.name}
+                background={getGroupHeroBackground(currentGroup)}
+                avatars={heroAvatars}
+                avatarOverflowCount={Math.max(0, currentGroup.members.length - heroAvatars.length)}
+                onBack={() => nav.up()}
+                topRightAction={isAdmin ? {
+                    icon: 'settings',
+                    label: 'Definições do grupo',
+                    onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
+                } : undefined}
             />
+            <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
-            <main className="container mx-auto px-4 py-6 max-w-4xl">
+            <main className="container mx-auto px-4 py-6 max-w-4xl pb-24">
                 {/* Onboarding: só para quem criou o grupo de raiz — uma vez na
                     vida (qualquer grupo), não uma vez por grupo. */}
                 {isCreator && (
@@ -278,13 +288,6 @@ function AdminDashboardContent() {
                         onCreateExpense={() => nav.push(`/groups/${groupId}/expenses`)}
                     />
                 )}
-
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-ink">Viagens</h2>
-                    <Button size="sm" onClick={() => setShowCreateModal(true)}>
-                        + Nova Viagem
-                    </Button>
-                </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                     {trips.length === 0 ? (
@@ -320,8 +323,7 @@ function AdminDashboardContent() {
                 </div>
             </main>
 
-            <GroupMembersSheet isOpen={showMembers} onClose={() => setShowMembers(false)} group={currentGroup} />
-
+            <ExpandableFab icon="add" label="Nova Viagem" onClick={() => setShowCreateModal(true)} />
 
             {/* Create Trip Sheet */}
             <Sheet

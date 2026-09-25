@@ -1,4 +1,5 @@
 import { canonicalPartyId } from '@/lib/parties';
+import { authHeaders } from '@/lib/pocketbase';
 import type { Party } from '@/lib/types';
 
 /** Dispara uma notificação push via `/api/notify` — falha em silêncio (a
@@ -14,6 +15,7 @@ export async function notify(opts: {
   try {
     await fetch('/api/notify', {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify(opts),
     });
   } catch (error) {

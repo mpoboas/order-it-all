@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { extractReceiptLineItems } from '@/app/actions/ai';
+import { pb } from '@/lib/pocketbase';
 import type { SplitItem, User } from '@/lib/types';
 import {
   formatCurrency,
@@ -175,7 +176,7 @@ export function SplitInvoiceScanSheet({
     setScanStep('processing');
 
     try {
-      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey);
+      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey, pb.authStore.token);
 
       if (!outcome.ok) {
         if (outcome.failure.code === 'quota_daily') {

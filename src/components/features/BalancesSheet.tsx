@@ -1,9 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 import { useUser } from '@/context/UserContext';
-import { useGroup } from '@/context/GroupContext';
 import { useGroupLedger } from '@/lib/db/hooks';
 import { balanceFor } from '@/lib/ledger/balances';
 import { fromCents } from '@/lib/ledger/money';
@@ -11,10 +9,8 @@ import { partyLabel, isUnclaimedPlaceholder } from '@/lib/parties';
 import { notify, notifiableUserIds } from '@/lib/notify';
 import { formatEUR } from '@/lib/money';
 import { useToast } from '@/context/ToastContext';
-import { HeroHeader } from '@/components/features/HeroHeader';
-import { GroupTabs } from '@/components/features/GroupTabs';
-import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
-import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { Sheet } from '@/components/ui/Sheet';
+import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -22,26 +18,28 @@ import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { cn } from '@/lib/utils';
-import { getFabBottom } from '@/lib/bottomDock';
 
 const EPS = 0.005;
 
-export default function GroupBalancesPage() {
-    const params = useParams();
-    const groupId = params.groupId as string;
-    const router = useRouter();
-    const nav = useAppNavigate();
-    const { user, isLoggedIn } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
+interface BalancesSheetProps {
+    isOpen: boolean;
+    onClose: () => void;
+    groupId: string;
+}
+
+/** Saldos do grupo — era uma página própria (`/groups/[groupId]/balances`),
+ *  agora uma sheet cheia aberta a partir do chip "Saldos" do
+ *  `GroupOverviewBar` (hero) ou do "ver todos" do `BalanceBand`, aí dentro.
+ *  Autossuficiente: só precisa do `groupId`, busca o resto sozinha. A rota
+ *  antiga (`balances/page.tsx`) fica intacta para deep links/notificações
+ *  de lembrete antigas, mas deixou de ser o caminho principal. */
+export function BalancesSheet({ isOpen, onClose, groupId }: BalancesSheetProps) {
+    const { user } = useUser();
     const { showToast } = useToast();
 
     const ledger = useGroupLedger(groupId);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showSettleUp, setShowSettleUp] = useState(false);
-
-    useEffect(() => {
-        if (!isLoggedIn) router.push('/');
-    }, [isLoggedIn, router]);
 
     // "Lembrete de dívida" manual — 1 por dia por par, para não spammar.
     const handleRemind = useCallback((debtorPartyId: string, amountCents: number) => {
@@ -76,30 +74,22 @@ export default function GroupBalancesPage() {
             .sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents));
     }, [ledger]);
 
-    if (!isLoggedIn) return null;
-
-    const memberCount = ledger?.parties.size ?? currentGroup?.members.length ?? 0;
-    const heroAvatars = currentGroup ? groupHeroAvatars(currentGroup) : [];
-
     return (
-        <div className="min-h-dvh bg-app has-bottom-nav">
-            {currentGroup && (
-                <HeroHeader
-                    title={currentGroup.name}
-                    background={getGroupHeroBackground(currentGroup)}
-                    avatars={heroAvatars}
-                    avatarOverflowCount={Math.max(0, memberCount - heroAvatars.length)}
-                    onBack={() => nav.up()}
-                    topRightAction={isAdmin ? {
-                        icon: 'settings',
-                        label: 'Definições do grupo',
-                        onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
-                    } : undefined}
-                />
-            )}
-            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
-
-            <main className="container mx-auto px-4 py-4 max-w-lg">
+        <>
+            <Sheet
+                isOpen={isOpen}
+                onClose={onClose}
+                title="Saldos"
+                size="full"
+                footer={
+                    ledger && user?.id ? (
+                        <Button block onClick={() => setShowSettleUp(true)}>
+                            <Icon name="swap_horiz" className="text-xl" />
+                            Acertar contas
+                        </Button>
+                    ) : undefined
+                }
+            >
                 {!ledger ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />
@@ -181,19 +171,7 @@ export default function GroupBalancesPage() {
                         })}
                     </div>
                 )}
-            </main>
-
-            {ledger && user?.id && (
-                <button
-                    type="button"
-                    onClick={() => setShowSettleUp(true)}
-                    className="fixed right-4 z-30 h-14 px-5 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 flex items-center gap-2 font-semibold active:scale-95 transition"
-                    style={{ bottom: getFabBottom(true) }}
-                >
-                    <Icon name="swap_horiz" className="text-xl" />
-                    Acertar contas
-                </button>
-            )}
+            </Sheet>
 
             {ledger && user?.id && (
                 <SettleUpSheet
@@ -205,6 +183,6 @@ export default function GroupBalancesPage() {
                     currentUserId={user.id}
                 />
             )}
-        </div>
+        </>
     );
 }

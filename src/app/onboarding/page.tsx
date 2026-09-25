@@ -228,17 +228,21 @@ export default function OnboardingPage() {
     useEffect(() => {
         const match = redirect?.match(/^\/invite\/([^/?]+)/);
         if (!match || !user?.id) return;
-        groupsApi.getByInviteCode(match[1]).then((group) => {
+        const code = match[1];
+        groupsApi.previewInvite(code).then((group) => {
             if (!group) return;
             setInviteGroup({
                 name: group.name,
-                avatarUrl: getGroupAvatarUrl(group.id, group.avatar),
+                avatarUrl: getGroupAvatarUrl(group.groupId, group.avatar),
                 emoji: guessGroupEmoji(group.avatar),
                 dateLabel: 'Hoje',
             });
-            groupsApi.addMember(group.id, user.id).catch((err) => {
+            if (group.isMember) return;
+            groupsApi.joinByInvite(code).catch((err) => {
                 console.error('Auto-join (onboarding) failed:', err);
             });
+        }).catch((err) => {
+            console.error('Invite preview (onboarding) failed:', err);
         });
     }, [redirect, user?.id]);
 

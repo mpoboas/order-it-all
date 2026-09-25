@@ -33,7 +33,7 @@ export function TotalsSheet({ isOpen, onClose, expenses, parties, currentUserId 
   }, [expenses, period, currentUserId, parties]);
 
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Totais" size="medium">
+    <Sheet isOpen={isOpen} onClose={onClose} title="Totais" size="full">
       <div className="space-y-4">
         <div className="flex p-1 bg-surface-sunken rounded-xl">
           {PERIODS.map((p) => (

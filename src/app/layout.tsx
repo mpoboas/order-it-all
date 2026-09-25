@@ -90,6 +90,17 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark';var c=document.documentElement.classList;c.toggle('dark',d);c.toggle('light',!d);}catch(e){}})();`,
           }}
         />
+        {/* `.is-ios` no <html> antes do 1º paint — usado só por `.status-bar-tint`
+            (globals.css) para disfarçar a faixa de blur que o iOS/iPadOS 27
+            (beta) pinta por cima da WPA instalada; não há media query fiável
+            para "isto e WebKit no iOS" (Chrome/Firefox no iOS usam o mesmo
+            motor e o mesmo bug). iPad com teclado/rato reporta-se como
+            Macintosh — daí o `maxTouchPoints`. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var ua=navigator.userAgent;if(/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)){document.documentElement.classList.add('is-ios');}}catch(e){}})();`,
+          }}
+        />
         {/* Next emite mobile-web-app-capable; o iOS < 16.4 ainda precisa do legado
             para entrar em standalone e respeitar o status bar translucido. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />

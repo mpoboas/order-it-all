@@ -20,8 +20,11 @@ interface BalanceBandProps {
   onSeeAllClick?: () => void;
 }
 
-/** Faixa logo abaixo da capa do grupo — saldo líquido + até 3 linhas por
- *  pessoa. A pastilha "N pessoas" vive agora na capa (`GroupCoverHeader`). */
+/** Faixa entre o nome do grupo (hero) e a fila de ações (`ActionChipRow`) —
+ *  saldo líquido + até 3 linhas por pessoa, centrada (ocupa o lugar do
+ *  antigo botão "Saldos" isolado). Sem borda própria — quem fecha esse
+ *  bloco (hero → esta faixa → `ActionChipRow` → tabs) é o `border-b` do
+ *  `ActionChipRow`, por baixo. */
 export function BalanceBand({
   netCents,
   lines,
@@ -34,11 +37,11 @@ export function BalanceBand({
   const overflow = lines.length - visibleLines.length;
 
   return (
-    <div className="px-4 py-3 border-b border-hairline bg-surface space-y-2">
+    <div className="px-4 py-3 bg-surface space-y-2 text-center">
       {settled ? (
-        <p className="text-sm font-semibold text-ink-faint text-right">Contas em dia</p>
+        <p className="text-sm font-semibold text-ink-faint">Contas em dia</p>
       ) : (
-        <p className={cn('text-sm font-semibold text-right', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
+        <p className={cn('text-sm font-semibold', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
           {net > 0 ? 'Devem-te ' : 'Deves '}
           <Money value={Math.abs(net)} />
           {net < 0 && ' no total'}
@@ -48,7 +51,7 @@ export function BalanceBand({
       {visibleLines.length > 0 && (
         <ul className="space-y-0.5">
           {visibleLines.map((line) => (
-            <li key={line.party} className="text-xs text-ink-soft text-right">
+            <li key={line.party} className="text-xs text-ink-soft">
               {line.amountCents > 0 ? (
                 <>
                   <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span> deve-te{' '}
@@ -64,7 +67,7 @@ export function BalanceBand({
             </li>
           ))}
           {overflow > 0 && (
-            <li className="text-right">
+            <li>
               <button
                 type="button"
                 onClick={onSeeAllClick}

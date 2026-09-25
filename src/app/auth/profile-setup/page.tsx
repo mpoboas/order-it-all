@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
-import { pb } from '@/lib/pocketbase';
+import { pb, authHeaders } from '@/lib/pocketbase';
 import {
     clearOAuthProfileHints,
     loadOAuthProfileHints,
@@ -205,7 +205,7 @@ export default function ProfileSetupPage() {
                 try {
                     const res = await fetch('/api/generate-username', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: authHeaders(),
                         body: JSON.stringify({ name }),
                     });
                     const data = await res.json();

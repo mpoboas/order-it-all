@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment, Friendship } from './types';
+import type { Trip, Order, Item, Split, Group, InvitePreview, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment, Friendship } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase(
@@ -10,6 +10,15 @@ const pb = new PocketBase(
 pb.autoCancellation(false);
 
 export { pb };
+
+/** Cabeçalhos para as rotas `/api/*` que exigem sessão — o servidor valida o
+ *  token junto do PocketBase (`src/lib/serverAuth.ts`). */
+export function authHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: pb.authStore.token,
+  };
+}
 
 // Trip API
 export const tripsApi = {
@@ -542,12 +551,21 @@ export const commentsApi = {
   },
 };
 
-// Helper to generate invite codes
+// Códigos de convite/partilha — são credenciais (quem tem o código entra no
+// grupo / mexe na divisão), por isso CSPRNG e não `Math.random`. Rejeição de
+// bytes ≥ 220 (4×55) para não enviesar a distribuição.
+const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+const INVITE_LENGTH = 10;
+
 function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const limit = 256 - (256 % INVITE_CHARS.length);
   let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  while (code.length < INVITE_LENGTH) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(INVITE_LENGTH * 2))) {
+      if (byte < limit && code.length < INVITE_LENGTH) {
+        code += INVITE_CHARS[byte % INVITE_CHARS.length];
+      }
+    }
   }
   return code;
 }
@@ -568,16 +586,28 @@ export const groupsApi = {
     });
   },
 
-  getByInviteCode: async (code: string): Promise<Group | null> => {
-    try {
-      const result = await pb.collection('groups').getFirstListItem<Group>(
-        `invite_code = "${code}" && invite_active = true`,
-        { expand: 'creator' }
-      );
-      return result;
-    } catch {
-      return null;
-    }
+  /** Pré-visualização de um convite. Quem ainda não é membro não tem acesso
+   *  de leitura a `groups`, por isso passa pela rota de servidor, que valida o
+   *  código e devolve só o mínimo para o ecrã de convite. */
+  previewInvite: async (code: string): Promise<InvitePreview | null> => {
+    const res = await fetch(`/api/groups/invite/${encodeURIComponent(code)}`, {
+      headers: pb.authStore.isValid ? authHeaders() : {},
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`invite preview failed: ${res.status}`);
+    return (await res.json()) as InvitePreview;
+  },
+
+  /** Entra no grupo do convite (a rota valida o código e acrescenta o
+   *  utilizador de forma atómica). Devolve o id do grupo. */
+  joinByInvite: async (code: string): Promise<string> => {
+    const res = await fetch(`/api/groups/invite/${encodeURIComponent(code)}`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    const data = (await res.json().catch(() => ({}))) as { groupId?: string; error?: string };
+    if (!res.ok || !data.groupId) throw new Error(data.error || `join failed: ${res.status}`);
+    return data.groupId;
   },
 
   create: async (data: { 
@@ -632,16 +662,9 @@ export const groupsApi = {
     return true;
   },
 
-  addMember: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    if (group.members.includes(userId)) {
-      return group; // Already a member
-    }
-    return await pb.collection('groups').update<Group>(groupId, {
-      members: [...group.members, userId],
-    });
-  },
-
+  // `members-`/`admins+`/… são os modificadores atómicos do PocketBase — em
+  // vez de ler o array, alterá-lo e reescrevê-lo inteiro (duas alterações em
+  // simultâneo perdiam uma delas).
   removeMember: async (groupId: string, userId: string): Promise<Group> => {
     const group = await pb.collection('groups').getOne<Group>(groupId);
     // Cannot remove creator
@@ -649,18 +672,14 @@ export const groupsApi = {
       throw new Error('Cannot remove the group creator');
     }
     return await pb.collection('groups').update<Group>(groupId, {
-      members: group.members.filter(id => id !== userId),
-      admins: group.admins.filter(id => id !== userId),
+      'members-': userId,
+      'admins-': userId,
     });
   },
 
   promoteToAdmin: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    if (group.admins.includes(userId)) {
-      return group; // Already an admin
-    }
     return await pb.collection('groups').update<Group>(groupId, {
-      admins: [...group.admins, userId],
+      'admins+': userId,
     });
   },
 
@@ -671,7 +690,7 @@ export const groupsApi = {
       throw new Error('Cannot demote the group creator');
     }
     return await pb.collection('groups').update<Group>(groupId, {
-      admins: group.admins.filter(id => id !== userId),
+      'admins-': userId,
     });
   },
 

@@ -11,6 +11,9 @@ import { mutationErrorMessage } from '@/lib/db/mutations';
 import { useToast } from '@/context/ToastContext';
 import { notify } from '@/lib/notify';
 import { Header } from '@/components/layout/Header';
+import { HomeOverview } from '@/components/features/HomeOverview';
+import { HomeTabs } from '@/components/features/HomeTabs';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
@@ -91,23 +94,11 @@ export default function PeoplePage() {
                         className="w-full h-full object-contain p-1"
                     />
                 }
-                actions={
-                    <button
-                        type="button"
-                        onClick={() => setShowAddFriend(true)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft"
-                        aria-label="Adicionar amigos"
-                    >
-                        <Icon name="person_add" className="text-xl" />
-                    </button>
-                }
             />
 
-            <main className="container mx-auto max-w-lg px-2 sm:px-4 py-4">
-                <div className="mb-6 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-ink mb-1">Amigos</h2>
-                    <p className="text-ink-soft">Saldo com cada pessoa, em todos os grupos</p>
-                </div>
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-4 pb-24">
+                <HomeOverview className="mb-6" />
+                <HomeTabs />
 
                 {friendships && friendships.incoming.length > 0 && (
                     <div className="mb-6 animate-fade-in-up">
@@ -195,6 +186,7 @@ export default function PeoplePage() {
                 )}
             </main>
 
+            <ExpandableFab icon="person_add" label="Adicionar Amigo" onClick={() => setShowAddFriend(true)} />
             <GlobalBottomNav />
 
             {user?.id && (
