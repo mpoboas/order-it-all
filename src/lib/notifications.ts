@@ -1,3 +1,4 @@
+import { registerAppServiceWorker } from '@/lib/serviceWorker';
 import { pb } from '@/lib/pocketbase';
 
 const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -9,8 +10,9 @@ export async function registerServiceWorker() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    return registration;
+    // Mesmo URL da casca offline (`SW_URL`) — registar outro script no mesmo
+    // scope substituiria o SW ativo.
+    return await registerAppServiceWorker();
   } catch (error) {
     console.error('Service Worker registration failed:', error);
   }

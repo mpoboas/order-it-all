@@ -8,6 +8,9 @@ import { parentPath, previousVisit } from '@/lib/navHierarchy';
 import { navStart } from '@/lib/navProgress';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { markNavDirection } from '@/lib/navTransition';
+import { isAppOffline } from '@/lib/connectivity';
+import { navigateWhileOffline, OFFLINE_NAV_BLOCKED_MESSAGE } from '@/lib/offlineNav';
+import { useToast } from '@/context/ToastContext';
 
 type NavOpts = {
   haptic?: boolean;
@@ -56,18 +59,31 @@ export function useAppNavigate() {
   const pathname = usePathname();
   const tryNavigate = useTryNavigate();
   const { trigger } = useWebHaptics();
+  const { showToast } = useToast();
+
+  // Sem rede: usa a cópia do ecrã guardada pelo service worker (só leitura) ou
+  // bloqueia com aviso — nunca deixa a navegação falhar em silêncio.
+  const goOffline = useCallback(
+    (href: string, mode: 'push' | 'replace') => {
+      void navigateWhileOffline(href, mode).then((ok) => {
+        if (!ok) showToast(OFFLINE_NAV_BLOCKED_MESSAGE, 'error');
+      });
+    },
+    [showToast],
+  );
 
   const push = useCallback(
     (href: string, opts?: NavOpts) => {
       if (isSamePath(href, pathname)) return;
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
+        if (isAppOffline()) return goOffline(href, 'push');
         navStart();
         if (opts?.transition !== 'none') markNavDirection('forward');
         router.push(href);
       });
     },
-    [router, tryNavigate, trigger, pathname],
+    [router, tryNavigate, trigger, pathname, goOffline],
   );
 
   const replace = useCallback(
@@ -75,12 +91,13 @@ export function useAppNavigate() {
       if (isSamePath(href, pathname)) return;
       if (opts?.haptic !== false) trigger();
       tryNavigate(() => {
+        if (isAppOffline()) return goOffline(href, 'replace');
         navStart();
         if (opts?.transition !== 'none') markNavDirection('forward');
         router.replace(href);
       });
     },
-    [router, tryNavigate, trigger, pathname],
+    [router, tryNavigate, trigger, pathname, goOffline],
   );
 
   const back = useCallback(
@@ -110,12 +127,14 @@ export function useAppNavigate() {
         } else if (previousVisit() === parent) {
           // O histórico já bate certo — `back()` volta ao pai e restaura o scroll.
           plainRouter.back();
+        } else if (isAppOffline()) {
+          goOffline(parent, 'push');
         } else {
           router.push(parent);
         }
       });
     },
-    [pathname, router, plainRouter, tryNavigate, trigger],
+    [pathname, router, plainRouter, tryNavigate, trigger, goOffline],
   );
 
   return { push, replace, back, up };

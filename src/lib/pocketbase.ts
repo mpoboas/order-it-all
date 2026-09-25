@@ -1,4 +1,5 @@
-import PocketBase from 'pocketbase';
+import PocketBase, { ClientResponseError, type SendOptions } from 'pocketbase';
+import { isAppOffline, OfflineError, reportNetworkFailure, reportNetworkSuccess } from './connectivity';
 import type { Trip, Order, Item, Split, Group, InvitePreview, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment, Friendship } from './types';
 
 // PocketBase client singleton
@@ -8,6 +9,29 @@ const pb = new PocketBase(
 
 // Disable auto-cancellation for real-time updates
 pb.autoCancellation(false);
+
+// Rede (Fase 13 · Parte B) — todos os pedidos da app ao PB passam por aqui:
+//  - sem rede, qualquer escrita é recusada JÁ, antes de sair do browser
+//    (`OfflineError` → "Sem ligação…" via `mutationErrorMessage`). Não há fila
+//    de escritas: a app é online, offline é só leitura;
+//  - uma falha de REDE (status 0, não cancelamento) põe a app em modo offline
+//    (lie-fi); qualquer resposta do servidor, mesmo 4xx/5xx, prova que há rede.
+const originalSend = pb.send.bind(pb);
+pb.send = (async (path: string, options: SendOptions) => {
+  const method = (options?.method || 'GET').toUpperCase();
+  if (method !== 'GET' && isAppOffline()) throw new OfflineError();
+  try {
+    const result = await originalSend(path, options);
+    reportNetworkSuccess();
+    return result;
+  } catch (err) {
+    if (err instanceof ClientResponseError) {
+      if (err.status === 0 && !err.isAbort) reportNetworkFailure();
+      else if (err.status > 0) reportNetworkSuccess();
+    }
+    throw err;
+  }
+}) as typeof pb.send;
 
 export { pb };
 
@@ -409,14 +433,22 @@ export const expensesApi = {
     });
   },
 
+  /**
+   * `expectedUpdated` = o `updated` da versão que se abriu para editar. O hook
+   * do servidor (`pb/hooks/handlers.js`) recusa com 409 se, entretanto, outra
+   * pessoa gravou — ver `isConflictError`. Omitir só para escritas que não
+   * partem de uma versão que o utilizador viu (ex.: scripts).
+   */
   update: async (
     id: string,
     data: Partial<Expense>,
-    updatedByUserId: string
+    updatedByUserId: string,
+    opts: { expectedUpdated?: string } = {}
   ): Promise<Expense> => {
     return await pb.collection('expenses').update<Expense>(id, {
       ...data,
       updated_by: updatedByUserId,
+      ...(opts.expectedUpdated ? { expected_updated: opts.expectedUpdated } : {}),
     });
   },
 

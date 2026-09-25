@@ -136,6 +136,30 @@ function validateExpense(expense, ctx, lookup) {
   }
 }
 
+/** Conflito de edição (outra pessoa gravou entretanto) — vira HTTP 409. */
+class ConflictError extends Error {}
+
+/**
+ * 4 · Controlo de concorrência otimista das despesas. O cliente manda o
+ * `updated` da versão que abriu para editar (`expected_updated`); se o
+ * guardado já for outro, alguém gravou entretanto e esta escrita apagaria a
+ * alteração dessa pessoa sem ela (nem quem edita) saber. Sem
+ * `expected_updated` não há verificação (scripts, versões antigas da app).
+ *
+ * @param expected   `expected_updated` enviado pelo cliente (ou vazio)
+ * @param current    { updated, deleted_at } da versão guardada
+ * @param touchesDeletion  o pedido mexe em `deleted_at` (apagar/restaurar)
+ */
+function checkNotStale(expected, current, touchesDeletion) {
+  if (!expected) return;
+  if (current.deleted_at && !touchesDeletion) {
+    throw new ConflictError('Esta despesa foi apagada por outra pessoa entretanto.');
+  }
+  if (String(expected) !== String(current.updated)) {
+    throw new ConflictError('Esta despesa foi alterada por outra pessoa entretanto.');
+  }
+}
+
 /** 2 · Mover um registo filho entre grupos: o grupo antigo e o novo têm de
  *  ser o mesmo (encomendas entre viagens, itens entre encomendas). */
 function checkSameGroup(oldGroupId, newGroupId, what) {
@@ -146,6 +170,8 @@ function checkSameGroup(oldGroupId, newGroupId, what) {
 
 module.exports = {
   InvariantError,
+  ConflictError,
+  checkNotStale,
   toCents,
   checkSums,
   validateExpense,

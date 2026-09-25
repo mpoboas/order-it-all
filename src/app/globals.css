@@ -937,3 +937,14 @@ label[for^="web-haptics-"] input {
     pointer-events: none;
   }
 }
+
+/* ===== Modo offline (Fase 13 · Parte B) =====
+   Com a app offline (ver `ConnectivityBanner`), a faixa "Sem ligação" ocupa o
+   topo. Em vez de ajustar ecrã a ecrã, alarga-se o `--safe-top` que todos os
+   cabeçalhos/sheets já respeitam — tudo desce a altura da faixa. */
+html.app-offline {
+  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--offline-banner-h));
+}
+:root {
+  --offline-banner-h: 2.25rem;
+}

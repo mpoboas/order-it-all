@@ -9,6 +9,7 @@ const inv = require(`${__hooks}/ledger_invariants.js`);
 
 function rethrow(err) {
   if (err instanceof inv.InvariantError) throw new BadRequestError(err.message);
+  if (err instanceof inv.ConflictError) throw new ApiError(409, err.message);
   throw err;
 }
 
@@ -89,6 +90,20 @@ function expense(e, isCreate) {
   let prev = null;
   if (!isCreate) {
     const original = e.record.original();
+
+    // 4 · OCC: corre antes do atalho "nada mudou", para um PATCH desatualizado
+    // nunca passar só por mexer em campos que não são dinheiro.
+    const body = e.requestInfo().body || {};
+    try {
+      inv.checkNotStale(
+        body.expected_updated,
+        { updated: original.getString('updated'), deleted_at: original.getString('deleted_at') },
+        Object.prototype.hasOwnProperty.call(body, 'deleted_at'),
+      );
+    } catch (err) {
+      rethrow(err);
+    }
+
     const changed = WATCHED.some((f) => original.getString(f) !== e.record.getString(f));
     if (!changed) return e.next();
     prev = snapshot(original);

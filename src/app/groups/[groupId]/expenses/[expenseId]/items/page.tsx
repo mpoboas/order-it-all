@@ -9,7 +9,7 @@ import { useConfirm } from '@/context/ConfirmContext';
 import { expensesApi, placeholdersApi, splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { useExpense, useParties, usePlaceholders, useSplit } from '@/lib/db/hooks';
-import { assertOnline, optimisticDelete, optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
+import { assertOnline, isConflictError, optimisticDelete, optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
 import { navStart } from '@/lib/navProgress';
 import type { Party, Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -258,20 +258,43 @@ export default function SplitItemsPage() {
     const [showPayerSheet, setShowPayerSheet] = useState(false);
 
     const saveItemsLedger = useCallback(
-        async (payers: { party: string; amount: number }[]) => {
-            if (!expense || !itemsLedger || !user?.id) return;
+        async (
+            payers: { party: string; amount: number }[],
+            opts: { manual?: boolean } = {},
+        ): Promise<'ok' | 'conflict' | 'error'> => {
+            if (!expense || !itemsLedger || !user?.id) return 'error';
             const amount = fromCents(itemsLedger.amountCents);
             const shares = itemsLedger.shares.map((s) => ({ party: s.party, amount: fromCents(s.amountCents) }));
             try {
-                const updated = await expensesApi.update(expense.id, { amount, shares, payers }, user.id);
+                const updated = await expensesApi.update(expense.id, { amount, shares, payers }, user.id, {
+                    expectedUpdated: expense.updated,
+                });
                 await db.expenses.put(updated);
+                return 'ok';
             } catch (err) {
+                if (isConflictError(err)) {
+                    // Alguém gravou a despesa entretanto. A sincronização
+                    // automática volta a correr sozinha quando a versão nova
+                    // chegar (é derivada dos itens); só a reatribuição manual
+                    // de pagadores precisa de avisar.
+                    if (opts.manual) showToast('A despesa mudou entretanto — revê quem pagou e tenta outra vez.', 'error');
+                    return 'conflict';
+                }
                 console.error('[expense] falha ao sincronizar total dos itens', err);
                 showToast(mutationErrorMessage(err, 'Erro ao atualizar o total da despesa'), 'error');
+                return 'error';
             }
         },
         [expense, itemsLedger, user?.id, showToast],
     );
+
+    // No máximo UMA gravação automática por versão da despesa: enquanto o PATCH
+    // está no ar chegam mais renders do mesmo split (otimista, eco do realtime)
+    // ainda com a despesa antiga — cada um voltava a gravar a partir da mesma
+    // versão, e com o controlo de concorrência esses duplicados davam 409.
+    // Quando a versão nova chega (realtime / resposta), o efeito volta a
+    // comparar e só grava se ainda houver diferença.
+    const syncedFromVersion = useRef<string | null>(null);
 
     useEffect(() => {
         if (!expense || !itemsLedger || !itemsLedger.payersMatch) return;
@@ -290,7 +313,13 @@ export default function SplitItemsPage() {
             return;
         }
 
-        void saveItemsLedger(payers);
+        if (syncedFromVersion.current === expense.updated) return;
+        syncedFromVersion.current = expense.updated;
+        void saveItemsLedger(payers).then((result) => {
+            // Erro de rede/servidor: liberta para voltar a tentar na próxima
+            // mudança. Conflito: a versão nova vem a caminho e desbloqueia.
+            if (result === 'error') syncedFromVersion.current = null;
+        });
     }, [expense, itemsLedger, saveItemsLedger]);
 
     type ItemsMutator = (items: SplitItem[]) => SplitItem[];
@@ -791,7 +820,7 @@ export default function SplitItemsPage() {
                     parties={Array.from(partiesMap.values())}
                     totalAmount={fromCents(itemsLedger.amountCents)}
                     payers={expense.payers}
-                    onConfirm={(payers) => void saveItemsLedger(payers)}
+                    onConfirm={(payers) => void saveItemsLedger(payers, { manual: true })}
                 />
             )}
 

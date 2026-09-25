@@ -7,6 +7,8 @@ import { GroupProvider } from "@/context/GroupContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
 import { HapticsA11yGuard } from '@/components/ui/HapticsA11yGuard';
+import { ConnectivityBanner } from '@/components/layout/ConnectivityBanner';
+import { ServiceWorkerRegistrar } from '@/components/layout/ServiceWorkerRegistrar';
 import { ConfirmProvider } from "@/context/ConfirmContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
@@ -121,6 +123,8 @@ export default function RootLayout({
                         <NavHistoryTracker />
                         <ToastContainer />
                         <HapticsA11yGuard />
+                        <ConnectivityBanner />
+                        <ServiceWorkerRegistrar />
                         <LazyPushNotificationManager />
                       </RefreshProvider>
                     </ThemeProvider>

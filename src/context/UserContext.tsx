@@ -28,11 +28,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
         });
 
         // Try to refresh auth if we have a token
+        // Só termina a sessão se o SERVIDOR recusar o token (401/403). Uma falha
+        // de rede, um pedido cancelado ou a app offline (o refresh é um POST,
+        // bloqueado sem rede — ver pocketbase.ts) não dizem nada sobre o token:
+        // antes faziam logout, e abrir a app sem rede deitava fora a sessão
+        // precisamente quando devia mostrar os dados guardados.
         if (pb.authStore.model) {
             usersApi.authRefresh()
-                .catch(() => {
-                    console.warn('Auth token invalid/expired');
-                    usersApi.logout();
+                .catch((err: { status?: number }) => {
+                    if (err?.status === 401 || err?.status === 403) {
+                        console.warn('Auth token invalid/expired');
+                        usersApi.logout();
+                    }
                 });
         }
 

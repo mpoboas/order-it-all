@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { PriceInput } from '@/components/ui/PriceInput';
@@ -10,8 +10,9 @@ import { SplitModeSheet, type SplitModeResult } from '@/components/features/Spli
 import { CategoryPickerSheet } from '@/components/features/CategoryPickerSheet';
 import { expensesApi, splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
-import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
+import { assertOnline, isConflictError, mutationErrorMessage } from '@/lib/db/mutations';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { guessCategory } from '@/lib/ledger/categories';
 import { computeShares, type ComputableSplitMode } from '@/lib/ledger/shares';
 import { toCents, fromCents } from '@/lib/ledger/money';
@@ -56,6 +57,7 @@ export function ExpenseFormSheet({
   notifyUrl,
 }: ExpenseFormSheetProps) {
   const { showToast } = useToast();
+  const confirmAction = useConfirm();
   const isEditing = Boolean(expense);
 
   const [description, setDescription] = useState('');
@@ -80,32 +82,62 @@ export function ExpenseFormSheet({
 
   const allParties = Array.from(parties.values());
 
+  // Versão (`updated`) da despesa que se abriu para editar — controlo de
+  // concorrência otimista: vai no pedido como `expected_updated` e o servidor
+  // recusa (409) se outra pessoa gravou entretanto.
+  const [baseUpdated, setBaseUpdated] = useState<string | null>(null);
+
+  const loadFrom = useCallback((exp: Expense) => {
+    setDescription(exp.description);
+    setAmount(exp.amount);
+    setDate(exp.date.slice(0, 10));
+    setCategory(exp.category || 'other');
+    setCategoryTouched(true);
+    setNotes(exp.notes || '');
+    setPayers(exp.payers);
+    setSplitMode(exp.split_mode);
+    setParticipantIds(exp.shares.map((s) => s.party));
+    setSplitInputs(Object.fromEntries(exp.shares.map((s) => [s.party, s.input ?? 0])));
+    setBaseUpdated(exp.updated);
+  }, []);
+
+  // Preenche o formulário SÓ ao abrir (ou ao mudar de despesa) — antes o efeito
+  // dependia do objeto `expense`, e uma gravação de outra pessoa a chegar por
+  // realtime repunha o formulário em silêncio, apagando o que se estava a
+  // escrever. Agora isso aparece como aviso (`changedUnderneath`).
+  const latest = useRef({ expense, parties, currentUserId });
   useEffect(() => {
-    if (!isOpen) return;
-    if (expense) {
-      setDescription(expense.description);
-      setAmount(expense.amount);
-      setDate(expense.date.slice(0, 10));
-      setCategory(expense.category || 'other');
-      setCategoryTouched(true);
-      setNotes(expense.notes || '');
-      setPayers(expense.payers);
-      setSplitMode(expense.split_mode);
-      setParticipantIds(expense.shares.map((s) => s.party));
-      setSplitInputs(Object.fromEntries(expense.shares.map((s) => [s.party, s.input ?? 0])));
-    } else {
-      setDescription('');
-      setAmount(0);
-      setDate(todayIso());
-      setCategory('other');
-      setCategoryTouched(false);
-      setNotes('');
-      setPayers(currentUserId ? [{ party: currentUserId, amount: 0 }] : []);
-      setSplitMode('equal');
-      setParticipantIds(Array.from(parties.keys()));
-      setSplitInputs({});
+    latest.current = { expense, parties, currentUserId };
+  });
+  // Numa despesa nova, `parties.size` no key: se as partes só chegarem depois
+  // de abrir, a lista de participantes por omissão ainda as apanha.
+  const openKey = isOpen ? (expense?.id ?? `new:${parties.size}`) : null;
+  useEffect(() => {
+    if (openKey === null) return;
+    const { expense: exp, parties: ps, currentUserId: uid } = latest.current;
+    if (exp) {
+      loadFrom(exp);
+      return;
     }
-  }, [isOpen, expense, currentUserId, parties]);
+    setDescription('');
+    setAmount(0);
+    setDate(todayIso());
+    setCategory('other');
+    setCategoryTouched(false);
+    setNotes('');
+    setPayers(uid ? [{ party: uid, amount: 0 }] : []);
+    setSplitMode('equal');
+    setParticipantIds(Array.from(ps.keys()));
+    setSplitInputs({});
+    setBaseUpdated(null);
+  }, [openKey, loadFrom]);
+
+  // Outra pessoa gravou/apagou esta despesa enquanto o formulário está aberto
+  // (chega por realtime via Dexie) — avisa já, antes de o 409 acontecer.
+  const changedUnderneath = isEditing && !!expense && !!baseUpdated && expense.updated !== baseUpdated;
+  const deletedUnderneath = isEditing && !!expense?.deleted_at;
+  const changedBy =
+    expense?.updated_by && expense.updated_by !== currentUserId ? partyLabel(expense.updated_by, parties) : null;
 
   const handleDescriptionChange = (value: string) => {
     setDescription(value);
@@ -150,9 +182,12 @@ export function ExpenseFormSheet({
   const payersCents = payers.reduce((sum, p) => sum + toCents(p.amount), 0);
   const payersMatch = payersCents === toCents(amount);
 
-  const canSubmit = description.trim().length > 0 && amount > 0 && payers.length > 0 && payersMatch && !submitting;
+  const canSubmit =
+    description.trim().length > 0 && amount > 0 && payers.length > 0 && payersMatch && !deletedUnderneath && !submitting;
 
-  const handleSubmit = async () => {
+  /** `expectedUpdated` por omissão = a versão que se abriu; "Gravar por cima"
+   *  passa a versão atual (decisão explícita de substituir a alteração do outro). */
+  const handleSubmit = async (expectedUpdated: string | null = baseUpdated) => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
@@ -196,7 +231,10 @@ export function ExpenseFormSheet({
 
       let saved: Expense;
       if (isEditing && expense) {
-        saved = await expensesApi.update(expense.id, base, currentUserId);
+        saved = await expensesApi.update(expense.id, base, currentUserId, {
+          expectedUpdated: expectedUpdated ?? undefined,
+        });
+        setBaseUpdated(saved.updated); // a nossa gravação não é "alteração de outra pessoa"
       } else {
         saved = await expensesApi.create({
           group_id: groupId,
@@ -235,6 +273,31 @@ export function ExpenseFormSheet({
         url: notifyUrl ? notifyUrl(saved) : `/groups/${groupId}/expenses/${saved.id}`,
       });
     } catch (error) {
+      if (isConflictError(error) && expense) {
+        // Traz já a versão atual para o Dexie (o realtime pode vir atrasado),
+        // para o aviso e o "Carregar a versão atual" mostrarem o que mudou.
+        try {
+          await db.expenses.put(await expensesApi.getById(expense.id));
+        } catch {
+          // sem rede / sem acesso — o aviso fica com o que o realtime trouxer
+        }
+        // Só "carregar" ou "voltar" — nunca "gravar por cima" como resposta a
+        // um diálogo que também se fecha com Escape/fundo. Gravar por cima é
+        // um botão explícito no aviso do formulário.
+        const load = await confirmAction({
+          title: mutationErrorMessage(error, 'Esta despesa foi alterada por outra pessoa entretanto.'),
+          description:
+            'Carrega a versão atual para veres o que mudou (perdes o que alteraste aqui), ou volta ao formulário — no aviso lá em cima podes escolher gravar por cima.',
+          confirmLabel: 'Carregar a versão atual',
+          cancelLabel: 'Voltar ao formulário',
+          tone: 'warning',
+        });
+        if (load) {
+          const current = await db.expenses.get(expense.id);
+          if (current) loadFrom(current);
+        }
+        return;
+      }
       showToast(mutationErrorMessage(error, 'Erro ao guardar despesa'), 'error');
     } finally {
       setSubmitting(false);
@@ -251,12 +314,39 @@ export function ExpenseFormSheet({
         title={isEditing ? 'Editar despesa' : 'Nova despesa'}
         size="full"
         footer={
-          <Button block loading={submitting} disabled={!canSubmit} onClick={handleSubmit}>
+          <Button block loading={submitting} disabled={!canSubmit} onClick={() => handleSubmit()}>
             Guardar
           </Button>
         }
       >
         <div className="space-y-5 px-1 pb-2">
+          {(changedUnderneath || deletedUnderneath) && (
+            <div role="alert" className="rounded-2xl bg-warning-bg text-warning-fg px-4 py-3 text-sm">
+              <p className="font-semibold">
+                {deletedUnderneath
+                  ? 'Esta despesa foi apagada entretanto — já não pode ser gravada.'
+                  : `${changedBy ?? 'Alguém'} alterou esta despesa enquanto editavas.`}
+              </p>
+              {!deletedUnderneath && expense && (
+                <>
+                  <p className="mt-0.5">Se gravares agora, a alteração dessa pessoa é substituída pela tua.</p>
+                  <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+                    <button type="button" onClick={() => loadFrom(expense)} className="font-semibold underline underline-offset-2">
+                      Carregar a versão atual
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canSubmit}
+                      onClick={() => handleSubmit(expense.updated)}
+                      className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                    >
+                      Gravar por cima
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <CategoryIcon category={category} size="lg" onClick={() => setShowCategorySheet(true)} />
             <div className="flex-1 min-w-0 space-y-2">

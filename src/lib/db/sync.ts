@@ -3,6 +3,7 @@ import type { RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import { pb } from '@/lib/pocketbase';
 import type { Group, User, Expense, Placeholder, ExpenseComment, Friendship } from '@/lib/types';
 import { db, extractUsersFromExpand, metaGet, metaSet } from './schema';
+import { isAppOffline, markSynced } from '@/lib/connectivity';
 
 /**
  * Sincronização local-first, com **âmbito por grupo**.
@@ -490,13 +491,18 @@ function drainQueue(): void {
 }
 
 async function withRetryOnce(fn: () => Promise<void>): Promise<void> {
+  // Offline (incl. lie-fi): nem tentar — os pedidos só falhariam, e o sync
+  // corre outra vez quando a ligação voltar (`online` / `app:online`).
+  if (isAppOffline()) return;
   try {
     await fn();
   } catch (err) {
+    if (isAppOffline()) return;
     console.warn('[sync] catchUp — retry único', err);
     await new Promise((r) => setTimeout(r, 1000));
     await fn();
   }
+  markSynced();
 }
 
 async function runCatchUp(opts: SyncOpts): Promise<void> {
@@ -740,10 +746,21 @@ export async function startRealtime(): Promise<void> {
     if (globalFailed) console.warn(`[sync] ${globalFailed} subscrições globais falharam`);
     if (activeGroupId) await swapGroupRealtime(activeGroupId);
   } catch (err) {
-    console.warn('[sync] startRealtime falhou — retry em 5s', err);
-    setTimeout(() => {
-      void stopRealtime().then(() => startRealtime());
-    }, 5000);
+    const retry = () => void stopRealtime().then(() => startRealtime());
+    if (isAppOffline()) {
+      // Sem rede não vale a pena insistir de 5 em 5 s (bateria, consola cheia):
+      // volta a tentar quando a ligação regressar (browser ou health check).
+      const onBack = () => {
+        window.removeEventListener('online', onBack);
+        window.removeEventListener('app:online', onBack);
+        retry();
+      };
+      window.addEventListener('online', onBack);
+      window.addEventListener('app:online', onBack);
+    } else {
+      console.warn('[sync] startRealtime falhou — retry em 5s', err);
+      setTimeout(retry, 5000);
+    }
   } finally {
     realtimeStarting = false;
   }

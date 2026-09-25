@@ -1,23 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+import { isAppOffline, subscribeConnectivity } from '@/lib/connectivity';
 
-/** `navigator.onLine` reativo. SSR-safe (assume online no servidor). */
+/**
+ * `true` se a app tem ligação. Não é só `navigator.onLine`: um pedido ao PB
+ * que falhe por rede também conta como offline até um health check passar
+ * (lie-fi — ver `src/lib/connectivity.ts`). SSR assume online.
+ */
 export function useOnline(): boolean {
-  const [online, setOnline] = useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine,
+  return useSyncExternalStore(
+    subscribeConnectivity,
+    () => !isAppOffline(),
+    () => true,
   );
-
-  useEffect(() => {
-    const goOnline = () => setOnline(true);
-    const goOffline = () => setOnline(false);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
-  return online;
 }

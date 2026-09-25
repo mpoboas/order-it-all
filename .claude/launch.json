@@ -4,8 +4,28 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "prod-local",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-local-prod.mjs"
+      ],
+      "port": 3110
+    },
+    {
+      "name": "prod-local-nobuild",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-local-prod.mjs",
+        "--no-build"
+      ],
+      "port": 3110
     }
   ]
 }

@@ -198,3 +198,33 @@ describe('checkSameGroup', () => {
     expect(() => inv.checkSameGroup(G1, G2, 'o item')).toThrow(/mover o item para outro grupo/);
   });
 });
+
+describe('checkNotStale — edições concorrentes (OCC)', () => {
+  const current = { updated: '2026-09-25 14:09:29.313Z', deleted_at: '' };
+
+  it('passa quando a versão que se editou é a guardada', () => {
+    expect(() => inv.checkNotStale('2026-09-25 14:09:29.313Z', current, false)).not.toThrow();
+  });
+
+  it('recusa quando outra pessoa gravou entretanto (1 ms de diferença chega)', () => {
+    expect(() => inv.checkNotStale('2026-09-25 14:09:29.312Z', current, false)).toThrow(inv.ConflictError);
+    expect(() => inv.checkNotStale('2026-09-25 14:09:29.312Z', current, false)).toThrow(/alterada por outra pessoa/);
+  });
+
+  it('recusa editar uma despesa que entretanto foi apagada', () => {
+    expect(() =>
+      inv.checkNotStale(current.updated, { ...current, deleted_at: '2026-09-25 14:10:00.000Z' }, false),
+    ).toThrow(/apagada por outra pessoa/);
+  });
+
+  it('restaurar uma despesa apagada (mexe em deleted_at) não é bloqueado por estar apagada', () => {
+    expect(() =>
+      inv.checkNotStale(current.updated, { ...current, deleted_at: '2026-09-25 14:10:00.000Z' }, true),
+    ).not.toThrow();
+  });
+
+  it('sem expected_updated não verifica (scripts, versões antigas da app)', () => {
+    expect(() => inv.checkNotStale(undefined, current, false)).not.toThrow();
+    expect(() => inv.checkNotStale('', current, false)).not.toThrow();
+  });
+});

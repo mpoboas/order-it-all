@@ -106,6 +106,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onOnline);
+    // Recuperação de lie-fi (o browser nunca disse offline) — ver connectivity.ts.
+    window.addEventListener('app:online', onOnline);
 
     const heartbeat = setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -116,6 +118,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('online', onOnline);
+      window.removeEventListener('app:online', onOnline);
       clearInterval(heartbeat);
     };
   }, [userId]);

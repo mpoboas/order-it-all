@@ -8,7 +8,7 @@ import {
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
-    Scale, Activity, Send, Settings, UserPlus, AtSign,
+    Scale, Activity, Send, Settings, UserPlus, AtSign, CloudOff,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -66,6 +66,7 @@ const MAP = {
     picture_as_pdf: FileText,
     receipt_long: ReceiptText,
     refresh: RefreshCw,
+    cloud_off: CloudOff,
     key: Key,
     filter_list: ListFilter,
     checklist: ListChecks,
