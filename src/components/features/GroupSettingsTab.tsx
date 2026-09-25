@@ -14,7 +14,6 @@ import {
 import { groupMembersFromExpand, canonicalPartyId } from '@/lib/parties';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { usePlaceholders, useExpenses, useGroupLedger } from '@/lib/db/hooks';
-import { fromCents } from '@/lib/ledger/money';
 import { db } from '@/lib/db/schema';
 import { optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
 import { cn, emojiToImageBlob } from '@/lib/utils';
@@ -23,12 +22,10 @@ import { useConfirm } from '@/context/ConfirmContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { Money } from '@/components/ui/Money';
+import { GroupNetBalance } from '@/components/features/BalanceRows';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { ClaimPlaceholderSheet } from '@/components/features/ClaimPlaceholderSheet';
-
-const EPS_CENTS = 1;
 
 interface GroupSettingsTabProps {
   group: Group;
@@ -534,7 +531,6 @@ export function GroupSettingsTab({
             const isMemberAdmin = group.admins.includes(member.id);
             const isMemberCreator = group.creator === member.id;
             const netCents = ledger ? ledger.net[canonicalPartyId(member.id, ledger.parties)] ?? 0 : 0;
-            const settled = Math.abs(netCents) < EPS_CENTS;
 
             return (
               <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-hairline bg-surface p-3">
@@ -548,19 +544,7 @@ export function GroupSettingsTab({
                   {member.email && <p className="text-xs text-ink-faint truncate">{member.email}</p>}
                 </div>
 
-                {ledger && (
-                  <div className="text-right shrink-0">
-                    <p className={cn('text-[10px] font-bold uppercase', settled ? 'text-ink-faint' : netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-                      {settled ? 'em dia' : netCents > 0 ? 'recebe' : 'deve'}
-                    </p>
-                    {!settled && (
-                      <Money
-                        value={Math.abs(fromCents(netCents))}
-                        className={cn('text-sm font-bold', netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
-                      />
-                    )}
-                  </div>
-                )}
+                {ledger && <GroupNetBalance netCents={netCents} />}
 
                 {currentUserId !== member.id && (
                   <div className="flex items-center gap-1 shrink-0">
@@ -622,7 +606,9 @@ export function GroupSettingsTab({
               'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
               group.invite_active ? 'bg-primary-600' : 'bg-hairline-strong'
             )}
-            aria-pressed={group.invite_active}
+            role="switch"
+            aria-checked={group.invite_active}
+            aria-label="Link de convite ativo"
           >
             <span
               className={cn(
@@ -693,7 +679,9 @@ export function GroupSettingsTab({
               'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
               group.show_all_orders ? 'bg-primary-600' : 'bg-hairline-strong'
             )}
-            aria-pressed={group.show_all_orders}
+            role="switch"
+            aria-checked={!!group.show_all_orders}
+            aria-label="Pedidos de todos"
           >
             <span
               className={cn(
@@ -724,7 +712,9 @@ export function GroupSettingsTab({
               'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
               (group.simplify_debts ?? true) ? 'bg-primary-600' : 'bg-hairline-strong'
             )}
-            aria-pressed={group.simplify_debts ?? true}
+            role="switch"
+            aria-checked={group.simplify_debts ?? true}
+            aria-label="Simplificar dívidas"
           >
             <span
               className={cn(

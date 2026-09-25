@@ -105,6 +105,8 @@ export function SplitModeSheet({
 
   const suffixFor = (m: ExpenseSplitMode) =>
     m === 'exact' || m === 'adjustment' ? '€' : m === 'percentage' ? '%' : '';
+  const inputLabelFor = (m: ExpenseSplitMode) =>
+    m === 'exact' ? 'Valor' : m === 'percentage' ? 'Percentagem' : m === 'shares' ? 'Quotas' : 'Ajuste';
 
   return (
     <Sheet
@@ -158,8 +160,9 @@ export function SplitModeSheet({
                       checked ? 'bg-primary-600 border-primary-600 text-white' : 'border-hairline bg-app',
                     )}
                     aria-pressed={checked}
+                    aria-label={`Incluir ${party.name} na divisão`}
                   >
-                    {checked && <Icon name="check" className="text-lg" strokeWidth={3} />}
+                    {checked && <Icon name="check" className="text-lg" strokeWidth={3} aria-hidden="true" />}
                   </button>
                 </li>
               );
@@ -182,6 +185,7 @@ export function SplitModeSheet({
                       value={value === 0 ? '' : value}
                       onChange={(e) => setInput(party.id, e.target.value)}
                       placeholder="0"
+                      aria-label={`${inputLabelFor(mode)} de ${party.name}`}
                       className="w-20 text-right text-base font-semibold bg-transparent border-b-2 border-hairline focus:border-primary-500 outline-none py-1"
                     />
                     {suffixFor(mode) && <span className="text-sm text-ink-faint">{suffixFor(mode)}</span>}

@@ -18,6 +18,8 @@ import { toCents, fromCents } from '@/lib/ledger/money';
 import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { notify, notifiableUserIds } from '@/lib/notify';
 import { formatEUR } from '@/lib/money';
+import { cn } from '@/lib/utils';
+import { Icon } from '@/components/ui/Icon';
 import type { Expense, ExpensePayer, ExpenseSplitMode, Party } from '@/lib/types';
 
 interface ExpenseFormSheetProps {
@@ -64,6 +66,10 @@ export function ExpenseFormSheet({
   const [notes, setNotes] = useState('');
   const [payers, setPayers] = useState<ExpensePayer[]>([]);
   const [splitMode, setSplitMode] = useState<ExpenseSplitMode>('equal');
+  // Numa despesa por itens já gravada, o total é a soma dos itens — não se
+  // escreve à mão (mudá-lo aqui só era recusado ao gravar). Ao criar continua
+  // editável: é o valor provisório até haver itens.
+  const totalFromItems = isEditing && expense?.split_mode === 'itemized' && splitMode === 'itemized';
   const [participantIds, setParticipantIds] = useState<string[]>([]);
   const [splitInputs, setSplitInputs] = useState<Record<string, number>>({});
 
@@ -212,7 +218,10 @@ export function ExpenseFormSheet({
       }
 
       onSaved(saved);
-      if (splitMode === 'itemized') onOpenItems?.(saved);
+      // Só ao criar: acabou de nascer, falta distribuir os itens. Ao editar
+      // (pagadores, data, notas…) fica-se onde se estava — "Ver itens" está
+      // ao lado do total para quem quiser lá ir.
+      if (splitMode === 'itemized' && !isEditing) onOpenItems?.(saved);
       onClose();
 
       const notifyPartyIds = Array.from(
@@ -265,8 +274,38 @@ export function ExpenseFormSheet({
           <PriceInput
             value={amount}
             onValueChange={handleAmountChange}
-            className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 outline-none bg-surface-sunken focus:bg-surface text-2xl font-bold text-center"
+            readOnly={totalFromItems}
+            aria-label="Total da despesa"
+            aria-describedby={splitMode === 'itemized' ? 'expense-total-hint' : undefined}
+            className={cn(
+              'w-full px-4 py-3 rounded-xl border-2 border-hairline outline-none bg-surface-sunken text-2xl font-bold text-center',
+              totalFromItems ? 'text-ink-soft cursor-default' : 'focus:border-primary-500 focus:bg-surface',
+            )}
           />
+          {splitMode === 'itemized' && (
+            <p id="expense-total-hint" className="flex items-center justify-center gap-1.5 text-xs text-ink-faint">
+              {totalFromItems ? (
+                <>
+                  <Icon name="lock" size={14} />
+                  O total vem dos itens.
+                  {expense && onOpenItems && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenItems(expense);
+                        onClose();
+                      }}
+                      className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      Ver itens
+                    </button>
+                  )}
+                </>
+              ) : (
+                'Valor provisório — o total final vem dos itens.'
+              )}
+            </p>
+          )}
 
           <p className="text-center text-sm text-ink-soft">
             Pago por{' '}

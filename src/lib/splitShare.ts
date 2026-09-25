@@ -257,3 +257,17 @@ export function findMyPublicPartyId(
   }
   return null;
 }
+
+/**
+ * Regra de produto do link público: quem entra pelo link só escolhe o que
+ * consumiu (entrar/sair de itens, repartir a sua parte) — nunca adiciona ou
+ * apaga itens nem muda nomes/preços, para o total da despesa não mudar sem um
+ * membro (que é obrigado a reatribuir quem pagou). A rota verifica isto antes
+ * de gravar, como segunda linha de defesa contra um bug na lógica de repartição.
+ */
+export function onlyParticipationChanged(before: SplitItem[], after: SplitItem[]): boolean {
+  if (before.length !== after.length) return false;
+  return before.every(
+    (item, i) => item.name === after[i].name && Math.round(item.price * 100) === Math.round(after[i].price * 100),
+  );
+}

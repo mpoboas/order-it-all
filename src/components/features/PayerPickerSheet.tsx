@@ -119,6 +119,7 @@ export function PayerPickerSheet({
                 <PriceInput
                   value={amounts[party.id] ?? 0}
                   onValueChange={(v) => setAmounts((prev) => ({ ...prev, [party.id]: v }))}
+                  aria-label={`Quanto pagou ${party.name}`}
                   className="w-24 text-right px-2 py-1.5 rounded-lg border border-hairline bg-surface-sunken focus:border-primary-500 outline-none"
                 />
               </li>

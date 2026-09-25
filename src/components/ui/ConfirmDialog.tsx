@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useWebHaptics } from 'web-haptics/react';
@@ -53,17 +54,9 @@ export function ConfirmDialog({
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onCancel]);
+  // Escape cancela — via a pilha partilhada, para não fechar também a sheet
+  // que estiver por baixo.
+  useEscapeToClose(open, onCancel);
 
   useBodyScrollLock(open);
 

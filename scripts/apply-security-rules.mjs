@@ -20,8 +20,8 @@
  * `.env`/`.env.production`).
  *
  * ⚠️ Ordem de deploy: publicar primeiro a versão da app com
- * `/api/groups/invite/[code]` e o cabeçalho `X-Share-Code`
- * (`src/lib/splitShareAdmin.ts`) — com as regras novas, a versão antiga da
+ * `/api/groups/invite/[code]` e o link público de divisão a passar só pela
+ * rota de servidor (`src/lib/splitShareAdmin.ts`) — com as regras novas, a versão antiga da
  * app deixa de conseguir entrar em grupos por convite e o link público de
  * divisão deixa de funcionar.
  */
@@ -46,16 +46,6 @@ if (!PB_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
 // --- Regras: manter em sintonia com pb/migrations/5_lock_legacy.js --------
 const MEMBER = (path) => `${path}.members.id ?= @request.auth.id`;
 const ADMIN = (path) => `${path}.admins.id ?= @request.auth.id`;
-const SPLIT_LOCKED_FIELDS = [
-  'allowed_modes', 'confirmed_participants', 'created_by', 'description',
-  'group_id', 'name', 'participants', 'share_active', 'share_code', 'status',
-  'splitwise_expense_id', 'splitwise_exported_at', 'splitwise_participant_map',
-];
-const SHARE_MATCH =
-  'share_active = true && share_code != "" && share_code = @request.headers.x_share_code';
-const SHARE_WRITE =
-  `@request.auth.id = "" && ${SHARE_MATCH} && ` +
-  SPLIT_LOCKED_FIELDS.map((f) => `@request.body.${f}:isset = false`).join(' && ');
 const VERSION_OK =
   '(@request.body.items_version:isset = false || @request.body.items_version > items_version)';
 
@@ -90,11 +80,14 @@ const RULES = {
     updateRule: MEMBER('order_id.trip_id.group_id'),
     deleteRule: MEMBER('order_id.trip_id.group_id'),
   },
+  // Só membros. O link público (`/split/[code]`) não toca no PB diretamente:
+  // passa pela rota `/api/splits/share/[code]` (superuser), que só deixa
+  // escolher o que se consumiu — nunca itens/preços/total.
   splits: {
-    listRule: `${MEMBER('group_id')} || (${SHARE_MATCH})`,
-    viewRule: `${MEMBER('group_id')} || (${SHARE_MATCH})`,
+    listRule: MEMBER('group_id'),
+    viewRule: MEMBER('group_id'),
     createRule: MEMBER('group_id'),
-    updateRule: `(${MEMBER('group_id')} || (${SHARE_WRITE})) && ${VERSION_OK}`,
+    updateRule: `${MEMBER('group_id')} && ${VERSION_OK}`,
     deleteRule: MEMBER('group_id'),
   },
 };

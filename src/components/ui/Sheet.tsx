@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/Icon';
 import { StatusBarTint } from '@/components/ui/StatusBarTint';
 import { useVisualViewport } from '@/hooks/useVisualViewport';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 export type SheetSize = 'auto' | 'medium' | 'large' | 'full';
 
@@ -117,18 +118,9 @@ export function Sheet({
 
     useBodyScrollLock(isExpanded);
 
-    useEffect(() => {
-        if (!isOpen || !shouldMinimize || minimized) return;
-
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                handleDismiss();
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [isOpen, shouldMinimize, minimized, handleDismiss]);
+    // Escape fecha (ou minimiza, num rascunho) — todas as sheets, não só as
+    // minimizáveis; com várias empilhadas, só a de cima (`useEscapeToClose`).
+    useEscapeToClose(isExpanded, handleDismiss);
 
     const panelTransition = reduceMotion ? { duration: 0.01 } : sheetSpring;
     const backdropTransition = reduceMotion ? { duration: 0.01 } : sheetEase;

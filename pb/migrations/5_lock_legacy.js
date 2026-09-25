@@ -16,11 +16,11 @@
 //   orders  — membros do grupo (há encomendas criadas por outra pessoa —
 //   items     `createdByUserId`, "mover item" — permissões planas, como nas
 //             despesas).
-//   splits  — membros do grupo, OU pedido anónimo com o `share_code` certo no
-//             cabeçalho `X-Share-Code` (link público `/split/[code]`, ver
-//             `src/lib/splitShareAdmin.ts`), que só pode mexer em
-//             `items`/`items_version`. Update mantém o controlo de
-//             concorrência: `items_version` enviado tem de ser > o guardado.
+//   splits  — só membros do grupo. O link público `/split/[code]` passa pela
+//             rota `/api/splits/share/[code]` (superuser, ver
+//             `src/lib/splitShareAdmin.ts`), que só deixa escolher o que se
+//             consumiu. Update mantém o controlo de concorrência dos membros:
+//             `items_version` enviado tem de ser > o guardado.
 //
 // ⚠️ Best-effort sobre a versão exata do servidor (mesma ressalva do
 // `1_ledger.js`). Rollback não repõe as regras antigas de propósito — eram
@@ -29,18 +29,6 @@
 const MEMBER = (path) => `${path}.members.id ?= @request.auth.id`;
 const ADMIN = (path) => `${path}.admins.id ?= @request.auth.id`;
 
-// Campos de `splits` que o link público NUNCA pode alterar (tudo menos
-// `items`/`items_version`).
-const SPLIT_LOCKED_FIELDS = [
-  'allowed_modes', 'confirmed_participants', 'created_by', 'description',
-  'group_id', 'name', 'participants', 'share_active', 'share_code', 'status',
-  'splitwise_expense_id', 'splitwise_exported_at', 'splitwise_participant_map',
-];
-const SHARE_MATCH =
-  'share_active = true && share_code != "" && share_code = @request.headers.x_share_code';
-const SHARE_WRITE =
-  `@request.auth.id = "" && ${SHARE_MATCH} && ` +
-  SPLIT_LOCKED_FIELDS.map((f) => `@request.body.${f}:isset = false`).join(' && ');
 const VERSION_OK =
   '(@request.body.items_version:isset = false || @request.body.items_version > items_version)';
 
@@ -75,11 +63,14 @@ const RULES = {
     updateRule: MEMBER('order_id.trip_id.group_id'),
     deleteRule: MEMBER('order_id.trip_id.group_id'),
   },
+  // Só membros. O link público (`/split/[code]`) não toca no PB diretamente:
+  // passa pela rota `/api/splits/share/[code]` (superuser), que só deixa
+  // escolher o que se consumiu — nunca itens/preços/total.
   splits: {
-    listRule: `${MEMBER('group_id')} || (${SHARE_MATCH})`,
-    viewRule: `${MEMBER('group_id')} || (${SHARE_MATCH})`,
+    listRule: MEMBER('group_id'),
+    viewRule: MEMBER('group_id'),
     createRule: MEMBER('group_id'),
-    updateRule: `(${MEMBER('group_id')} || (${SHARE_WRITE})) && ${VERSION_OK}`,
+    updateRule: `${MEMBER('group_id')} && ${VERSION_OK}`,
     deleteRule: MEMBER('group_id'),
   },
 };

@@ -5,7 +5,7 @@ import {
   withSplitItemsOCC,
   SplitVersionConflictError,
 } from '@/lib/splitShareAdmin';
-import { toPublicSplitPayload, toggleItemParticipant } from '@/lib/splitShare';
+import { onlyParticipationChanged, toPublicSplitPayload, toggleItemParticipant } from '@/lib/splitShare';
 import {
   canMemberSaveAllocation,
   getAllowedMemberModes,
@@ -238,7 +238,11 @@ export async function PATCH(
         items = toggleResult.items;
       }
 
-      return reconcileSplitItems(items, split.participants);
+      const reconciled = reconcileSplitItems(items, split.participants);
+      if (!onlyParticipationChanged(split.items, reconciled)) {
+        throw new PatchReject(403, 'Pelo link só podes escolher o que consumiste');
+      }
+      return reconciled;
     };
 
     // `withLock` serializa dentro do mesmo processo (fast-path, ~0 retries);

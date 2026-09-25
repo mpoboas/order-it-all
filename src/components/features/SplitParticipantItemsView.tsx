@@ -104,6 +104,11 @@ export function SplitParticipantItemsView({
                   (frozen || readOnly) && 'opacity-60 cursor-not-allowed'
                 )}
                 aria-pressed={checked}
+                aria-label={
+                  isCustomMode
+                    ? `Ajustar a tua parte em ${item.name || 'item sem nome'}`
+                    : `Participei em ${item.name || 'item sem nome'}${frozen ? ' (bloqueado)' : ''}`
+                }
                 title={
                   readOnly
                     ? 'Divisão fechada'
@@ -117,7 +122,7 @@ export function SplitParticipantItemsView({
                 }
               >
                 {checked && (
-                  <Icon name="check" className="text-lg" strokeWidth={3} />
+                  <Icon name="check" className="text-lg" strokeWidth={3} aria-hidden="true" />
                 )}
               </button>
 
