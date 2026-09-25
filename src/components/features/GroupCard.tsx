@@ -12,12 +12,12 @@ import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 import { Icon } from '@/components/ui/Icon';
 import { Money } from '@/components/ui/Money';
 import { fromCents } from '@/lib/ledger/money';
+import { groupHomeHref } from '@/lib/navHierarchy';
 
 const EPS_CENTS = 1;
 
 interface GroupCardProps {
   group: Group;
-  userId?: string;
   /** Saldo líquido do utilizador neste grupo, em cêntimos. `undefined` enquanto carrega. */
   netCents?: number;
   onSelect: () => void;
@@ -31,7 +31,6 @@ interface GroupCardProps {
  *  (`HeroHeader`), não precisam de duplicar-se aqui. */
 export function GroupCard({
   group,
-  userId,
   netCents,
   onSelect,
   className,
@@ -42,10 +41,7 @@ export function GroupCard({
   const emoji = guessGroupEmoji(group.avatar);
   const settled = typeof netCents === 'number' && Math.abs(netCents) < EPS_CENTS;
 
-  const isGroupAdmin = Boolean(userId && group.admins?.includes(userId));
-  const prefetch = usePrefetchOnIntent(
-    `/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`,
-  );
+  const prefetch = usePrefetchOnIntent(groupHomeHref(group.id));
 
   return (
     <button

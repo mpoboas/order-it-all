@@ -47,7 +47,24 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
         URL.revokeObjectURL(url);
     };
 
-    if (!ledger || !myBalance) return null;
+    // Nunca `return null` — isso empurra o que está por baixo (tabs, lista)
+    // quando o ledger resolve, um "pop" isolado a esta faixa. Um placeholder
+    // com a mesma geometria (mesmo padding/alturas dos dois blocos reais)
+    // troca para conteúdo sem mexer no resto do ecrã (Fase 14).
+    if (!ledger || !myBalance) {
+        return (
+            <div aria-hidden className="animate-pulse">
+                <div className="px-4 py-3 bg-surface flex justify-center">
+                    <div className="h-4 w-40 rounded bg-surface-sunken" />
+                </div>
+                <div className="flex gap-2 px-4 py-2.5 border-b border-hairline bg-surface">
+                    {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="h-8 w-24 rounded-full bg-surface-sunken shrink-0" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>

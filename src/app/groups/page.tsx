@@ -29,6 +29,7 @@ import { shouldShowNotificationPrompt } from '@/lib/notificationPromptState';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { groupHomeHref } from '@/lib/navHierarchy';
 
 export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -115,8 +116,7 @@ export default function GroupsPage() {
 
     const handleSelectGroup = (group: Group) => {
         setCurrentGroup(group);
-        const isGroupAdmin = !!user?.id && group.admins?.includes(user.id);
-        nav.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`, { haptic: false });
+        nav.push(groupHomeHref(group.id), { haptic: false });
     };
 
     if (!isLoggedIn) return null;
@@ -169,7 +169,6 @@ export default function GroupsPage() {
                                         <GroupCard
                                             key={group.id}
                                             group={group}
-                                            userId={user?.id}
                                             netCents={balances?.get(group.id)}
                                             onSelect={() => handleSelectGroup(group)}
                                         />

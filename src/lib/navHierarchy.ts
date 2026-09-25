@@ -11,7 +11,8 @@
  *       /groups/[g]/expenses/[e]               → /groups/[g]/expenses
  *         /groups/[g]/expenses/[e]/items        → /groups/[g]/expenses/[e]
  *       /groups/[g]/admin/trips/[t]           → /groups/[g]/admin
- *     /groups/[g]/settings                    → /groups/[g]/admin (engrenagem, só admins)
+ *     /groups/[g]/settings                    → separador de onde abriu (expenses/trips/admin),
+ *                                                 ou Despesas por omissão (engrenagem, só admins)
  */
 export function parentPath(pathname: string): string | null {
   const m = pathname.match(/^\/groups\/([^/]+)(?:\/(.+?))?\/?$/);
@@ -22,13 +23,26 @@ export function parentPath(pathname: string): string | null {
   if (!rest) return '/groups'; // /groups/[g]
 
   const seg = rest.split('/');
-  if (seg[0] === 'settings') return `/groups/${groupId}/admin`; // engrenagem → volta ao Admin
+  if (seg[0] === 'settings') {
+    // A engrenagem abre-se tanto de Despesas como de Viagens/Admin — "voltar"
+    // deve ir para onde a settings foi aberta, não sempre para o Admin.
+    const prev = previousVisit();
+    const prevIsGroupRoot = prev && /^\/groups\/[^/]+\/(expenses|trips|admin)$/.test(prev);
+    return prevIsGroupRoot ? prev! : groupHomeHref(groupId);
+  }
   if (seg.length === 1) return '/groups'; // tab-root do grupo → lista de grupos
   if (seg[0] === 'admin') return `/groups/${groupId}/admin`; // admin/trips/[t] → admin
   if (seg[0] === 'expenses' && seg.length === 3 && seg[2] === 'items') {
     return `/groups/${groupId}/expenses/${seg[1]}`; // expenses/[e]/items → expenses/[e]
   }
   return `/groups/${groupId}/${seg[0]}`; // trips/[t] → trips ; expenses/[e] → expenses
+}
+
+/** Para onde entrar num grupo pela primeira vez — sempre o separador
+ *  Despesas, para todos (ver `GroupTabs`: é só o 2.º separador que varia
+ *  entre "Viagens" e "Admin" consoante o papel, nunca o ponto de entrada). */
+export function groupHomeHref(groupId: string): string {
+  return `/groups/${groupId}/expenses`;
 }
 
 /* ---- Pilha de rotas visitadas (para escolher entre back() e push(pai)) ---- */

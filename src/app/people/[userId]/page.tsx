@@ -5,11 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
-import {
-  usePeopleBalances, useAllExpenses, useGroups, useAllPlaceholders,
-  useFriendships, useDirectExpenses,
-} from '@/lib/db/hooks';
-import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
+import { usePeopleBalances, useFriendships, useSharedExpenses } from '@/lib/db/hooks';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import { notify } from '@/lib/notify';
@@ -27,7 +23,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { cn } from '@/lib/utils';
-import { formatDayMonthAbbrev, compareExpensesRecentFirst } from '@/lib/expenseDisplay';
+import { formatDayMonthAbbrev } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 const EPS = 0.5;
@@ -44,11 +40,8 @@ export default function PersonDetailPage() {
     const confirmAction = useConfirm();
 
     const people = usePeopleBalances(user?.id);
-    const groups = useGroups(user?.id);
-    const allExpenses = useAllExpenses();
-    const allPlaceholders = useAllPlaceholders();
     const friendships = useFriendships(user?.id);
-    const directExpenses = useDirectExpenses(user?.id, userId);
+    const sharedExpenses = useSharedExpenses(user?.id, userId);
     const [showGroupPicker, setShowGroupPicker] = useState(false);
     const [showAddExpense, setShowAddExpense] = useState(false);
     const [showDirectSettleUp, setShowDirectSettleUp] = useState(false);
@@ -132,36 +125,12 @@ export default function PersonDetailPage() {
         showToast('Lembrete enviado', 'success');
     }, [person, user, userId, showToast]);
 
-    // Despesas partilhadas com esta pessoa, em qualquer grupo comum —
-    // recalcula os ids canónicos por grupo para apanhar placeholders
-    // reclamados que representem esta pessoa nalgum grupo — mais as despesas
-    // diretas sem grupo (Fase 8), `groupName: null` para essas.
-    const sharedExpenses = useMemo(() => {
-        if (!groups || !allExpenses || !allPlaceholders || !user?.id || !directExpenses) return undefined;
-        const result: { expense: (typeof allExpenses)[number]; groupName: string | null }[] = [];
-        for (const group of groups) {
-            const parties = buildPartyMap(
-                groupMembersFromExpand(group),
-                allPlaceholders.filter((p) => p.group_id === group.id),
-            );
-            const resolve = (id: string) => canonicalPartyId(id, parties);
-            const groupExpenses = allExpenses.filter((e) => e.group_id === group.id && !e.deleted_at);
-            for (const e of groupExpenses) {
-                const partyIds = new Set([...e.payers.map((p) => resolve(p.party)), ...e.shares.map((s) => resolve(s.party))]);
-                if (partyIds.has(userId) && partyIds.has(user.id)) {
-                    result.push({ expense: e, groupName: group.name });
-                }
-            }
-        }
-        for (const e of directExpenses) {
-            if (!e.deleted_at) result.push({ expense: e, groupName: null });
-        }
-        return result.sort((a, b) => compareExpensesRecentFirst(a.expense, b.expense));
-    }, [groups, allExpenses, allPlaceholders, directExpenses, user, userId]);
-
     if (!isLoggedIn) return null;
 
-    const loading = people === undefined || sharedExpenses === undefined;
+    // Duas regiões, duas prontidões — cada uma aparece assim que os seus
+    // próprios dados chegarem, sem esperar pela mais lenta das duas (Fase 14).
+    const peopleLoading = people === undefined;
+    const sharedLoading = sharedExpenses === undefined;
     const settled = person ? Math.abs(person.netCents) < EPS : true;
 
     const personName = person?.party.name ?? 'Pessoa';
@@ -182,8 +151,8 @@ export default function PersonDetailPage() {
             />
 
             <main className="container mx-auto max-w-lg px-2 sm:px-4 pb-4 space-y-4">
-                {loading ? (
-                    <div className="flex justify-center py-20">
+                {peopleLoading ? (
+                    <div className="flex justify-center py-10">
                         <LoadingSpinner size="lg" />
                     </div>
                 ) : (
@@ -233,38 +202,45 @@ export default function PersonDetailPage() {
                                 {isFriend ? 'Desfazer amizade' : friendship.requested_by === user?.id ? 'Cancelar pedido' : 'Recusar pedido'}
                             </button>
                         )}
-
-                        {(sharedExpenses ?? []).length === 0 ? (
-                            <p className="text-center text-ink-soft py-12">Sem despesas em comum.</p>
-                        ) : (
-                            <div className="card divide-y divide-hairline overflow-hidden">
-                                {(sharedExpenses ?? []).map(({ expense, groupName }) => {
-                                    const { day, month } = formatDayMonthAbbrev(expense.date);
-                                    const href = groupName
-                                        ? `/groups/${expense.group_id}/expenses/${expense.id}`
-                                        : `/expenses/${expense.id}`;
-                                    return (
-                                    <button
-                                        key={expense.id}
-                                        type="button"
-                                        onClick={() => nav.push(href, { haptic: false })}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors"
-                                    >
-                                        <CategoryIcon category={expense.category} />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-medium text-ink truncate">{expense.description}</p>
-                                            <p className="text-xs text-ink-faint truncate">
-                                                {groupName ?? 'Despesa direta'} · {day} {month}.
-                                            </p>
-                                        </div>
-                                        <Money value={expense.amount} className="font-semibold text-ink shrink-0" />
-                                        <Icon name="chevron_right" className="text-ink-faint" />
-                                    </button>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </>
+                )}
+
+                {/* Região independente do saldo acima — aparece assim que a
+                    sua própria query resolver, sem esperar por `people` nem
+                    vice-versa (Fase 14). */}
+                {sharedLoading ? (
+                    <div className="flex justify-center py-10">
+                        <LoadingSpinner size="lg" />
+                    </div>
+                ) : sharedExpenses.length === 0 ? (
+                    <p className="text-center text-ink-soft py-12">Sem despesas em comum.</p>
+                ) : (
+                    <div className="card divide-y divide-hairline overflow-hidden">
+                        {sharedExpenses.map(({ expense, groupName }) => {
+                            const { day, month } = formatDayMonthAbbrev(expense.date);
+                            const href = groupName
+                                ? `/groups/${expense.group_id}/expenses/${expense.id}`
+                                : `/expenses/${expense.id}`;
+                            return (
+                            <button
+                                key={expense.id}
+                                type="button"
+                                onClick={() => nav.push(href, { haptic: false })}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors"
+                            >
+                                <CategoryIcon category={expense.category} />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-ink truncate">{expense.description}</p>
+                                    <p className="text-xs text-ink-faint truncate">
+                                        {groupName ?? 'Despesa direta'} · {day} {month}.
+                                    </p>
+                                </div>
+                                <Money value={expense.amount} className="font-semibold text-ink shrink-0" />
+                                <Icon name="chevron_right" className="text-ink-faint" />
+                            </button>
+                            );
+                        })}
+                    </div>
                 )}
             </main>
 

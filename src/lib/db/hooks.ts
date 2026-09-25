@@ -104,10 +104,15 @@ export function useGroups(userId: string | undefined): Group[] | undefined {
     if (!userId) return [];
     const [all, users] = await Promise.all([db.groups.toArray(), db.users.toArray()]);
     const byId = usersMap(users);
-    return all
+    const groups = all
       .filter((g) => g.members?.includes(userId))
       .sort(byCreatedDesc)
       .map((g) => overlayUsers(g, byId));
+    // Aquece a cache por-id (`useGroup`) com o que a lista já sabe — sem isto,
+    // entrar num grupo pela lista chama `group:${id}` pela primeira vez e
+    // pisca o esqueleto mesmo com os dados já quentes no Dexie (ver Fase 14).
+    for (const g of groups) liveResultCache.set(`group:${g.id}`, g);
+    return groups;
   }, [userId]);
 }
 
@@ -546,4 +551,74 @@ export function useDirectExpenses(userId: string | undefined, friendId: string |
       .sort(compareExpensesRecentFirst)
       .map((e) => overlayUsers(e, byId));
   }, [userId, friendId]);
+}
+
+export interface SharedExpenseEntry {
+  expense: Expense;
+  /** `null` = despesa direta sem grupo. */
+  groupName: string | null;
+}
+
+/** Despesas (de grupo ou diretas) entre dois utilizadores, para a página de
+ *  Amigo.
+ *
+ *  As diretas (sem grupo) filtram-se com segurança pelo índice
+ *  `*participants` — nesse caso é sempre id real, nunca placeholder (ver
+ *  `Expense.participants`). As de grupo NÃO podem usar o mesmo atalho:
+ *  `placeholdersApi.claim` deixa bem claro que "o histórico não é
+ *  reescrito, só se marca `claimed_by`" — uma despesa criada enquanto esta
+ *  pessoa ainda era um placeholder do grupo nunca teve o `participants`
+ *  atualizado depois de reclamar a conta. Por isso, para grupos, resolve-se
+ *  o id canónico a partir de `payers`/`shares` (como a UI de saldos faz),
+ *  mas só nos grupos onde a pessoa pode mesmo aparecer — membro com conta,
+ *  ou dona de um placeholder reclamado nesse grupo (`placeholders.claimed_by`,
+ *  indexado) — em vez de todos os meus grupos. Isto mantém a correção do
+ *  código antigo, só substituindo "todos os grupos × todas as despesas da
+ *  app" por consultas indexadas (`group_id`) restritas aos grupos
+ *  realmente partilhados com esta pessoa. Tudo dentro da função assíncrona
+ *  da query — fora do caminho síncrono de render (Fase 14). */
+export function useSharedExpenses(
+  userId: string | undefined,
+  otherUserId: string | undefined,
+): SharedExpenseEntry[] | undefined {
+  const groups = useGroups(userId);
+
+  return useCachedLiveQuery(`sharedExpenses:${userId ?? ''}:${otherUserId ?? ''}`, async () => {
+    if (!userId || !otherUserId || !groups) return [];
+
+    const claimedElsewhere = await db.placeholders.where('claimed_by').equals(otherUserId).toArray();
+    const claimedGroupIds = new Set(claimedElsewhere.map((p) => p.group_id));
+    const candidateGroups = groups.filter(
+      (g) => g.members.includes(otherUserId) || claimedGroupIds.has(g.id),
+    );
+
+    const [groupEntries, myExpenses, users] = await Promise.all([
+      Promise.all(candidateGroups.map(async (group) => {
+        const [expenses, placeholders] = await Promise.all([
+          db.expenses.where('group_id').equals(group.id).toArray(),
+          db.placeholders.where('group_id').equals(group.id).toArray(),
+        ]);
+        const parties = buildPartyMap(groupMembersFromExpand(group), placeholders);
+        const resolve = (id: string) => canonicalPartyId(id, parties);
+        return expenses
+          .filter((e) => !e.deleted_at)
+          .filter((e) => {
+            const ids = new Set([...e.payers.map((p) => resolve(p.party)), ...e.shares.map((s) => resolve(s.party))]);
+            return ids.has(userId) && ids.has(otherUserId);
+          })
+          .map((expense) => ({ expense, groupName: group.name }));
+      })),
+      db.expenses.where('participants').equals(userId).toArray(),
+      db.users.toArray(),
+    ]);
+
+    const byId = usersMap(users);
+    const directEntries = myExpenses
+      .filter((e) => !e.group_id && !e.deleted_at && e.participants?.includes(otherUserId))
+      .map((expense) => ({ expense, groupName: null as string | null }));
+
+    return [...groupEntries.flat(), ...directEntries]
+      .map((entry) => ({ ...entry, expense: overlayUsers(entry.expense, byId) }))
+      .sort((a, b) => compareExpensesRecentFirst(a.expense, b.expense));
+  }, [userId, otherUserId, groups]);
 }

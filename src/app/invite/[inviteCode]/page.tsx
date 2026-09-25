@@ -8,6 +8,7 @@ import { groupsApi } from '@/lib/pocketbase';
 import type { InvitePreview } from '@/lib/types';
 import { navStart } from '@/lib/navProgress';
 import { getGroupAvatarUrl } from '@/lib/groupAvatars';
+import { groupHomeHref } from '@/lib/navHierarchy';
 
 export default function InvitePage() {
     const params = useParams();
@@ -55,7 +56,7 @@ export default function InvitePage() {
         if (!loading && group && isLoggedIn) {
             if (isMember) {
                 // Already a member, just go there
-                router.push(`/groups/${group.groupId}/trips`);
+                router.push(groupHomeHref(group.groupId));
             } else if (shouldAutoJoin && !joining) {
                 // Not a member, logged in, not currently joining, and HAS flag -> Auto Join
                 handleJoin();
@@ -78,7 +79,7 @@ export default function InvitePage() {
             const groupId = await groupsApi.joinByInvite(inviteCode);
             showToast(`Bem-vindo ao grupo ${group.name}!`, 'success');
             navStart();
-            router.push(`/groups/${groupId}/trips`);
+            router.push(groupHomeHref(groupId));
         } catch (err) {
             console.error(err);
             showToast('Erro ao entrar no grupo.', 'error');
@@ -152,7 +153,7 @@ export default function InvitePage() {
                             Já és membro deste grupo!
                         </div>
                         <button
-                            onClick={() => router.push(`/groups/${group.groupId}/trips`)}
+                            onClick={() => router.push(groupHomeHref(group.groupId))}
                             className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition"
                         >
                             Ver Grupo

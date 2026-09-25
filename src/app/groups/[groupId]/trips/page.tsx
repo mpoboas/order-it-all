@@ -11,7 +11,7 @@ import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { TripCard } from '@/components/features/TripCard';
 import { Icon } from '@/components/ui/Icon';
-import { useTrips } from '@/lib/db/hooks';
+import { useTrips, useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { usePrefetchRoutes } from '@/hooks/usePrefetch';
@@ -22,10 +22,14 @@ export default function GroupTripsPage() {
     const groupId = params.groupId as string;
 
     const { isLoggedIn } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
+    const { isAdmin } = useGroup();
     const router = useRouter();
     const nav = useAppNavigate();
 
+    // Direto do Dexie (já aquecido pela lista de grupos), não via
+    // `GroupContext.currentGroup` — esse só atualiza num efeito do layout,
+    // um tick depois deste render (ver Fase 14).
+    const group = useGroupRecord(groupId);
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
     usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/trips/${t.id}`));
@@ -40,21 +44,21 @@ export default function GroupTripsPage() {
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
 
-    const heroAvatars = currentGroup ? groupHeroAvatars(currentGroup) : [];
+    const heroAvatars = group ? groupHeroAvatars(group) : [];
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
-            {currentGroup && (
+            {group && (
                 <HeroHeader
-                    title={currentGroup.name}
-                    background={getGroupHeroBackground(currentGroup)}
+                    title={group.name}
+                    background={getGroupHeroBackground(group)}
                     avatars={heroAvatars}
-                    avatarOverflowCount={Math.max(0, currentGroup.members.length - heroAvatars.length)}
+                    avatarOverflowCount={Math.max(0, group.members.length - heroAvatars.length)}
                     onBack={() => nav.up()}
                     topRightAction={isAdmin ? {
                         icon: 'settings',
                         label: 'Definições do grupo',
-                        onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
+                        onClick: () => nav.push(`/groups/${groupId}/settings`, { haptic: false }),
                     } : undefined}
                 />
             )}

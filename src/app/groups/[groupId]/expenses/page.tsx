@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
+import { useExpenses, useGroupLedger, useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { groupExpensesByMonth } from '@/lib/expenseDisplay';
 import { HeroHeader } from '@/components/features/HeroHeader';
@@ -26,8 +26,12 @@ export default function GroupExpensesPage() {
     const router = useRouter();
     const nav = useAppNavigate();
     const { user, isLoggedIn } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
+    const { isAdmin } = useGroup();
 
+    // Direto do Dexie (já aquecido pela lista de grupos), não via
+    // `GroupContext.currentGroup` — esse só atualiza num efeito do layout,
+    // um tick depois deste render (ver Fase 14).
+    const currentGroup = useGroupRecord(groupId);
     const expensesQuery = useExpenses(groupId);
     const expenses = useMemo(
         () => (expensesQuery ?? []).filter((e) => !e.deleted_at),
