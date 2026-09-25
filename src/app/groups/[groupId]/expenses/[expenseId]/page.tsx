@@ -22,7 +22,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Button } from '@/components/ui/Button';
 import { ShareTree } from '@/components/features/ShareTree';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
-import { formatRelativeOrDate } from '@/lib/utils';
+import { relativeOrDatePhrase } from '@/lib/utils';
 import { expenseReceiptUrl } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
@@ -162,7 +162,7 @@ export default function ExpenseDetailPage() {
                 </div>
 
                 <p className="text-xs text-ink-faint">
-                    Adicionado por {addedBy} a {formatRelativeOrDate(expense.created)}
+                    Adicionado por {addedBy} {relativeOrDatePhrase(expense.created)}
                     {wasEdited && updatedBy && <> · Editado por {updatedBy}</>}
                 </p>
 

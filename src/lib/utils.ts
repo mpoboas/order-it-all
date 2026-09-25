@@ -43,6 +43,14 @@ const MONTHS_PT = [
  * a partir daí ("7 set." este ano, "7 set. 2025" antes). "há 228 dias" não diz
  * nada a ninguém.
  */
+/** Para usar a meio de uma frase ("Adicionado por Ana …"): "há 5 minutos",
+ *  "agora mesmo" ou "a 25 set." — `formatRelativeOrDate` sozinho dava
+ *  "a há 5 minutos". */
+export function relativeOrDatePhrase(dateString: string): string {
+  const when = formatRelativeOrDate(dateString);
+  return /^\d/.test(when) ? `a ${when}` : when.charAt(0).toLowerCase() + when.slice(1);
+}
+
 export function formatRelativeOrDate(dateString: string): string {
   const date = new Date(dateString);
   const diffDays = (Date.now() - date.getTime()) / 86_400_000;

@@ -167,7 +167,7 @@ export function SplitParticipantNameInput({
               }
             }}
             placeholder={placeholder}
-            className="w-full h-10 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+            className="w-full h-11 px-3 text-base rounded-xl border border-hairline bg-surface-sunken text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={Boolean(showMenu)}

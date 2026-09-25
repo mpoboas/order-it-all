@@ -59,17 +59,51 @@ export function pairwiseDebts(
     const totalPaidCents = payerWeights.reduce((s, c) => s + c, 0);
     if (totalPaidCents <= 0) continue;
 
-    for (const share of e.shares) {
-      const oweCents = toCents(share.amount);
-      if (oweCents <= 0) continue;
+    const shareCents = e.shares.map((s) => toCents(s.amount));
+    const matrix = allocateShares(shareCents, payerWeights);
+    e.shares.forEach((share, i) => {
+      if (shareCents[i] <= 0) return;
       const debtor = resolveParty(share.party);
-      const parts = splitCents(oweCents, payerWeights);
-      e.payers.forEach((payer, i) => {
-        add(debtor, resolveParty(payer.party), parts[i]);
+      e.payers.forEach((payer, j) => {
+        add(debtor, resolveParty(payer.party), matrix[i][j]);
       });
-    }
+    });
   }
   return result;
+}
+
+/**
+ * Matriz partes × pagadores em cêntimos: `m[i][j]` = quanto da parte `i` foi
+ * paga pelo pagador `j` (proporcional ao que cada um pagou).
+ *
+ * Cada linha é repartida pelo maior resto (Σ linha = parte exata), mas isso
+ * sozinho não garante as colunas: quando um devedor também é pagador, o
+ * cêntimo de arredondamento pode cair na parte "que deve a si próprio", que
+ * `pairwiseDebts` descarta — e as dívidas por par deixavam de bater com o
+ * saldo líquido por 1 cêntimo (fantasma de 0,01 € que nunca se liquida).
+ * Aqui, quando Σ partes = Σ pagadores, corrige-se também cada coluna para o
+ * valor exato pago, movendo cêntimos dentro da mesma linha (a linha mantém-se
+ * exata). Cada movimento reduz o desvio total em 2, por isso termina.
+ */
+function allocateShares(shareCents: number[], payerCents: number[]): number[][] {
+  const matrix = shareCents.map((c) => (c > 0 ? splitCents(c, payerCents) : payerCents.map(() => 0)));
+  const totalShares = shareCents.reduce((s, c) => s + Math.max(c, 0), 0);
+  const totalPaid = payerCents.reduce((s, c) => s + c, 0);
+  if (totalShares !== totalPaid) return matrix; // despesa inconsistente (legado): sem garantias
+
+  const colDiff = payerCents.map((paid, j) => matrix.reduce((s, row) => s + row[j], 0) - paid);
+  for (;;) {
+    const surplus = colDiff.findIndex((d) => d > 0);
+    const deficit = colDiff.findIndex((d) => d < 0);
+    if (surplus === -1 || deficit === -1) break;
+    const row = matrix.find((r) => r[surplus] > 0);
+    if (!row) break;
+    row[surplus] -= 1;
+    row[deficit] += 1;
+    colDiff[surplus] -= 1;
+    colDiff[deficit] += 1;
+  }
+  return matrix;
 }
 
 /** Compensa pares A→B / B→A no resultado de `pairwiseDebts` — só sobra uma

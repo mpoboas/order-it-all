@@ -134,3 +134,50 @@ export function sharesFromEuroTotals(totals: Record<string, number>): ComputedSh
     .filter(([, amount]) => amount > 0)
     .map(([party, amount]) => ({ party, amountCents: toCents(amount) }));
 }
+
+export interface ItemizedLedger {
+  amountCents: number;
+  shares: ComputedShare[];
+  /** Pagadores para o novo total: com um só pagador, fica com o total inteiro;
+   *  com vários, ficam exatamente como estavam (nunca se inventa quem pagou). */
+  payerCents: { party: string; amountCents: number }[];
+  /** `false` quando há vários pagadores e a soma deles já não bate com o novo
+   *  total — a despesa NÃO pode ser gravada até alguém reatribuir quem pagou. */
+  payersMatch: boolean;
+}
+
+/**
+ * Despesa por itens → total/partes/pagadores coerentes, em cêntimos.
+ *
+ * As partes por pessoa vêm de somas em euros com dízimas (10 € a 3 = 3,333…);
+ * arredondá-las uma a uma dava 9,99 € em vez de 10,00 € — um cêntimo a sumir
+ * dos saldos. Aqui o total em cêntimos é repartido pelo maior resto com as
+ * partes como pesos, por isso Σ partes = total sempre.
+ *
+ * Pagadores: um só pagador acompanha o total (não há ambiguidade). Com vários,
+ * NÃO se reescala — se a conta passou de 10 € (7 € + 3 €) para 14 €, quem
+ * pagou os 4 € a mais é uma pergunta para o utilizador, não um palpite
+ * proporcional. `payersMatch` diz se ainda batem com o novo total (a
+ * invariante Σ pagadores = total que o servidor exige,
+ * `pb/hooks/ledger_invariants.js`).
+ */
+export function itemizedLedger(
+  totalsByParty: Record<string, number>,
+  grandTotal: number,
+  payers: { party: string; amount: number }[],
+): ItemizedLedger {
+  const amountCents = toCents(grandTotal);
+  const parties = Object.keys(totalsByParty).filter((p) => totalsByParty[p] > 0);
+  const shareCents = splitCents(amountCents, parties.map((p) => totalsByParty[p]));
+  const payerCents =
+    payers.length === 1
+      ? [{ party: payers[0].party, amountCents }]
+      : payers.map((p) => ({ party: p.party, amountCents: toCents(p.amount) }));
+  const paid = payerCents.reduce((sum, p) => sum + p.amountCents, 0);
+  return {
+    amountCents,
+    shares: parties.map((party, i) => ({ party, amountCents: shareCents[i] })),
+    payerCents,
+    payersMatch: payers.length <= 1 || paid === amountCents,
+  };
+}

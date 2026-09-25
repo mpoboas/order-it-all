@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Com quem é que quem chama tem relação?
     const [groups, friendships] = await Promise.all([
       pb.collection('groups').getFullList<{ id: string; members: string[] }>({
-        filter: pb.filter('members ?= {:uid}', { uid: callerId }),
+        filter: pb.filter('members.id ?= {:uid}', { uid: callerId }),
         fields: 'id,members',
       }),
       pb.collection('friendships').getFullList<{ user_a: string; user_b: string }>({

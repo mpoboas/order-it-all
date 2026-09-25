@@ -18,6 +18,9 @@ import {
     isAggregatedOrderLabel,
 } from '@/lib/orderParticipants';
 import { db } from '@/lib/db/schema';
+import { mutationErrorMessage } from '@/lib/db/mutations';
+import { fromCents } from '@/lib/ledger/money';
+import { itemizedLedger } from '@/lib/ledger/shares';
 import { useToast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import type { Trip, Group, Item, Order, Party, SplitItem } from '@/lib/types';
@@ -217,11 +220,14 @@ export function TripToExpenseSheet({
                 items: splitItems,
             });
 
-            const totals = calculateSplitTotals(split);
-            const shares = Object.entries(totals)
-                .filter(([, amount]) => amount > 0)
-                .map(([party, amount]) => ({ party, amount }));
-            const amount = calculateExportGrandTotal(split.items);
+            // Em cêntimos: as partes por pessoa vêm de somas com dízimas (10 € a
+            // 3 = 3,333…) e o servidor exige Σ partes = Σ pagadores = total
+            // (`pb/hooks/ledger_invariants.js`) — ver `itemizedLedger`.
+            const grandTotal = calculateExportGrandTotal(split.items);
+            const ledger = itemizedLedger(calculateSplitTotals(split), grandTotal, [
+                { party: payerId, amount: grandTotal },
+            ]);
+            const amount = fromCents(ledger.amountCents);
             const expense = await expensesApi.create({
                 group_id: groupId,
                 description: trip.name,
@@ -229,7 +235,7 @@ export function TripToExpenseSheet({
                 date: new Date().toISOString().slice(0, 10),
                 split_mode: 'itemized',
                 payers: [{ party: payerId, amount }],
-                shares,
+                shares: ledger.shares.map((s) => ({ party: s.party, amount: fromCents(s.amountCents) })),
                 split_id: split.id,
                 trip_id: trip.id,
                 created_by: user!.id,
@@ -238,7 +244,7 @@ export function TripToExpenseSheet({
             onCreated(expense.id);
         } catch (error) {
             console.error('Error generating expense from trip:', error);
-            showToast('Erro ao gerar despesa', 'error');
+            showToast(mutationErrorMessage(error, 'Erro ao gerar despesa'), 'error');
         } finally {
             setCreating(false);
         }

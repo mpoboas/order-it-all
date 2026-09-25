@@ -21,10 +21,15 @@ export function ShareTree({ expense, parties, myId }: ShareTreeProps) {
   }
 
   const label = (id: string) => (id === myId ? 'Tu' : partyLabel(id, parties));
+  // Concordância: "Tu pagaste/deves", "Ana pagou/deve".
+  const verbs = (id: string) =>
+    id === myId
+      ? { paid: 'pagaste', owes: 'deves', none: 'não deves nada' }
+      : { paid: 'pagou', owes: 'deve', none: 'não deve nada' };
 
   const rootLine =
     expense.payers.length === 1
-      ? `${label(expense.payers[0].party)} pagou`
+      ? `${label(expense.payers[0].party)} ${verbs(expense.payers[0].party).paid}`
       : `${expense.payers.length} pessoas pagaram`;
 
   // Todas as partes envolvidas (pagador e/ou devedor), sem duplicar.
@@ -53,11 +58,11 @@ export function ShareTree({ expense, parties, myId }: ShareTreeProps) {
             <p className="text-sm text-ink">
               {label(id)}{' '}
               {paid > 0 && owed > 0 ? (
-                <>pagou {formatEUR(paid)} e deve {formatEUR(owed)}</>
+                <>{verbs(id).paid} {formatEUR(paid)} e {verbs(id).owes} {formatEUR(owed)}</>
               ) : owed > 0 ? (
-                <>deve {formatEUR(owed)}</>
+                <>{verbs(id).owes} {formatEUR(owed)}</>
               ) : (
-                <>não deve nada</>
+                <>{verbs(id).none}</>
               )}
             </p>
           </li>

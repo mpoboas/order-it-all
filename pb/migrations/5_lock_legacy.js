@@ -26,8 +26,8 @@
 // `1_ledger.js`). Rollback não repõe as regras antigas de propósito — eram
 // públicas.
 
-const MEMBER = (path) => `${path}.members ?= @request.auth.id`;
-const ADMIN = (path) => `${path}.admins ?= @request.auth.id`;
+const MEMBER = (path) => `${path}.members.id ?= @request.auth.id`;
+const ADMIN = (path) => `${path}.admins.id ?= @request.auth.id`;
 
 // Campos de `splits` que o link público NUNCA pode alterar (tudo menos
 // `items`/`items_version`).
@@ -46,12 +46,12 @@ const VERSION_OK =
 
 const RULES = {
   groups: {
-    listRule: 'members ?= @request.auth.id',
-    viewRule: 'members ?= @request.auth.id',
+    listRule: 'members.id ?= @request.auth.id',
+    viewRule: 'members.id ?= @request.auth.id',
     createRule:
       '@request.auth.id != "" && @request.body.creator = @request.auth.id' +
       ' && @request.body.members:length <= 1 && @request.body.admins:length <= 1',
-    updateRule: 'admins ?= @request.auth.id && @request.body.creator:isset = false',
+    updateRule: 'admins.id ?= @request.auth.id && @request.body.creator:isset = false',
     deleteRule: 'creator = @request.auth.id',
   },
   trips: {

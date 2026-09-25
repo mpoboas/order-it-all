@@ -126,10 +126,12 @@ export function paymentSentence(expense: Expense, parties: Map<string, Party>, m
 
   const payerIsMe = myId && canonicalPartyId(payer, parties) === myId;
   const receiverIsMe = myId && canonicalPartyId(receiver, parties) === myId;
-  const payerLabel = payerIsMe ? 'Tu' : partyLabel(payer, parties);
+  const payerLabel = partyLabel(payer, parties);
   if (receiverIsMe) {
     return `${payerLabel} pagou-te ${amount}.`;
   }
   const receiverLabel = partyLabel(receiver, parties);
-  return `${payerLabel} pagou ${payerIsMe ? 'a' : 'ao'} ${receiverLabel} ${amount}.`;
+  return payerIsMe
+    ? `Pagaste a ${receiverLabel} ${amount}.`
+    : `${payerLabel} pagou ao ${receiverLabel} ${amount}.`;
 }

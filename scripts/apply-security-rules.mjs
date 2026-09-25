@@ -44,8 +44,8 @@ if (!PB_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
 }
 
 // --- Regras: manter em sintonia com pb/migrations/5_lock_legacy.js --------
-const MEMBER = (path) => `${path}.members ?= @request.auth.id`;
-const ADMIN = (path) => `${path}.admins ?= @request.auth.id`;
+const MEMBER = (path) => `${path}.members.id ?= @request.auth.id`;
+const ADMIN = (path) => `${path}.admins.id ?= @request.auth.id`;
 const SPLIT_LOCKED_FIELDS = [
   'allowed_modes', 'confirmed_participants', 'created_by', 'description',
   'group_id', 'name', 'participants', 'share_active', 'share_code', 'status',
@@ -61,12 +61,12 @@ const VERSION_OK =
 
 const RULES = {
   groups: {
-    listRule: 'members ?= @request.auth.id',
-    viewRule: 'members ?= @request.auth.id',
+    listRule: 'members.id ?= @request.auth.id',
+    viewRule: 'members.id ?= @request.auth.id',
     createRule:
       '@request.auth.id != "" && @request.body.creator = @request.auth.id' +
       ' && @request.body.members:length <= 1 && @request.body.admins:length <= 1',
-    updateRule: 'admins ?= @request.auth.id && @request.body.creator:isset = false',
+    updateRule: 'admins.id ?= @request.auth.id && @request.body.creator:isset = false',
     deleteRule: 'creator = @request.auth.id',
   },
   trips: {

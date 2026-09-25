@@ -177,3 +177,50 @@ describe('simplifiedToPairwise', () => {
     expect(map.a.c).toBe(2000);
   });
 });
+
+describe('pairwiseDebts ↔ netByParty (vários pagadores)', () => {
+  /** Saldo líquido de cada parte reconstruído a partir das dívidas por par. */
+  function netFromPairwise(pw: Record<string, Record<string, number>>): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [debtor, creditors] of Object.entries(pw)) {
+      for (const [creditor, cents] of Object.entries(creditors)) {
+        out[debtor] = (out[debtor] ?? 0) - cents;
+        out[creditor] = (out[creditor] ?? 0) + cents;
+      }
+    }
+    return out;
+  }
+  const nonZero = (r: Record<string, number>) => Object.fromEntries(Object.entries(r).filter(([, v]) => v !== 0));
+
+  it('caso real do QA: 2 pagadores, devedor também pagador — sem cêntimo fantasma', () => {
+    const exp = [
+      expense({
+        amount: 27.53,
+        payers: [{ party: 'A', amount: 20 }, { party: 'B', amount: 7.53 }],
+        shares: [{ party: 'A', amount: 5.65 }, { party: 'B', amount: 16.23 }, { party: 'C', amount: 5.65 }],
+      }),
+    ];
+    expect(nonZero(netFromPairwise(netPairwise(pairwiseDebts(exp))))).toEqual(nonZero(netByParty(exp)));
+  });
+
+  it('propriedade: 500 despesas aleatórias batem sempre ao cêntimo', () => {
+    let seed = 42;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    const people = ['A', 'B', 'C', 'D', 'E'];
+    const splitRandom = (totalCents: number, parties: string[]) => {
+      const cuts = parties.map(() => rnd() + 0.01);
+      const sum = cuts.reduce((s, c) => s + c, 0);
+      const cents = cuts.map((c) => Math.floor((c / sum) * totalCents));
+      cents[0] += totalCents - cents.reduce((s, c) => s + c, 0);
+      return parties.map((party, i) => ({ party, amount: cents[i] / 100 }));
+    };
+    for (let k = 0; k < 500; k++) {
+      const totalCents = 1 + Math.floor(rnd() * 20000);
+      const payers = people.filter(() => rnd() < 0.5);
+      const sharers = people.filter(() => rnd() < 0.7);
+      if (!payers.length || !sharers.length) continue;
+      const exp = [expense({ amount: totalCents / 100, payers: splitRandom(totalCents, payers), shares: splitRandom(totalCents, sharers) })];
+      expect(nonZero(netFromPairwise(netPairwise(pairwiseDebts(exp))))).toEqual(nonZero(netByParty(exp)));
+    }
+  });
+});

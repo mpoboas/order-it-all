@@ -65,7 +65,10 @@ import {
 import { cn } from '@/lib/utils';
 import { Money } from '@/components/ui/Money';
 import { Collapse } from '@/components/ui/Collapse';
-import { formatPriceInput, parseEUR } from '@/lib/money';
+import { formatEUR, formatPriceInput, parseEUR } from '@/lib/money';
+import { fromCents, toCents } from '@/lib/ledger/money';
+import { itemizedLedger } from '@/lib/ledger/shares';
+import { PayerPickerSheet } from '@/components/features/PayerPickerSheet';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 
@@ -233,28 +236,62 @@ export default function SplitItemsPage() {
     // muda (itens/participantes), recalcula e grava na despesa ligada. A
     // comparação com o que já lá está evita escritas redundantes (e um loop
     // com o eco do realtime).
+    //
+    // Tudo em cêntimos (`itemizedLedger`): Σ partes = Σ pagadores = total, a
+    // invariante que o servidor exige. Sem itens atribuídos ainda não há total
+    // (o PB rejeita `amount = 0`) — a despesa fica com o valor do formulário
+    // até haver o primeiro item com participantes.
+    const itemsLedger = useMemo(() => {
+        if (!expense || !split) return null;
+        const ledger = itemizedLedger(
+            calculateSplitTotals(split),
+            calculateExportGrandTotal(split.items),
+            expense.payers,
+        );
+        return ledger.amountCents > 0 ? ledger : null;
+    }, [expense, split]);
+
+    // Vários pagadores e o total mudou: NÃO se grava nada (nem total, nem
+    // partes) até alguém reatribuir quem pagou o novo total — ver o aviso e o
+    // `PayerPickerSheet` no render.
+    const payersNeedReassign = !!itemsLedger && !itemsLedger.payersMatch;
+    const [showPayerSheet, setShowPayerSheet] = useState(false);
+
+    const saveItemsLedger = useCallback(
+        async (payers: { party: string; amount: number }[]) => {
+            if (!expense || !itemsLedger || !user?.id) return;
+            const amount = fromCents(itemsLedger.amountCents);
+            const shares = itemsLedger.shares.map((s) => ({ party: s.party, amount: fromCents(s.amountCents) }));
+            try {
+                const updated = await expensesApi.update(expense.id, { amount, shares, payers }, user.id);
+                await db.expenses.put(updated);
+            } catch (err) {
+                console.error('[expense] falha ao sincronizar total dos itens', err);
+                showToast(mutationErrorMessage(err, 'Erro ao atualizar o total da despesa'), 'error');
+            }
+        },
+        [expense, itemsLedger, user?.id, showToast],
+    );
+
     useEffect(() => {
-        if (!expense || !split || !user?.id) return;
-        const amount = calculateExportGrandTotal(split.items);
-        const totals = calculateSplitTotals(split);
-        const shares = Object.entries(totals)
-            .filter(([, value]) => value > 0)
-            .map(([party, value]) => ({ party, amount: value }));
+        if (!expense || !itemsLedger || !itemsLedger.payersMatch) return;
 
-        const sameAmount = Math.abs(amount - expense.amount) < 0.005;
-        const sameShares =
-            shares.length === expense.shares.length &&
-            shares.every((s) => {
-                const existing = expense.shares.find((e) => e.party === s.party);
-                return existing && Math.abs(existing.amount - s.amount) < 0.005;
-            });
-        if (sameAmount && sameShares) return;
+        const shares = itemsLedger.shares.map((s) => ({ party: s.party, amount: fromCents(s.amountCents) }));
+        const payers = itemsLedger.payerCents.map((p) => ({ party: p.party, amount: fromCents(p.amountCents) }));
 
-        expensesApi
-            .update(expense.id, { amount, shares }, user.id)
-            .then((updated) => db.expenses.put(updated))
-            .catch((err) => console.error('[expense] falha ao sincronizar total dos itens', err));
-    }, [expense, split, user?.id]);
+        const sameLines = (a: { party: string; amount: number }[], b: { party: string; amount: number }[]) =>
+            a.length === b.length &&
+            a.every((line) => b.some((o) => o.party === line.party && toCents(o.amount) === toCents(line.amount)));
+        if (
+            toCents(expense.amount) === itemsLedger.amountCents &&
+            sameLines(shares, expense.shares) &&
+            sameLines(payers, expense.payers)
+        ) {
+            return;
+        }
+
+        void saveItemsLedger(payers);
+    }, [expense, itemsLedger, saveItemsLedger]);
 
     type ItemsMutator = (items: SplitItem[]) => SplitItem[];
 
@@ -725,6 +762,38 @@ export default function SplitItemsPage() {
     return (
         <div className="min-h-screen bg-app pb-32 md:pb-8">
             <Header showBack title="Itens" subtitle={split.name} />
+
+            {payersNeedReassign && itemsLedger && expense && (
+                <div role="alert" className="mx-4 mt-3 rounded-2xl bg-warning-bg text-warning-fg px-4 py-3 flex items-start gap-3">
+                    <Icon name="warning" className="shrink-0 mt-0.5" size={20} />
+                    <div className="flex-1 min-w-0 text-sm">
+                        <p className="font-semibold">
+                            O total passou para {formatEUR(fromCents(itemsLedger.amountCents))}
+                        </p>
+                        <p>
+                            Quem pagou soma {formatEUR(fromCents(itemsLedger.payerCents.reduce((sum, p) => sum + p.amountCents, 0)))}.
+                            A despesa só é atualizada depois de reatribuíres quem pagou.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setShowPayerSheet(true)}
+                            className="mt-2 font-semibold underline underline-offset-2"
+                        >
+                            Reatribuir quem pagou
+                        </button>
+                    </div>
+                </div>
+            )}
+            {itemsLedger && expense && (
+                <PayerPickerSheet
+                    isOpen={showPayerSheet}
+                    onClose={() => setShowPayerSheet(false)}
+                    parties={Array.from(partiesMap.values())}
+                    totalAmount={fromCents(itemsLedger.amountCents)}
+                    payers={expense.payers}
+                    onConfirm={(payers) => void saveItemsLedger(payers)}
+                />
+            )}
 
             {saving && (
                 <div className="fixed top-20 right-4 z-50 bg-primary-600 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">

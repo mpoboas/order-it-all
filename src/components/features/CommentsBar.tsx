@@ -98,7 +98,7 @@ export function CommentsBar({ expense, groupId, parties, currentUserId, notifyUr
                         if (e.key === 'Enter') handleSubmit();
                     }}
                     placeholder="Adiciona um comentário…"
-                    className="flex-1 px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-sm"
+                    className="flex-1 px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-base"
                 />
                 <button
                     type="button"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeShares, sharesFromEuroTotals } from './shares';
+import { computeShares, itemizedLedger, sharesFromEuroTotals } from './shares';
 
 describe('computeShares — equal', () => {
   it('divide 10€ por 3 pessoas sem perder cêntimos', () => {
@@ -79,5 +79,51 @@ describe('sharesFromEuroTotals', () => {
       { party: 'a', amountCents: 1250 },
       { party: 'c', amountCents: 750 },
     ]);
+  });
+});
+
+describe('itemizedLedger', () => {
+  it('10 € a 3 pessoas soma exatamente 10,00 € (não 9,99 €)', () => {
+    const r = itemizedLedger({ a: 10 / 3, b: 10 / 3, c: 10 / 3 }, 10, [{ party: 'a', amount: 47.53 }]);
+    expect(r.amountCents).toBe(1000);
+    expect(r.shares.reduce((s, x) => s + x.amountCents, 0)).toBe(1000);
+    expect(r.payerCents).toEqual([{ party: 'a', amountCents: 1000 }]);
+    expect(r.payersMatch).toBe(true);
+  });
+
+  it('vários pagadores: NÃO reescala quando o total muda — exige reatribuição', () => {
+    // Conta era 10 € (7 € + 3 €) e os itens passaram a somar 14 €.
+    const r = itemizedLedger({ a: 7, b: 7 }, 14, [
+      { party: 'a', amount: 7 },
+      { party: 'b', amount: 3 },
+    ]);
+    expect(r.amountCents).toBe(1400);
+    expect(r.payerCents).toEqual([
+      { party: 'a', amountCents: 700 },
+      { party: 'b', amountCents: 300 },
+    ]);
+    expect(r.payersMatch).toBe(false);
+  });
+
+  it('vários pagadores com o total inalterado continuam válidos', () => {
+    const r = itemizedLedger({ a: 20, b: 13.37 }, 33.37, [
+      { party: 'a', amount: 30 },
+      { party: 'b', amount: 3.37 },
+    ]);
+    expect(r.payersMatch).toBe(true);
+    expect(r.shares.reduce((s, x) => s + x.amountCents, 0)).toBe(3337);
+  });
+
+  it('um só pagador acompanha sempre o novo total', () => {
+    const r = itemizedLedger({ a: 14 }, 14, [{ party: 'a', amount: 10 }]);
+    expect(r.payerCents).toEqual([{ party: 'a', amountCents: 1400 }]);
+    expect(r.payersMatch).toBe(true);
+  });
+
+  it('ignora quem não tem nada e mantém "Falta pagador"', () => {
+    const r = itemizedLedger({ a: 5, b: 0 }, 5, []);
+    expect(r.shares).toEqual([{ party: 'a', amountCents: 500 }]);
+    expect(r.payerCents).toEqual([]);
+    expect(r.payersMatch).toBe(true);
   });
 });

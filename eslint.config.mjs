@@ -42,6 +42,16 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": "off",
     },
   },
+  // Hooks do PocketBase (JSVM/goja, CommonJS): `require()` é a única forma de
+  // partilhar código entre handlers, e `catch (_)` evita depender do suporte a
+  // optional catch binding do goja.
+  {
+    files: ["pb/hooks/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { caughtErrors: "none" }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
