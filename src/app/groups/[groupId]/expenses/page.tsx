@@ -19,6 +19,7 @@ import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { partyLabel } from '@/lib/parties';
 import { getCategory } from '@/lib/ledger/categories';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { cn } from '@/lib/utils';
 
 export default function GroupExpensesPage() {
     const params = useParams();
@@ -81,6 +82,7 @@ export default function GroupExpensesPage() {
         <div className="min-h-dvh bg-app has-bottom-nav">
             {currentGroup && (
                 <HeroHeader
+                    variant="compact"
                     title={currentGroup.name}
                     background={getGroupHeroBackground(currentGroup)}
                     avatars={heroAvatars}
@@ -94,23 +96,28 @@ export default function GroupExpensesPage() {
                 />
             )}
             <GroupOverviewBar groupId={groupId} />
-            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
+            <GroupTabs
+                groupId={groupId}
+                isAdmin={isAdmin}
+                trailing={!loading && expenses.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setShowSearch((v) => !v)}
+                        aria-label="Pesquisar despesas"
+                        aria-pressed={showSearch}
+                        className={cn(
+                            'w-9 h-9 shrink-0 flex items-center justify-center rounded-full transition-colors',
+                            showSearch ? 'bg-surface-sunken text-ink' : 'text-ink-soft hover:bg-surface-sunken',
+                        )}
+                    >
+                        <Icon name="search" className="text-xl" />
+                    </button>
+                )}
+            />
 
             <main className="container mx-auto max-w-2xl pb-24">
-                {!loading && expenses.length > 0 && (
-                    <div className="flex justify-end px-2 sm:px-4 pt-3">
-                        <button
-                            type="button"
-                            onClick={() => setShowSearch((v) => !v)}
-                            aria-label="Pesquisar despesas"
-                            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft"
-                        >
-                            <Icon name="filter_list" className="text-xl" />
-                        </button>
-                    </div>
-                )}
                 {showSearch && (
-                    <div className="px-2 sm:px-4 pb-2">
+                    <div className="px-2 sm:px-4 pt-2">
                         <input
                             type="text"
                             value={search}

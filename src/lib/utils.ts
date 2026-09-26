@@ -227,6 +227,16 @@ export function getUserGeminiApiKey(
 }
 
 /**
+ * Mascara um segredo para mostrar no ecrã — só os últimos 4 caracteres
+ * (`"AIzaSy…XWHq"` → `"•••• XWHq"`), o suficiente para reconhecer qual é
+ * sem o expor num screenshot ou a quem está ao lado.
+ */
+export function maskSecret(secret: string): string {
+  if (!secret) return '';
+  return secret.length <= 4 ? '••••' : `•••• ${secret.slice(-4)}`;
+}
+
+/**
  * Não há forma de saber a quota real do Gemini (a Google não a expõe, e varia
  * por conta). Em vez de um limite fixo inventado, deixamos scanear à vontade e,
  * quando o Gemini responder "quota diária esgotada", marcamos aqui e bloqueamos

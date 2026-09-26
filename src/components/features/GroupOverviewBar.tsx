@@ -7,7 +7,7 @@ import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
 import { balanceFor } from '@/lib/ledger/balances';
 import { expensesToCsv } from '@/lib/ledger/csv';
 import { BalanceBand } from '@/components/features/BalanceBand';
-import { ActionChipRow } from '@/components/features/ActionChipRow';
+import { QuickActions } from '@/components/ui/QuickActions';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { BalancesSheet } from '@/components/features/BalancesSheet';
 import { TotalsSheet } from '@/components/features/TotalsSheet';
@@ -54,12 +54,16 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
     if (!ledger || !myBalance) {
         return (
             <div aria-hidden className="animate-pulse">
-                <div className="px-4 py-3 bg-surface flex justify-center">
-                    <div className="h-4 w-40 rounded bg-surface-sunken" />
+                <div className="px-4 pt-3 pb-1 bg-surface space-y-1.5">
+                    <div className="h-3.5 w-48 rounded bg-surface-sunken" />
+                    <div className="h-3.5 w-40 rounded bg-surface-sunken" />
                 </div>
-                <div className="flex gap-2 px-4 py-2.5 border-b border-hairline bg-surface">
+                <div className="flex justify-center px-4 py-3 border-b border-hairline bg-surface">
                     {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="h-8 w-24 rounded-full bg-surface-sunken shrink-0" />
+                        <div key={i} className="flex-1 max-w-24 flex flex-col items-center gap-1.5 py-1">
+                            <div className="w-12 h-12 rounded-full bg-surface-sunken" />
+                            <div className="h-3 w-12 rounded-full bg-surface-sunken" />
+                        </div>
                     ))}
                 </div>
             </div>
@@ -74,9 +78,10 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
                 parties={ledger.parties}
                 onSeeAllClick={() => setShowBalances(true)}
             />
-            <ActionChipRow
-                chips={[
-                    { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true) },
+            <QuickActions
+                className="px-4 py-3 bg-surface border-b border-hairline"
+                actions={[
+                    { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true), primary: true },
                     { icon: 'balance', label: 'Saldos', onClick: () => setShowBalances(true) },
                     { icon: 'calculate', label: 'Totais', onClick: () => setShowTotals(true) },
                     { icon: 'drive_file_move', label: 'Exportar', onClick: handleExport },

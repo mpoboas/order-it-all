@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { usePeopleBalances, useFriendships } from '@/lib/db/hooks';
-import { fromCents } from '@/lib/ledger/money';
 import { friendshipsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
@@ -17,15 +16,12 @@ import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
-import { Money } from '@/components/ui/Money';
+import { Balance } from '@/components/ui/Balance';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { AddFriendSheet } from '@/components/features/AddFriendSheet';
-import { cn } from '@/lib/utils';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
-
-const EPS = 0.5;
 
 export default function PeoplePage() {
     const router = useRouter();
@@ -125,7 +121,7 @@ export default function PeoplePage() {
                                             disabled={respondingId === f.id}
                                             onClick={() => handleAccept(f.id, otherId)}
                                             aria-label="Aceitar pedido"
-                                            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-primary-600 text-white disabled:opacity-50"
+                                            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-primary-600 text-white disabled:opacity-50"
                                         >
                                             <Icon name="check" className="text-lg" />
                                         </button>
@@ -154,9 +150,7 @@ export default function PeoplePage() {
                     </div>
                 ) : (
                     <div className="card divide-y divide-hairline overflow-hidden">
-                        {people.map((person) => {
-                            const settled = Math.abs(person.netCents) < EPS;
-                            return (
+                        {people.map((person) => (
                                 <button
                                     key={person.userId}
                                     type="button"
@@ -165,23 +159,14 @@ export default function PeoplePage() {
                                 >
                                     <Avatar name={person.party.name} src={person.party.avatar} size="sm" />
                                     <span className="flex-1 min-w-0 font-medium text-ink truncate">{person.party.name}</span>
-                                    {settled ? (
-                                        <span className="text-sm text-ink-faint shrink-0">Contas em dia</span>
-                                    ) : (
-                                        <div className="text-right shrink-0">
-                                            <p className={cn('text-[10px] font-bold uppercase', person.netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-                                                {person.netCents > 0 ? 'deve-te' : 'deves'}
-                                            </p>
-                                            <Money
-                                                value={Math.abs(fromCents(person.netCents))}
-                                                className={cn('text-sm font-bold', person.netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
-                                            />
-                                        </div>
-                                    )}
+                                    <Balance
+                                        cents={person.netCents}
+                                        labels={{ pos: 'deve-te', neg: 'deves' }}
+                                        settledLabel="Contas em dia"
+                                    />
                                     <Icon name="chevron_right" className="text-ink-faint" />
                                 </button>
-                            );
-                        })}
+                        ))}
                     </div>
                 )}
             </main>

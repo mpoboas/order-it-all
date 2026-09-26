@@ -35,8 +35,11 @@ export function GlobalBottomNav() {
             ? pathname.startsWith('/groups') || pathname.startsWith('/people')
             : pathname.startsWith(href);
 
+    // Fundo opaco: translúcida (80%, e ainda a 95%) o texto das listas lia-se
+    // através da barra e colidia com os rótulos (Fase 15). Sem blur, também
+    // deixa de haver o custo de re-amostrar o fundo a cada frame de scroll.
     return (
-        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-hairline z-50 md:hidden safe-bottom-nav">
+        <nav className="bottom-nav fixed bottom-0 left-0 right-0 bg-surface border-t border-hairline z-50 md:hidden safe-bottom-nav">
             <div className="flex items-center justify-around h-16">
                 {ITEMS.map((item) => {
                     const active = isActive(item.href);

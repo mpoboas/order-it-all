@@ -20,9 +20,10 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
 import { Sheet } from '@/components/ui/Sheet';
+import { QuickActions } from '@/components/ui/QuickActions';
+import { Balance } from '@/components/ui/Balance';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
-import { cn } from '@/lib/utils';
 import { formatDayMonthAbbrev } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 
@@ -159,35 +160,22 @@ export default function PersonDetailPage() {
                     <>
                         {person && !settled && (
                             <>
-                                <div className="card p-4 text-center">
-                                    <p className={cn('text-xs font-bold uppercase', person.netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-                                        {person.netCents > 0 ? 'deve-te no total' : 'deves no total'}
-                                    </p>
-                                    <Money
-                                        value={Math.abs(fromCents(person.netCents))}
-                                        className={cn('text-2xl font-black', person.netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
+                                <div className="card p-5">
+                                    <Balance
+                                        cents={person.netCents}
+                                        labels={{ pos: 'No total, deve-te', neg: 'No total, deves' }}
+                                        size="hero"
+                                        align="center"
                                     />
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={goSettleUp}
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft bg-surface-sunken hover:bg-hairline/30 active:scale-95 transition"
-                                    >
-                                        <Icon name="swap_horiz" className="text-base" />
-                                        Acertar contas
-                                    </button>
-                                    {person.netCents > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={handleRemind}
-                                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft bg-surface-sunken hover:bg-hairline/30 active:scale-95 transition"
-                                        >
-                                            <Icon name="notifications" className="text-base" />
-                                            Lembrar
-                                        </button>
-                                    )}
-                                </div>
+                                <QuickActions
+                                    actions={[
+                                        { icon: 'swap_horiz', label: 'Acertar contas', onClick: goSettleUp, primary: true },
+                                        ...(person.netCents > 0
+                                            ? [{ icon: 'notifications' as const, label: 'Lembrar', onClick: handleRemind }]
+                                            : []),
+                                    ]}
+                                />
                             </>
                         )}
 
@@ -257,10 +245,7 @@ export default function PersonDetailPage() {
                                 className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-surface-sunken rounded-lg px-1 -mx-1 transition-colors"
                             >
                                 <span className="font-medium text-ink truncate">{g.groupName}</span>
-                                <span className={cn('text-sm font-semibold shrink-0', g.netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-                                    {g.netCents > 0 ? 'deve-te ' : 'deves '}
-                                    {formatEUR(Math.abs(fromCents(g.netCents)))}
-                                </span>
+                                <Balance cents={g.netCents} labels={{ pos: 'deve-te', neg: 'deves' }} />
                             </button>
                         </li>
                     ))}
@@ -275,10 +260,7 @@ export default function PersonDetailPage() {
                                 className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-surface-sunken rounded-lg px-1 -mx-1 transition-colors"
                             >
                                 <span className="font-medium text-ink truncate">Despesas diretas</span>
-                                <span className={cn('text-sm font-semibold shrink-0', person.directNetCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-                                    {person.directNetCents > 0 ? 'deve-te ' : 'deves '}
-                                    {formatEUR(Math.abs(fromCents(person.directNetCents)))}
-                                </span>
+                                <Balance cents={person.directNetCents} labels={{ pos: 'deve-te', neg: 'deves' }} />
                             </button>
                         </li>
                     )}

@@ -6,12 +6,10 @@ import { fromCents } from '@/lib/ledger/money';
 import { partyLabel, isUnclaimedPlaceholder } from '@/lib/parties';
 import type { Party } from '@/lib/types';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { Money } from '@/components/ui/Money';
+import { BALANCE_TEXT, balanceTone } from '@/components/ui/Balance';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/lib/utils';
-
-const SETTLED_CENTS = 0;
 
 /**
  * Saldo LÍQUIDO de uma pessoa no grupo (o que pagou menos a sua parte), com
@@ -19,24 +17,31 @@ const SETTLED_CENTS = 0;
  * ficam reservados às dívidas entre duas pessoas (cabeçalho do grupo, linhas
  * expandidas), que são outro número. Usar os mesmos verbos para as duas coisas
  * fazia "Bruno deve-te 10,24 €" e "Bruno DEVE 8,70 €" parecerem contraditórios.
+ * Sem etiqueta "Saldo no grupo" por linha (Fase 15): repetida 10× numa lista
+ * gritava mais do que os números — o que o número é explica-se uma vez, no
+ * topo da lista.
  */
-export function GroupNetBalance({ netCents, className }: { netCents: number; className?: string }) {
-  const settled = Math.abs(netCents) <= SETTLED_CENTS;
-  const tone = settled ? 'text-ink-faint' : netCents > 0 ? 'text-success-fg' : 'text-warning-fg';
-  const sign = netCents > 0 ? '+' : '−';
+export function GroupNetBalance({
+  netCents,
+  inline = false,
+  className,
+}: {
+  netCents: number;
+  /** Por baixo do nome (linha secundária), em vez de coluna à direita. */
+  inline?: boolean;
+  className?: string;
+}) {
+  const tone = balanceTone(netCents);
+  const layout = inline ? 'text-sm' : 'text-base text-right shrink-0';
+  if (tone === 'settled') {
+    return <p className={cn(layout, 'text-ink-faint', className)}>em dia</p>;
+  }
   return (
-    <div className={cn('text-right shrink-0', className)}>
-      <p className="text-[10px] font-bold uppercase text-ink-faint">Saldo no grupo</p>
-      {settled ? (
-        <p className="text-sm font-semibold text-ink-faint">em dia</p>
-      ) : (
-        <p className={cn('text-sm font-bold tabular-nums', tone)}>
-          <span aria-hidden="true">{sign}</span>
-          <span className="sr-only">{netCents > 0 ? 'a receber ' : 'a pagar '}</span>
-          <Money value={Math.abs(fromCents(netCents))} />
-        </p>
-      )}
-    </div>
+    <p className={cn(layout, 'font-semibold tracking-tight tabular-nums', BALANCE_TEXT[tone], className)}>
+      <span aria-hidden="true">{tone === 'pos' ? '+' : '−'}</span>
+      <span className="sr-only">{tone === 'pos' ? 'a receber ' : 'a pagar '}</span>
+      <Money value={Math.abs(fromCents(netCents))} />
+    </p>
   );
 }
 
@@ -87,7 +92,7 @@ export function BalanceRows({ rows, parties, currentUserId, onRemind }: BalanceR
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-ink truncate">{party.name}</p>
                   {isUnclaimedPlaceholder(row.id, parties) && (
-                    <Badge variant="neutral" className="mt-0.5">Sem conta</Badge>
+                    <p className="text-xs text-ink-faint">Sem conta</p>
                   )}
                 </div>
                 <GroupNetBalance netCents={row.netCents} />
@@ -108,14 +113,14 @@ export function BalanceRows({ rows, parties, currentUserId, onRemind }: BalanceR
                           <>
                             <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span>{' '}
                             {isMe ? 'deve-te' : 'deve-lhe'}{' '}
-                            <span className="font-semibold text-success-fg">
+                            <span className="font-semibold text-pos">
                               <Money value={fromCents(line.amountCents)} />
                             </span>
                           </>
                         ) : (
                           <>
                             {isMe ? 'Deves' : 'Deve'}{' '}
-                            <span className="font-semibold text-warning-fg">
+                            <span className="font-semibold text-neg">
                               <Money value={fromCents(-line.amountCents)} />
                             </span>{' '}
                             a <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span>

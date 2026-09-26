@@ -1,26 +1,22 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { usePrefetchRoutes } from '@/hooks/usePrefetch';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
-import { Icon, type IconName } from '@/components/ui/Icon';
-
-interface TabItem {
-    href: string;
-    label: string;
-    icon: IconName;
-}
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 interface GroupTabsProps {
     groupId: string;
     isAdmin: boolean;
+    /** Ação da vista atual à direita do segmented (ex.: pesquisar despesas) —
+     *  na mesma linha em vez de uma linha própria por baixo (Fase 15). */
+    trailing?: React.ReactNode;
 }
 
 /** Segmented control por baixo do cabeçalho do grupo — Despesas · Viagens
  *  (a de admin aponta para o dashboard `/admin`, a de membro para `/trips`,
- *  mas o rótulo/ícone são sempre os mesmos "Viagens" — deixou de haver uma
- *  tab "Admin" separada). Saldos já não é tab — passou a chip do
+ *  mas o rótulo é sempre o mesmo "Viagens" — deixou de haver uma
+ *  tab "Admin" separada). Saldos já não é tab — passou a ação do
  *  `GroupOverviewBar`, a faixa idêntica nas duas tabs (saldo + ações) entre
  *  o nome do grupo e este segmented control; é também onde vive agora o
  *  separador (antes no fundo deste componente).
@@ -32,40 +28,32 @@ interface GroupTabsProps {
  *  Viagens, Despesas, Saldos), não em sub-ecrãs (detalhe de despesa/viagem,
  *  itens). Funciona em todas as larguras — no desktop substitui os links
  *  que estavam no `Header`. */
-export function GroupTabs({ groupId, isAdmin }: GroupTabsProps) {
+export function GroupTabs({ groupId, isAdmin, trailing }: GroupTabsProps) {
     const pathname = usePathname();
     const nav = useAppNavigate();
     const basePath = `/groups/${groupId}`;
 
-    const items: TabItem[] = [
-        { href: `${basePath}/expenses`, label: 'Despesas', icon: 'receipt_long' },
-        { href: isAdmin ? `${basePath}/admin` : `${basePath}/trips`, label: 'Viagens', icon: 'shopping_bag' },
+    const items = [
+        { key: `${basePath}/expenses`, label: 'Despesas' },
+        { key: isAdmin ? `${basePath}/admin` : `${basePath}/trips`, label: 'Viagens' },
     ];
 
     usePrefetchRoutes([`${basePath}/expenses`, `${basePath}/admin`, `${basePath}/trips`]);
 
+    // Nenhum ativo fora das duas secções (ex.: `/balances`).
+    const value = items.find((item) => pathname.startsWith(item.key))?.key ?? null;
+
     return (
         <div className="bg-app px-4 pt-3 pb-2">
-            <div className="flex p-1 bg-surface-sunken rounded-xl max-w-6xl mx-auto">
-                {items.map((item) => {
-                    const active = pathname.startsWith(item.href);
-                    return (
-                        <button
-                            key={item.href}
-                            type="button"
-                            onClick={() => nav.push(item.href, { haptic: false, transition: 'none' })}
-                            className={cn(
-                                'flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors',
-                                active
-                                    ? 'bg-surface text-primary-600 dark:text-primary-400 shadow-sm'
-                                    : 'text-ink-soft hover:text-ink',
-                            )}
-                        >
-                            <Icon name={item.icon} className="text-base" />
-                            {item.label}
-                        </button>
-                    );
-                })}
+            <div className="flex items-center gap-2 max-w-6xl mx-auto">
+                <SegmentedControl
+                    ariaLabel="Secção do grupo"
+                    items={items}
+                    value={value}
+                    onChange={(href) => nav.push(href, { haptic: false, transition: 'none' })}
+                    className="flex-1"
+                />
+                {trailing}
             </div>
         </div>
     );

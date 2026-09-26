@@ -13,7 +13,7 @@ export function Card({ children, className, hover = false, onClick, style }: Car
     return (
         <div
             className={cn(
-                'bg-surface border border-hairline rounded-2xl shadow-sm transition duration-200',
+                'bg-surface border border-hairline rounded-xl shadow-sm transition duration-200',
                 hover && 'hover:-translate-y-0.5 hover:shadow-md',
                 onClick && 'cursor-pointer',
                 className,

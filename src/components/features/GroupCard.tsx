@@ -10,11 +10,8 @@ import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 import { usePrefetchOnIntent } from '@/hooks/usePrefetch';
 import { Icon } from '@/components/ui/Icon';
-import { Money } from '@/components/ui/Money';
-import { fromCents } from '@/lib/ledger/money';
+import { Balance } from '@/components/ui/Balance';
 import { groupHomeHref } from '@/lib/navHierarchy';
-
-const EPS_CENTS = 1;
 
 interface GroupCardProps {
   group: Group;
@@ -39,7 +36,6 @@ export function GroupCard({
   const { trigger } = useWebHaptics();
   const avatarUrl = getGroupAvatarUrl(group.id, group.avatar);
   const emoji = guessGroupEmoji(group.avatar);
-  const settled = typeof netCents === 'number' && Math.abs(netCents) < EPS_CENTS;
 
   const prefetch = usePrefetchOnIntent(groupHomeHref(group.id));
 
@@ -57,7 +53,7 @@ export function GroupCard({
       )}
       style={style}
     >
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+      <div className="w-10 h-10 rounded-xl bg-surface-sunken flex items-center justify-center flex-shrink-0 overflow-hidden">
         {avatarUrl && isGroupImageAvatar(group.avatar) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -67,19 +63,7 @@ export function GroupCard({
       </div>
       <span className="flex-1 min-w-0 font-medium text-ink truncate">{group.name}</span>
       {typeof netCents === 'number' && (
-        settled ? (
-          <span className="text-sm text-ink-faint shrink-0">Em dia</span>
-        ) : (
-          <div className="text-right shrink-0">
-            <p className={cn('text-[10px] font-bold uppercase tracking-wide', netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-              {netCents > 0 ? 'devem-te' : 'deves'}
-            </p>
-            <Money
-              value={Math.abs(fromCents(netCents))}
-              className={cn('text-sm font-bold', netCents > 0 ? 'text-success-fg' : 'text-warning-fg')}
-            />
-          </div>
-        )
+        <Balance cents={netCents} labels={{ pos: 'devem-te', neg: 'deves' }} />
       )}
       <Icon name="chevron_right" className="text-ink-faint" />
     </button>

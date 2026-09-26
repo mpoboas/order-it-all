@@ -104,7 +104,7 @@ export function CommentsBar({ expense, groupId, parties, currentUserId, notifyUr
                     type="button"
                     onClick={handleSubmit}
                     disabled={!content.trim() || submitting}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary-600 text-white disabled:opacity-40"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-primary-600 text-white disabled:opacity-40"
                     aria-label="Enviar comentário"
                 >
                     <Icon name="send" className="text-lg" />

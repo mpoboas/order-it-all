@@ -30,7 +30,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Input, Textarea } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/context/UserContext';
-import { TripCard } from '@/components/features/TripCard';
+import { TripList } from '@/components/features/TripList';
 import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
 import { ExpandableFab } from '@/components/features/ExpandableFab';
@@ -53,6 +53,9 @@ function AdminDashboardContent() {
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
     const expensesForChecklist = useExpenses(groupId) ?? [];
+    const tripIdsWithExpense = new Set(
+        expensesForChecklist.flatMap((e) => (!e.deleted_at && e.trip_id ? [e.trip_id] : [])),
+    );
     usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/admin/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
@@ -120,9 +123,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleOpenEditModal = (e: React.MouseEvent, trip: Trip) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleOpenEditModal = (trip: Trip) => {
         setEditTripId(trip.id);
         setEditTripName(trip.name);
         setEditTripDescription(trip.description || '');
@@ -188,9 +189,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleDeleteTrip = async (e: React.MouseEvent, id: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleDeleteTrip = async (id: string) => {
         if (!(await confirmAction({
             title: 'Eliminar esta viagem?',
             description: 'Apaga todos os pedidos e produtos associados. Não pode ser desfeito.',
@@ -209,9 +208,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleCloseTrip = async (e: React.MouseEvent, id: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleCloseTrip = async (id: string) => {
 
         const canClose = await validateTripClosure(id);
         if (!canClose) return;
@@ -237,11 +234,6 @@ function AdminDashboardContent() {
         }
     };
 
-    const openTripToExpense = (e: React.MouseEvent, trip: Trip) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setTripToExpense(trip);
-    };
 
     if (loading || !currentGroup) {
         return (
@@ -261,6 +253,7 @@ function AdminDashboardContent() {
     return (
         <div className="min-h-screen bg-app has-bottom-nav">
             <HeroHeader
+                variant="compact"
                 title={currentGroup.name}
                 background={getGroupHeroBackground(currentGroup)}
                 avatars={heroAvatars}
@@ -275,7 +268,7 @@ function AdminDashboardContent() {
             <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
-            <main className="container mx-auto px-4 py-6 max-w-4xl pb-24">
+            <main className="container mx-auto px-2 sm:px-4 py-4 max-w-2xl pb-24">
                 {/* Onboarding: só para quem criou o grupo de raiz — uma vez na
                     vida (qualquer grupo), não uma vez por grupo. */}
                 {isCreator && (
@@ -289,38 +282,35 @@ function AdminDashboardContent() {
                     />
                 )}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    {trips.length === 0 ? (
-                        /* Onboarding: sem viagem aberta, ninguém no grupo consegue fazer
-                           pedidos — é o desbloqueio inicial para o admin. */
-                        <div className="col-span-full py-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">
-                                <Icon name="receipt_long" className="text-3xl" />
-                            </div>
-                            <h3 className="font-bold text-ink mb-1">Cria a tua primeira viagem</h3>
-                            <p className="text-sm text-ink-faint mb-4 max-w-xs mx-auto">
-                                Os membros só conseguem fazer pedidos depois de teres uma viagem aberta.
-                            </p>
-                            <Button size="sm" onClick={() => setShowCreateModal(true)}>
-                                + Nova Viagem
-                            </Button>
+                {trips.length === 0 ? (
+                    /* Onboarding: sem viagem aberta, ninguém no grupo consegue fazer
+                       pedidos — é o desbloqueio inicial para o admin. */
+                    <div className="py-12 text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">
+                            <Icon name="receipt_long" className="text-3xl" />
                         </div>
-                    ) : (
-                        trips.map(trip => (
-                            <TripCard
-                                key={trip.id}
-                                trip={trip}
-                                href={`/groups/${groupId}/admin/trips/${trip.id}`}
-                                onClick={() => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
-                                isAdmin={true}
-                                onEdit={handleOpenEditModal}
-                                onClose={handleCloseTrip}
-                                onDelete={handleDeleteTrip}
-                                onSplit={openTripToExpense}
-                            />
-                        ))
-                    )}
-                </div>
+                        <h3 className="font-bold text-ink mb-1">Cria a tua primeira viagem</h3>
+                        <p className="text-sm text-ink-faint mb-4 max-w-xs mx-auto">
+                            Os membros só conseguem fazer pedidos depois de teres uma viagem aberta.
+                        </p>
+                        <Button size="sm" onClick={() => setShowCreateModal(true)}>
+                            + Nova Viagem
+                        </Button>
+                    </div>
+                ) : (
+                    <TripList
+                        trips={trips}
+                        hrefFor={(trip) => `/groups/${groupId}/admin/trips/${trip.id}`}
+                        onOpen={(trip) => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
+                        tripIdsWithExpense={tripIdsWithExpense}
+                        admin={{
+                            onEdit: handleOpenEditModal,
+                            onFinish: (trip) => void handleCloseTrip(trip.id),
+                            onLaunchExpense: setTripToExpense,
+                            onDelete: (trip) => void handleDeleteTrip(trip.id),
+                        }}
+                    />
+                )}
             </main>
 
             <ExpandableFab icon="add" label="Nova Viagem" onClick={() => setShowCreateModal(true)} />

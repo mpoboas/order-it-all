@@ -4,8 +4,7 @@ import type { Expense, Party } from '@/lib/types';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Icon } from '@/components/ui/Icon';
 import { Badge } from '@/components/ui/Badge';
-import { Money } from '@/components/ui/Money';
-import { cn } from '@/lib/utils';
+import { Balance } from '@/components/ui/Balance';
 import {
   formatDayMonthAbbrev,
   myAmountForExpense,
@@ -20,8 +19,6 @@ interface ExpenseRowProps {
   onClick: () => void;
 }
 
-const EPS = 0.005;
-
 export function ExpenseRow({ expense, parties, myId, onClick }: ExpenseRowProps) {
   const { day, month } = formatDayMonthAbbrev(expense.date);
 
@@ -33,10 +30,10 @@ export function ExpenseRow({ expense, parties, myId, onClick }: ExpenseRowProps)
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors"
       >
         <div className="w-8 flex flex-col items-center shrink-0">
-          <span className="text-[10px] font-bold uppercase text-ink-faint">{month}</span>
-          <span className="text-sm font-bold text-ink-soft leading-none">{day}</span>
+          <span className="text-xs font-medium text-ink-faint">{month}</span>
+          <span className="text-base font-semibold text-ink-soft leading-none">{day}</span>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-success-bg text-success-fg flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-surface-sunken text-ink-soft flex items-center justify-center shrink-0">
           <Icon name="swap_horiz" />
         </div>
         <p className="flex-1 min-w-0 text-sm text-ink font-medium truncate">
@@ -57,8 +54,8 @@ export function ExpenseRow({ expense, parties, myId, onClick }: ExpenseRowProps)
       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors"
     >
       <div className="w-8 flex flex-col items-center shrink-0">
-        <span className="text-[10px] font-bold uppercase text-ink-faint">{month}</span>
-        <span className="text-sm font-bold text-ink-soft leading-none">{day}</span>
+        <span className="text-xs font-medium text-ink-faint">{month}</span>
+        <span className="text-base font-semibold text-ink-soft leading-none">{day}</span>
       </div>
 
       <CategoryIcon category={expense.category} />
@@ -80,25 +77,11 @@ export function ExpenseRow({ expense, parties, myId, onClick }: ExpenseRowProps)
       </div>
 
       {hasPayer && myAmount !== null && (
-        <div className="text-right shrink-0">
-          <p
-            className={cn(
-              'text-[10px] font-bold uppercase tracking-wide',
-              myAmount > EPS ? 'text-success-fg' : myAmount < -EPS ? 'text-warning-fg' : 'text-ink-faint',
-            )}
-          >
-            {myAmount > EPS ? 'emprestaste' : myAmount < -EPS ? 'pediste' : 'em dia'}
-          </p>
-          {Math.abs(myAmount) > EPS && (
-            <Money
-              value={Math.abs(myAmount)}
-              className={cn(
-                'text-sm font-bold',
-                myAmount > 0 ? 'text-success-fg' : 'text-warning-fg',
-              )}
-            />
-          )}
-        </div>
+        <Balance
+          cents={Math.round(myAmount * 100)}
+          labels={{ pos: 'emprestaste', neg: 'pediste' }}
+          settledLabel="em dia"
+        />
       )}
       {hasPayer && myAmount === null && (
         <p className="text-xs text-ink-faint shrink-0">não participaste</p>

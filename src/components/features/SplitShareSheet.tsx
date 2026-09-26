@@ -210,7 +210,7 @@ export function SplitShareSheet({
                 type="button"
                 onClick={() => void handleShare()}
                 disabled={!shareUrl || !shareActive}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
                 <Icon name="share" className="text-[18px]" />
                 Partilhar

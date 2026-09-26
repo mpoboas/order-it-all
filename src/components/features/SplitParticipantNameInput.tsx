@@ -178,7 +178,7 @@ export function SplitParticipantNameInput({
           onMouseDown={(e) => e.preventDefault()}
           onClick={submit}
           disabled={!value.trim()}
-          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-primary-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
+          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
           aria-label="Adicionar participante"
         >
           +

@@ -6,7 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
-import { cn, getUserGeminiApiKey } from '@/lib/utils';
+import { cn, getUserGeminiApiKey, maskSecret } from '@/lib/utils';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { isValidUsername } from '@/lib/username';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -280,7 +280,7 @@ export default function ProfilePage() {
                             <SummaryRow
                                 icon="key"
                                 label="Chave API Gemini"
-                                value={currentGeminiKey}
+                                value={maskSecret(currentGeminiKey)}
                                 placeholder="Definir chave"
                                 onClick={() => setEditingField('gemini')}
                             />
@@ -291,7 +291,7 @@ export default function ProfilePage() {
                 {/* Terminar sessão */}
                 <button
                     onClick={handleLogout}
-                    className="w-full py-4 rounded-xl text-danger-fg font-bold bg-danger-bg/50 hover:bg-danger-bg transition-colors border border-danger-fg/20 flex items-center justify-center gap-2"
+                    className="w-full h-12 rounded-full text-danger-fg font-semibold bg-surface hover:bg-danger-bg transition-colors border border-danger-fg/25 flex items-center justify-center gap-2"
                 >
                     <Icon name="logout" className="text-xl" />
                     Terminar Sessão

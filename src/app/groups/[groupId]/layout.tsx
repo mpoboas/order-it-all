@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
@@ -24,7 +24,7 @@ function GroupShellSkeleton() {
         <div aria-hidden className="min-h-dvh bg-app animate-pulse">
             <div className="h-[calc(7rem+var(--safe-top))] bg-surface-sunken" />
             <div className="px-4 pt-3 pb-2">
-                <div className="h-[42px] rounded-xl bg-surface-sunken max-w-6xl mx-auto" />
+                <div className="h-9 rounded-full bg-surface-sunken max-w-6xl mx-auto" />
             </div>
         </div>
     );
@@ -36,6 +36,7 @@ export default function GroupLayout({
     children: React.ReactNode;
 }) {
     const params = useParams();
+    const pathname = usePathname();
     const router = useSmartRouter();
     const groupId = params.groupId as string;
     const { user, isLoggedIn } = useUser();
@@ -115,7 +116,7 @@ export default function GroupLayout({
                     <h2 className="text-xl font-semibold text-ink mb-2">{error}</h2>
                     <button
                         onClick={() => { navStart(); router.push('/groups'); }}
-                        className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors"
+                        className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-full font-semibold hover:bg-primary-700 transition-colors"
                     >
                         Voltar aos Grupos
                     </button>
@@ -124,14 +125,19 @@ export default function GroupLayout({
         );
     }
 
+    // Editor de itens = ecrã de tarefa (como um formulário): sem a barra
+    // global, para a área de trabalho e a barra de totais ficarem sozinhas no
+    // fundo (Fase 15). Sai-se pelo "voltar" do cabeçalho.
+    const isTaskScreen = pathname.endsWith('/items');
+
     // Chegar aqui (passado `loading`/`error`) já garante `isMember` — sem
     // depender do `GroupContext` (que só atualiza num efeito, um tick
     // atrás), a bottom nav aparece no mesmo render que o resto do ecrã.
     return (
         <UnsavedDraftProvider>
-            <div className="has-bottom-nav">
+            <div className={isTaskScreen ? undefined : 'has-bottom-nav'}>
                 {children}
-                <GlobalBottomNav />
+                {!isTaskScreen && <GlobalBottomNav />}
             </div>
         </UnsavedDraftProvider>
     );

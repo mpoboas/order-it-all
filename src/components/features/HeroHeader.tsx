@@ -21,6 +21,11 @@ interface HeroHeaderProps {
     avatarOverflowCount?: number;
     onBack: () => void;
     topRightAction?: { icon: IconName; label: string; onClick: () => void };
+    /** `profile` (omissão) — capa + avatar grande sobreposto + nome centrado
+     *  por baixo (detalhe de amigo). `compact` — tudo dentro da capa: título à
+     *  esquerda e stack de avatares pequeno na mesma linha (páginas do grupo,
+     *  onde a lista de despesas tem de começar mais acima — Fase 15). */
+    variant?: 'profile' | 'compact';
 }
 
 /** Hero partilhado pelo detalhe de grupo e pelo detalhe de amigo — capa
@@ -36,7 +41,65 @@ export function HeroHeader({
     avatarOverflowCount = 0,
     onBack,
     topRightAction,
+    variant = 'profile',
 }: HeroHeaderProps) {
+    const coverBackground = background.kind === 'gradient' ? { background: coverGradientFor(background.seed) } : undefined;
+    const tintBackground = background.kind === 'gradient' ? coverGradientFor(background.seed) : 'rgba(0,0,0,0.55)';
+
+    const navButtons = (
+        <div className="relative flex items-center justify-between px-4 safe-top-min">
+            <button
+                type="button"
+                aria-label="Voltar"
+                onClick={onBack}
+                className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
+            >
+                <Icon name="chevron_left" className="text-xl" />
+            </button>
+            {topRightAction && (
+                <button
+                    type="button"
+                    aria-label={topRightAction.label}
+                    onClick={topRightAction.onClick}
+                    className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
+                >
+                    <Icon name={topRightAction.icon} className="text-xl" />
+                </button>
+            )}
+        </div>
+    );
+
+    if (variant === 'compact') {
+        return (
+            <div className="h-[calc(7rem+var(--safe-top))] relative overflow-hidden" style={coverBackground}>
+                {background.kind === 'image' && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={background.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                {/* Véu de baixo para cima — o título branco tem de ler-se sobre
+                    qualquer foto ou gradiente claro. */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10" />
+                <StatusBarTint background={tintBackground} />
+                {navButtons}
+                <div className="absolute inset-x-4 bottom-3 flex items-end gap-3">
+                    <h1 className="flex-1 min-w-0 text-2xl font-bold tracking-tight text-white truncate">{title}</h1>
+                    <div className="flex items-center shrink-0 pb-0.5">
+                        {avatars.map((a, index) => (
+                            <div key={`${a.name}-${index}`} className={cn('rounded-full ring-2 ring-white/80', index > 0 && '-ml-2')}>
+                                <Avatar name={a.name} src={a.src} size="sm" />
+                            </div>
+                        ))}
+                        {avatarOverflowCount > 0 && (
+                            <div className="-ml-2 h-8 min-w-8 px-1.5 rounded-full ring-2 ring-white/80 bg-surface text-ink text-xs font-semibold flex items-center justify-center">
+                                +{avatarOverflowCount}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div>
             {/* Contentor da capa: altura fixa (`h-28` + a safe-area do topo) —
@@ -49,7 +112,7 @@ export function HeroHeader({
                 sobrepor o conteúdo seguinte, tal como no desenho de referência. */}
             <div
                 className="h-[calc(7rem+var(--safe-top))] relative"
-                style={background.kind === 'gradient' ? { background: coverGradientFor(background.seed) } : undefined}
+                style={coverBackground}
             >
                 {background.kind === 'image' && (
                     <>
@@ -62,27 +125,8 @@ export function HeroHeader({
                     com o que está mesmo por baixo. Para foto de fundo, aproxima
                     com o tom escuro do overlay em vez da imagem (evita esticar
                     a mesma foto a duas escalas diferentes numa faixa de 16px). */}
-                <StatusBarTint background={background.kind === 'gradient' ? coverGradientFor(background.seed) : 'rgba(0,0,0,0.55)'} />
-                <div className="relative flex items-center justify-between px-4 safe-top-min">
-                    <button
-                        type="button"
-                        aria-label="Voltar"
-                        onClick={onBack}
-                        className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
-                    >
-                        <Icon name="chevron_left" className="text-xl" />
-                    </button>
-                    {topRightAction && (
-                        <button
-                            type="button"
-                            aria-label={topRightAction.label}
-                            onClick={topRightAction.onClick}
-                            className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
-                        >
-                            <Icon name={topRightAction.icon} className="text-xl" />
-                        </button>
-                    )}
-                </div>
+                <StatusBarTint background={tintBackground} />
+                {navButtons}
 
                 <div className="absolute left-1/2 -translate-x-1/2 -bottom-8 flex items-center">
                     {avatars.map((a, index) => (

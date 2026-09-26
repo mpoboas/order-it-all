@@ -20,10 +20,11 @@ export function expenseReceiptUrl(expense: Expense): string | undefined {
 }
 
 /** Nunca `Intl` com `month: 'short'` (dá numérico em pt-PT) — tabela própria
- *  para a coluna de data empilhada da lista de despesas. */
+ *  para a coluna de data empilhada da lista de despesas. Em minúsculas, como
+ *  o resto da app ("14 set.") e a norma pt-PT (Fase 15). */
 const MONTH_ABBREV_PT = [
-  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+  'jul', 'ago', 'set', 'out', 'nov', 'dez',
 ];
 
 function parseLocalDate(iso: string): Date {

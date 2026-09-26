@@ -9,7 +9,7 @@ import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
 import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
 import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
-import { TripCard } from '@/components/features/TripCard';
+import { TripList } from '@/components/features/TripList';
 import { Icon } from '@/components/ui/Icon';
 import { useTrips, useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
@@ -50,6 +50,7 @@ export default function GroupTripsPage() {
         <div className="min-h-dvh bg-app has-bottom-nav">
             {group && (
                 <HeroHeader
+                    variant="compact"
                     title={group.name}
                     background={getGroupHeroBackground(group)}
                     avatars={heroAvatars}
@@ -65,9 +66,9 @@ export default function GroupTripsPage() {
             <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
-            <main className="container mx-auto px-4 py-6 md:py-8">
+            <main className="container mx-auto max-w-2xl px-2 sm:px-4 py-4 pb-24">
                 {/* Sem título — já vem do separador ativo ("Viagens") logo acima. */}
-                <p className="mb-6 text-sm text-ink-soft animate-fade-in-up">Escolhe uma viagem para fazer o teu pedido</p>
+                <p className="mb-3 px-1 text-sm text-ink-soft animate-fade-in-up">Escolhe uma viagem para fazer o teu pedido</p>
 
                 {/* Loading */}
                 {loading ? (
@@ -86,18 +87,11 @@ export default function GroupTripsPage() {
                         </p>
                     </div>
                 ) : (
-                    /* Trips Grid */
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {trips.map((trip, index) => (
-                            <TripCard
-                                key={trip.id}
-                                trip={trip}
-                                href={`/groups/${groupId}/trips/${trip.id}`}
-                                onClick={() => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
-                                style={{ animationDelay: `${index * 0.05}s` }}
-                            />
-                        ))}
-                    </div>
+                    <TripList
+                        trips={trips}
+                        hrefFor={(trip) => `/groups/${groupId}/trips/${trip.id}`}
+                        onOpen={(trip) => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
+                    />
                 )}
             </main>
 

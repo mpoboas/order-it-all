@@ -535,16 +535,19 @@ export function GroupSettingsTab({
             return (
               <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-hairline bg-surface p-3">
                 <Avatar name={member.name} src={getUserAvatarUrl(member.id, member.avatar)} />
+                {/* Saldo por baixo do nome, não numa coluna à parte: nome +
+                    papel + saldo + botões de admin não cabiam numa linha de
+                    telemóvel — o nome ficava "H…" e o badge sobrepunha-se ao
+                    valor (Fase 15). */}
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-ink flex items-center gap-2">
-                    <span className="truncate">{member.name}</span>
-                    {isMemberCreator && <Badge variant="warning">Dono</Badge>}
-                    {isMemberAdmin && !isMemberCreator && <Badge variant="info">Admin</Badge>}
+                  <p className="font-semibold text-ink flex items-center gap-2 min-w-0">
+                    <span className="truncate min-w-0">{member.name}</span>
+                    {isMemberCreator && <Badge variant="warning" className="shrink-0">Dono</Badge>}
+                    {isMemberAdmin && !isMemberCreator && <Badge variant="info" className="shrink-0">Admin</Badge>}
                   </p>
+                  {ledger && <GroupNetBalance netCents={netCents} inline />}
                   {member.email && <p className="text-xs text-ink-faint truncate">{member.email}</p>}
                 </div>
-
-                {ledger && <GroupNetBalance netCents={netCents} />}
 
                 {currentUserId !== member.id && (
                   <div className="flex items-center gap-1 shrink-0">
@@ -639,7 +642,7 @@ export function GroupSettingsTab({
               <button
                 type="button"
                 onClick={() => void handleShareInvite()}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
               >
                 <Icon name="share" className="text-[18px]" />
                 Partilhar
@@ -819,7 +822,7 @@ export function GroupSettingsTab({
               setDeleteNameInput('');
               setDeleteStep('name');
             }}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-danger text-white hover:brightness-110 text-sm font-semibold transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-danger text-white hover:brightness-110 text-sm font-semibold transition-colors"
           >
             Eliminar grupo
           </button>
@@ -882,7 +885,7 @@ export function GroupSettingsTab({
               type="button"
               disabled={deleting}
               onClick={() => void handleDeleteGroup()}
-              className="flex-1 py-3.5 rounded-xl bg-danger text-white hover:brightness-110 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3.5 rounded-full bg-danger text-white hover:brightness-110 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {deleting ? (
                 <>

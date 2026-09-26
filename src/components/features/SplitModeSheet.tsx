@@ -122,17 +122,21 @@ export function SplitModeSheet({
       }
     >
       <div className="space-y-4 px-1 pb-2">
-        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        {/* Separador sublinhado — o padrão para escolher um modo entre 4+
+            opções (Manifesto, Fase 15): texto ativo em tinta, só o traço azul. */}
+        <div role="tablist" aria-label="Modo de divisão" className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-hide border-b border-hairline">
           {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
+              role="tab"
+              aria-selected={mode === tab}
               onClick={() => setMode(tab)}
               className={cn(
                 'shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap',
                 mode === tab
-                  ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-ink-faint hover:text-ink',
+                  ? 'border-primary-600 text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink',
               )}
             >
               {MODE_LABELS[tab]}

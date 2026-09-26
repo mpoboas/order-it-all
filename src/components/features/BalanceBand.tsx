@@ -1,14 +1,13 @@
 'use client';
 
 import { Money } from '@/components/ui/Money';
+import { BALANCE_TEXT, balanceTone } from '@/components/ui/Balance';
 import { cn } from '@/lib/utils';
 import { partyLabel } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
-import { formatEUR } from '@/lib/money';
 import type { BalanceLine } from '@/lib/ledger/balances';
 import type { Party } from '@/lib/types';
 
-const EPS = 0.005;
 const MAX_LINES = 3;
 
 interface BalanceBandProps {
@@ -20,65 +19,65 @@ interface BalanceBandProps {
   onSeeAllClick?: () => void;
 }
 
-/** Faixa entre o nome do grupo (hero) e a fila de ações (`ActionChipRow`) —
- *  saldo líquido + até 3 linhas por pessoa, centrada (ocupa o lugar do
- *  antigo botão "Saldos" isolado). Sem borda própria — quem fecha esse
- *  bloco (hero → esta faixa → `ActionChipRow` → tabs) é o `border-b` do
- *  `ActionChipRow`, por baixo. */
+/** Faixa entre a capa do grupo e as ações rápidas (`QuickActions`) — as
+ *  dívidas aos pares ("Ana deve-te 12,00 €"), no máximo `MAX_LINES` linhas
+ *  compactas + "+N mais" (abre a folha Saldos). Sem o total gigante por
+ *  cima (Fase 15): repetia a soma destas mesmas linhas e empurrava a lista de
+ *  despesas para metade do ecrã. Alinhada à esquerda, como o título na capa.
+ *  Sem borda própria — quem fecha o bloco é o `border-b` das ações. */
 export function BalanceBand({
   netCents,
   lines,
   parties,
   onSeeAllClick,
 }: BalanceBandProps) {
-  const net = fromCents(netCents);
-  const settled = Math.abs(net) <= EPS;
+  const tone = balanceTone(netCents);
   const visibleLines = lines.slice(0, MAX_LINES);
   const overflow = lines.length - visibleLines.length;
 
-  return (
-    <div className="px-4 py-3 bg-surface space-y-2 text-center">
-      {settled ? (
-        <p className="text-sm font-semibold text-ink-faint">Contas em dia</p>
-      ) : (
-        <p className={cn('text-sm font-semibold', net > 0 ? 'text-success-fg' : 'text-warning-fg')}>
-          {net > 0 ? 'Devem-te ' : 'Deves '}
-          <Money value={Math.abs(net)} />
-          {net < 0 && ' no total'}
-        </p>
-      )}
+  if (visibleLines.length === 0) {
+    return (
+      <div className="px-4 pt-3 pb-1 bg-surface">
+        {tone === 'settled' ? (
+          <p className="text-sm text-ink-faint">Contas em dia</p>
+        ) : (
+          <p className="text-sm text-ink-soft">
+            {tone === 'pos' ? 'No total, devem-te ' : 'No total, deves '}
+            <Money value={Math.abs(fromCents(netCents))} className={cn('font-semibold', BALANCE_TEXT[tone])} />
+          </p>
+        )}
+      </div>
+    );
+  }
 
-      {visibleLines.length > 0 && (
-        <ul className="space-y-0.5">
-          {visibleLines.map((line) => (
-            <li key={line.party} className="text-xs text-ink-soft">
-              {line.amountCents > 0 ? (
-                <>
-                  <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span> deve-te{' '}
-                  <span className="font-semibold text-success-fg">{formatEUR(fromCents(line.amountCents))}</span>
-                </>
-              ) : (
-                <>
-                  Deves{' '}
-                  <span className="font-semibold text-warning-fg">{formatEUR(fromCents(-line.amountCents))}</span> a{' '}
-                  <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span>
-                </>
-              )}
-            </li>
-          ))}
-          {overflow > 0 && (
-            <li>
-              <button
-                type="button"
-                onClick={onSeeAllClick}
-                className="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
-              >
-                +{overflow} mais
-              </button>
-            </li>
+  return (
+    <ul className="px-4 pt-3 pb-1 bg-surface space-y-0.5 text-sm text-ink-soft">
+      {visibleLines.map((line) => (
+        <li key={line.party} className="truncate">
+          {line.amountCents > 0 ? (
+            <>
+              <span className="text-ink">{partyLabel(line.party, parties)}</span> deve-te{' '}
+              <Money value={fromCents(line.amountCents)} className="font-semibold text-pos" />
+            </>
+          ) : (
+            <>
+              Deves <Money value={fromCents(-line.amountCents)} className="font-semibold text-neg" /> a{' '}
+              <span className="text-ink">{partyLabel(line.party, parties)}</span>
+            </>
           )}
-        </ul>
+        </li>
+      ))}
+      {overflow > 0 && (
+        <li>
+          <button
+            type="button"
+            onClick={onSeeAllClick}
+            className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            +{overflow} mais
+          </button>
+        </li>
       )}
-    </div>
+    </ul>
   );
 }

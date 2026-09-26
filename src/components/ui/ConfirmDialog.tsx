@@ -87,7 +87,7 @@ export function ConfirmDialog({
           />
 
           <motion.div
-            className="relative w-full max-w-sm flex flex-col bg-surface rounded-t-[28px] sm:rounded-[24px] shadow-2xl pointer-events-auto p-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6"
+            className="relative w-full max-w-sm flex flex-col bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl pointer-events-auto p-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
@@ -99,7 +99,7 @@ export function ConfirmDialog({
           >
             <div className="w-10 h-1 bg-hairline-strong rounded-full mx-auto mb-5 sm:hidden" />
 
-            <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center mb-4', t.iconBg, t.iconFg)}>
+            <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center mb-4', t.iconBg, t.iconFg)}>
               <Icon name={t.icon} className="text-2xl" />
             </div>
 

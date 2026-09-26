@@ -10,7 +10,7 @@
                     valor entre temas; os primitivos não.
    3 · PONTE TAILWIND (@theme)  expõe a cor de ação como utilitários primary-*.
 
-   Nomes antigos (--bg-primary, --text-primary, --border, --accent-*, --radius*)
+   Nomes antigos (--bg-primary, --text-primary, --border, --accent-*)
    mantidos como alias para não partir componentes. A migração para os nomes
    semânticos novos é a fase P1.
    ========================================================================== */
@@ -48,6 +48,11 @@
   --green-100: #d1fae5;  --green-300: #6ee7b7;  --green-800: #065f46;  --green-900: #064e3b;
   --amber-100: #fef3c7;  --amber-300: #fcd34d;  --amber-800: #92400e;  --amber-950: #422006;
   --red-100:   #fee2e2;  --red-300:   #fca5a5;  --red-600:   #dc2626;  --red-800:   #991b1b;  --red-950: #450a0a;
+
+  /* Dinheiro (Fase 15) — matizes próprios, separados dos de estado: um saldo
+     não é um "sucesso" nem um "erro". */
+  --emerald-50: #ecfdf5;  --emerald-400: #34d399;  --emerald-700: #047857;  --emerald-950: #022c22;
+  --red-50:     #fef2f2;  --red-400:     #f87171;  --red-700:     #b91c1c;
 
   /* ---- 1 · PRIMITIVOS: dimensão ---------------------------------------- */
 
@@ -104,6 +109,13 @@
   --danger-fg:  var(--red-800);    --danger-bg:  var(--red-100);   --danger-solid: var(--red-600);
   --info-fg:    var(--primary-700); --info-bg:    var(--primary-50);
 
+  /* Dinheiro — saldo a teu favor (pos) / contra ti (neg). A cor vai no
+     NÚMERO; o fundo é só para realces pontuais, nunca blocos saturados.
+     `danger` fica exclusivo de ações destrutivas/erros e `warning` de
+     avisos de estado — nenhum dos dois pinta saldos. */
+  --pos-fg: var(--emerald-700);  --pos-bg: var(--emerald-50);
+  --neg-fg: var(--red-700);      --neg-bg: var(--red-50);
+
   /* Estado de um produto na compra — barras/pastilhas saturadas (texto branco).
      Fixas nos dois temas. */
   --status-pending: #f59e0b;
@@ -126,11 +138,15 @@
   --minimized-dock-height: 5.25rem;
   --dock-gap: 0.5rem;
 
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 9999px;
+  /* Geometria (Fase 15) — usar SEMPRE a escala padrão do Tailwind, sem
+     `--radius-*` próprios aqui: variáveis com esses nomes no `:root`
+     (fora de layer) sobrepunham-se às do Tailwind v4 e faziam `rounded-xl`
+     dar 24px e `rounded-lg` 16px — tudo parecia pílula. Regra de ouro:
+       rounded-full  → ação e toque compacto: Button, FAB, chips, badges,
+                       segmented control, avatares (pessoas)
+       rounded-xl    → cartões, campos de texto, "coisas" (grupo, categoria,
+                       recibo), alertas
+       rounded-3xl   → sheets (só os cantos de cima) e diálogos centrados */
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
@@ -163,6 +179,9 @@
   --warning-fg: var(--amber-300);  --warning-bg: var(--amber-950);
   --danger-fg:  var(--red-300);    --danger-bg:  var(--red-950);   --danger-solid: #ef4444;
   --info-fg:    var(--primary-300); --info-bg:   var(--primary-950);
+
+  --pos-fg: var(--emerald-400);  --pos-bg: color-mix(in srgb, var(--emerald-950) 60%, transparent);
+  --neg-fg: var(--red-400);      --neg-bg: color-mix(in srgb, var(--red-950) 60%, transparent);
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
@@ -216,6 +235,13 @@
   --color-success:    var(--success-solid);
   --color-info-fg:    var(--info-fg);
   --color-info-bg:    var(--info-bg);
+
+  /* Dinheiro: text-pos / bg-pos-bg, text-neg / bg-neg-bg. Não usar à mão
+     para saldos — o `<Balance>`/`balanceTone` escolhem pelo sinal. */
+  --color-pos:    var(--pos-fg);
+  --color-pos-bg: var(--pos-bg);
+  --color-neg:    var(--neg-fg);
+  --color-neg-bg: var(--neg-bg);
 
   --color-status-pending: var(--status-pending);
   --color-status-bought:  var(--status-bought);
@@ -349,20 +375,25 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--primary-300);
+  /* Neutro — em azul parecia uma barra de progresso (Fase 15). */
+  background: var(--border-strong);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-400);
+  background: var(--text-faint);
 }
 
-.no-scrollbar {
+/* `scrollbar-hide` é alias — vários componentes usavam esse nome, que nunca
+   foi definido, e as filas com scroll horizontal mostravam a barra. */
+.no-scrollbar,
+.scrollbar-hide {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.no-scrollbar::-webkit-scrollbar {
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 
@@ -529,7 +560,7 @@ body {
 /* ===== MODERN CARDS ===== */
 .card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: 0.75rem; /* = rounded-xl — ver regra de geometria no :root */
   box-shadow: var(--shadow);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -557,7 +588,7 @@ body {
   justify-content: center;
   gap: 8px;
   font-weight: 600;
-  border-radius: var(--radius-full);
+  border-radius: 9999px; /* = rounded-full */
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   cursor: pointer;
   user-select: none;
@@ -617,7 +648,7 @@ body {
   padding: 14px 16px;
   background: var(--bg-secondary);
   border: 2px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 0.75rem; /* = rounded-xl */
   font-size: 16px;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, color 0.2s ease;
   color: var(--text-primary);
@@ -730,20 +761,6 @@ header {
 }
 
 /* ===== FASE 5 — main-thread & rendering ===== */
-
-/* A bottom nav está sempre visível: o `backdrop-filter` re-amostra a cada frame
-   de scroll. O raio foi reduzido (`backdrop-blur-md`) e, sem suporte a blur, o
-   fundo passa a opaco (senão ficava translúcido a sério sobre o conteúdo). */
-@supports not (
-  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-) {
-  .bottom-nav {
-    background-color: rgb(255 255 255 / 0.97);
-  }
-  .dark .bottom-nav {
-    background-color: rgb(15 23 42 / 0.97);
-  }
-}
 
 /* Itens de listas longas (order cards no admin): o browser salta layout+paint
    do que está fora do ecrã. `auto` no intrinsic-size faz o browser lembrar-se

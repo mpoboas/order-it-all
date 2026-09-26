@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { PriceInput } from '@/components/ui/PriceInput';
+import { Balance } from '@/components/ui/Balance';
 import { useToast } from '@/context/ToastContext';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
@@ -168,10 +169,7 @@ export function SettleUpSheet({
                   >
                     <Avatar name={party.name} src={party.avatar} size="sm" />
                     <span className="flex-1 font-medium text-ink truncate">{party.name}</span>
-                    <span className={opt.amountCents > 0 ? 'text-success-fg font-semibold text-sm' : 'text-warning-fg font-semibold text-sm'}>
-                      {opt.amountCents > 0 ? 'deve-te ' : 'deves '}
-                      {formatEUR(Math.abs(fromCents(opt.amountCents)))}
-                    </span>
+                    <Balance cents={opt.amountCents} labels={{ pos: 'deve-te', neg: 'deves' }} />
                   </button>
                 </li>
               );

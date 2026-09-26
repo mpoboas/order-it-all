@@ -175,7 +175,7 @@ export function Sheet({
                                     // aresta de baixo caía sobre o forro solido por trás
                                     // (o mesmo `bg-surface`) como uma faixa cinzenta visível
                                     // — parecia uma fresta em vez de continuação lisa.
-                                    isFull ? 'max-w-none rounded-none' : 'max-w-lg sm:max-w-xl rounded-t-[32px] sm:rounded-[28px] shadow-2xl',
+                                    isFull ? 'max-w-none rounded-none' : 'max-w-lg sm:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl',
                                     sheetSizeClasses[size]
                                 )}
                                 role="dialog"
@@ -285,7 +285,7 @@ export function Sheet({
                                 role="region"
                                 aria-label={title}
                                 aria-expanded={false}
-                                className="pointer-events-auto w-full max-w-lg sm:max-w-xl flex items-center gap-3 px-4 py-3 bg-surface rounded-2xl shadow-2xl border border-hairline"
+                                className="pointer-events-auto w-full max-w-lg sm:max-w-xl flex items-center gap-3 px-4 py-3 bg-surface rounded-xl shadow-2xl border border-hairline"
                             >
                                 <button
                                     type="button"
@@ -302,7 +302,7 @@ export function Sheet({
                                 <button
                                     type="button"
                                     onClick={onExpand}
-                                    className="shrink-0 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-bold hover:bg-primary-700 transition-colors"
+                                    className="shrink-0 px-4 py-2 rounded-full bg-primary-600 text-white text-sm font-bold hover:bg-primary-700 transition-colors"
                                 >
                                     Continuar
                                 </button>

@@ -79,6 +79,7 @@ export default function GroupBalancesPage() {
         <div className="min-h-dvh bg-app has-bottom-nav">
             {currentGroup && (
                 <HeroHeader
+                    variant="compact"
                     title={currentGroup.name}
                     background={getGroupHeroBackground(currentGroup)}
                     avatars={heroAvatars}

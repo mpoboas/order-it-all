@@ -28,7 +28,11 @@ const SplitInvoiceScanSheet = dynamic(
 );
 import { SplitMemberDetailView } from '@/components/features/SplitMemberDetailView';
 import { SplitParticipantNameInput } from '@/components/features/SplitParticipantNameInput';
-import { SplitItemAllocationSheet } from '@/components/features/SplitItemAllocationSheet';
+import { SplitItemSheet } from '@/components/features/SplitItemSheet';
+import { Sheet } from '@/components/ui/Sheet';
+import { ActionSheet } from '@/components/ui/ActionSheet';
+import { AvatarStack } from '@/components/ui/AvatarStack';
+import { Button } from '@/components/ui/Button';
 import {
     computeParticipantAmount,
     getActiveParticipants,
@@ -39,8 +43,6 @@ import {
 import {
     calculateExportGrandTotal,
     calculateSplitTotals,
-    getStoredParticipantsExpanded,
-    setStoredParticipantsExpanded,
 } from '@/lib/splitShare';
 import {
     findPlaceholderByName,
@@ -154,14 +156,16 @@ export default function SplitItemsPage() {
         (expense && liveSplit === undefined) ||
         (split === null && liveSplit !== null);
     const [newParticipant, setNewParticipant] = useState('');
-    const [participantsExpanded, setParticipantsExpanded] = useState(true);
     const [totalsExpanded, setTotalsExpanded] = useState(false);
     const [sharing, setSharing] = useState(false);
     const [showInviteSheet, setShowInviteSheet] = useState(false);
     const [showAllowedModesSheet, setShowAllowedModesSheet] = useState(false);
     const [showScanSheet, setShowScanSheet] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [allocationSheetIdx, setAllocationSheetIdx] = useState<number | null>(null);
+    /** Folha de item aberta: `index: null` = item novo. */
+    const [itemSheet, setItemSheet] = useState<{ index: number | null } | null>(null);
+    const [showParticipantsSheet, setShowParticipantsSheet] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
     // Item trancado + toque num participante → treme o cadeado ("está fixo").
     const [shakeLockIdx, setShakeLockIdx] = useState<number | null>(null);
     const bumpLockShake = (idx: number) => {
@@ -199,18 +203,6 @@ export default function SplitItemsPage() {
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
-
-    useEffect(() => {
-        setParticipantsExpanded(getStoredParticipantsExpanded(true));
-    }, []);
-
-    const toggleParticipantsExpanded = () => {
-        setParticipantsExpanded((prev) => {
-            const next = !prev;
-            setStoredParticipantsExpanded(next);
-            return next;
-        });
-    };
 
     const splitRef = useRef<Split | null>(null);
     splitRef.current = split;
@@ -554,7 +546,7 @@ export default function SplitItemsPage() {
             return;
         }
         if (getSplitItemMode(split.items[itemIdx]) !== 'equal') {
-            setAllocationSheetIdx(itemIdx);
+            setItemSheet({ index: itemIdx });
             return;
         }
         await saveSplitItems((items) => {
@@ -577,15 +569,16 @@ export default function SplitItemsPage() {
         });
     };
 
-    const handleSaveItemAllocation = async (updatedItem: SplitItem) => {
-        if (!split || allocationSheetIdx === null) return;
-        const idx = allocationSheetIdx;
+    /** Guarda o item da `SplitItemSheet` — `index: null` acrescenta um novo. */
+    const handleSaveItem = async (updatedItem: SplitItem, index: number | null) => {
+        if (!split) return;
         await saveSplitItems((items) => {
             const next = cloneSplitItems(items);
-            if (next[idx]) next[idx] = reconcileItemLock(updatedItem, split.participants);
+            const reconciled = reconcileItemLock(updatedItem, split.participants);
+            if (index === null) next.push(reconciled);
+            else if (next[index]) next[index] = reconciled;
             return next;
         });
-        setAllocationSheetIdx(null);
     };
 
     const toggleAllParticipants = async (itemIdx: number, checked: boolean) => {
@@ -768,6 +761,7 @@ export default function SplitItemsPage() {
 
     const sortedTotals = Object.entries(totals).sort(([, a], [, b]) => b - a);
     const splitClosed = isSplitClosed(split);
+    const unassignedCount = split.items.filter((i) => getActiveParticipants(i).length === 0).length;
 
     const renderItemLockButton = (itemIdx: number, locked: boolean) => (
         <button
@@ -790,7 +784,21 @@ export default function SplitItemsPage() {
 
     return (
         <div className="min-h-screen bg-app pb-32 md:pb-8">
-            <Header showBack title="Itens" subtitle={split.name} />
+            <Header
+                showBack
+                title="Itens"
+                subtitle={split.name}
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => setShowMenu(true)}
+                        aria-label="Mais ações da divisão"
+                        className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-sunken"
+                    >
+                        <Icon name="more_horiz" className="text-xl" />
+                    </button>
+                }
+            />
 
             {payersNeedReassign && itemsLedger && expense && (
                 <div role="alert" className="mx-4 mt-3 rounded-2xl bg-warning-bg text-warning-fg px-4 py-3 flex items-start gap-3">
@@ -991,7 +999,7 @@ export default function SplitItemsPage() {
                                                     />
                                                     <button
                                                         type="button"
-                                                        onClick={() => setAllocationSheetIdx(idx)}
+                                                        onClick={() => setItemSheet({ index: idx })}
                                                         className="mt-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                     >
                                                         {getItemModeShortLabel(item)}
@@ -1030,7 +1038,7 @@ export default function SplitItemsPage() {
                                                         ) : activeParticipants.includes(p) ? (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setAllocationSheetIdx(idx)}
+                                                                onClick={() => setItemSheet({ index: idx })}
                                                                 className="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                             >
                                                                 <Money value={computeParticipantAmount(item, p)} />
@@ -1091,258 +1099,120 @@ export default function SplitItemsPage() {
             </div>
 
             {/* Mobile Layout */}
-            <main className="lg:hidden container mx-auto px-4 py-4 max-w-2xl">
-                {/* Participantes */}
-                <section className="card">
-                    <div className="flex items-center gap-2 p-3">
-                        <button
-                            type="button"
-                            onClick={toggleParticipantsExpanded}
-                            className="flex-1 flex items-center justify-between min-w-0"
-                        >
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-semibold text-ink">Participantes</span>
-                                <span className="text-xs font-medium bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full shrink-0">
-                                    {split.participants.length}
-                                </span>
-                            </div>
-                            <Icon
-                                name="keyboard_arrow_down"
-                                className={cn(
-                                    'text-xl text-ink-faint shrink-0 ml-2 transition-transform',
-                                    participantsExpanded && 'rotate-180',
-                                )}
-                            />
-                        </button>
-                    </div>
-                    <Collapse open={participantsExpanded}>
-                        <div className="px-3 pb-3 border-t border-hairline">
-                            <div className="flex flex-wrap gap-2 py-3">
-                                {split.participants.map(p => (
-                                    <div
-                                        key={p}
-                                        title={participantLabel(p)}
-                                        className="inline-flex max-w-full items-center gap-1.5 bg-surface-sunken rounded-full pl-1 pr-1 py-1 text-sm"
-                                    >
-                                        <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" className="shrink-0" />
-                                        <span className="font-medium text-ink break-words leading-tight max-w-[9.5rem]">
-                                            {participantLabel(p)}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeParticipant(p)}
-                                            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-ink-faint hover:text-danger hover:bg-danger-bg"
-                                            aria-label={`Remover ${participantLabel(p)}`}
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                            <SplitParticipantNameInput
-                                value={newParticipant}
-                                onChange={setNewParticipant}
-                                onSelectExisting={(id) => void addParticipantById(id)}
-                                onAddNew={(name) => void addNewParticipant(name)}
-                                candidates={partiesToAdd}
-                                inputRef={participantInputMobileRef}
-                            />
-                        </div>
-                    </Collapse>
-                </section>
+            {/* Mobile (Fase 15): lista de itens só de leitura — editar um item
+                (nome, preço, quem consumiu) é na folha `SplitItemSheet`; gerir
+                participantes, numa folha própria; link/modos/fechar, no "⋯"
+                do cabeçalho. Antes estava tudo expandido ao mesmo tempo. */}
+            <main className="lg:hidden container mx-auto px-4 py-4 max-w-2xl space-y-4">
+                <button
+                    type="button"
+                    onClick={() => setShowParticipantsSheet(true)}
+                    className="card w-full flex items-center gap-3 px-4 py-3 text-left"
+                >
+                    <AvatarStack
+                        people={split.participants.map((p) => ({ id: p, name: participantLabel(p), src: participantAvatar(p) }))}
+                        max={4}
+                        size="sm"
+                    />
+                    <span className="flex-1 min-w-0 text-sm text-ink-soft truncate">
+                        <span className="font-semibold text-ink">{split.participants.length}</span>{' '}
+                        {split.participants.length === 1 ? 'participante' : 'participantes'}
+                    </span>
+                    <span className="shrink-0 flex items-center text-sm font-semibold text-primary-600 dark:text-primary-400">
+                        Gerir <Icon name="chevron_right" className="text-lg" />
+                    </span>
+                </button>
 
-                {/* Items */}
-                <div className="flex items-center justify-between gap-2 my-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-ink">Itens</span>
+                <section>
+                    <div className="flex items-baseline gap-2 px-1 mb-2">
+                        <h2 className="font-semibold text-ink">Itens</h2>
                         <span className="text-sm text-ink-faint">{split.items.length}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => setSplitStatus(!splitClosed)}
-                            className={cn(
-                                'text-xs font-semibold px-2.5 py-1.5 rounded-lg border',
-                                splitClosed
-                                    ? 'text-success-fg border-success-fg/25 bg-success-bg'
-                                    : 'text-warning-fg border-warning-fg/25 bg-warning-bg'
-                            )}
-                        >
-                            {splitClosed ? 'Reabrir' : 'Fechar'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowInviteSheet(true)}
-                            disabled={splitClosed}
-                            title="Convidar a marcar"
-                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-hairline bg-surface-sunken text-ink-soft disabled:opacity-50"
-                        >
-                            <Icon name="link" className="text-base" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowAllowedModesSheet(true)}
-                            title="Definições"
-                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-hairline bg-surface-sunken text-ink-soft"
-                        >
-                            <Icon name="tune" className="text-[18px]" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    {split.items.map((item, idx) => {
-                        const itemMode = getSplitItemMode(item);
-                        const activeParticipants = getActiveParticipants(item);
-                        const perPerson =
-                            itemMode === 'equal' && activeParticipants.length > 0
-                                ? item.price / activeParticipants.length
-                                : 0;
-                        const allSelected =
-                            itemMode === 'equal' &&
-                            item.participants.length === split.participants.length &&
-                            split.participants.length > 0;
-                        const locked = isItemLocked(item);
-                        return (
-                            <div key={idx} className="card p-3 space-y-3 shadow-sm border border-hairline">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1">
-                                        <EditableInput
-                                            type="text"
-                                            value={item.name}
-                                            onSave={val => updateItemName(idx, val)}
-                                            placeholder="Nome do item"
-                                            className="w-full text-base font-semibold bg-surface border border-hairline rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition placeholder:text-ink-faint/50"
-                                        />
-                                    </div>
-
-                                    <div className="w-28 relative flex items-center">
-                                        <EditableInput
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={item.price ? formatPriceInput(item.price) : ""}
-                                            onSave={val => updateItemPrice(idx, parseEUR(val))}
-                                            placeholder="0,00"
-                                            className="w-full text-right text-base font-bold text-primary-600 bg-surface border border-hairline rounded-xl pl-2 pr-8 py-2.5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition"
-                                        />
-                                        <span className="absolute right-3 text-ink-faint text-sm font-medium">€</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-0.5 shrink-0">
-                                        {renderItemLockButton(idx, locked)}
-                                        <button
-                                            onClick={() => removeItem(idx)}
-                                            className="h-10 w-10 flex items-center justify-center text-ink-faint hover:text-danger hover:bg-danger-bg rounded-xl transition border border-transparent hover:border-danger/20"
-                                            title="Remover item"
-                                        >
-                                            <Icon name="delete_outline" className="text-lg" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Participants Section */}
-                                <div className="bg-surface-sunken/30 px-3 py-3 border border-hairline border-dashed rounded-xl">
-                                    <div className="flex items-center justify-between mb-3">
+                    {split.items.length === 0 ? (
+                        <p className="card px-4 py-6 text-center text-sm text-ink-soft">
+                            Ainda não há itens. Adiciona-os à mão ou lê a fatura.
+                        </p>
+                    ) : (
+                        <div className="card divide-y divide-hairline overflow-hidden">
+                            {split.items.map((item, idx) => {
+                                const itemMode = getSplitItemMode(item);
+                                const active = getActiveParticipants(item);
+                                const everyone = split.participants.length > 0 && active.length === split.participants.length;
+                                const perPerson = itemMode === 'equal' && active.length > 0 ? item.price / active.length : 0;
+                                return (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => setItemSheet({ index: idx })}
+                                        className="w-full px-4 py-3 text-left hover:bg-surface-sunken transition-colors"
+                                    >
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-ink-faint uppercase tracking-wider">Dividir com</span>
-                                            {locked && (
-                                                <Icon name="lock" className="text-[14px] text-primary-600 dark:text-primary-400" title="Bloqueado" />
+                                            <p className={cn('flex-1 min-w-0 truncate font-semibold', item.name ? 'text-ink' : 'text-ink-faint')}>
+                                                {item.name || 'Item sem nome'}
+                                            </p>
+                                            {isItemLocked(item) && (
+                                                <Icon name="lock" className="text-sm text-ink-faint shrink-0" aria-label="Participantes fixos" />
                                             )}
-                                            {itemMode === 'equal' && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleAllParticipants(idx, !allSelected)}
-                                                    className="text-[10px] font-bold text-primary-600 hover:underline bg-primary-100 dark:bg-primary-900/30 px-2 py-0.5 rounded-md"
-                                                >
-                                                    {allSelected ? 'Ninguém' : 'Todos'}
-                                                </button>
-                                            )}
+                                            <Money value={item.price} className="font-semibold text-ink shrink-0" />
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            {itemMode === 'equal' && activeParticipants.length > 0 && (
-                                                <div className="text-right flex items-center gap-1.5">
-                                                    <span className="text-sm font-bold text-primary-600 dark:text-primary-400"><Money value={perPerson} /></span>
-                                                    <span className="text-[10px] font-medium text-ink-faint">/pessoa</span>
-                                                </div>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setAllocationSheetIdx(idx)}
-                                                className="text-xs font-semibold text-primary-600 dark:text-primary-400 px-2.5 py-1 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/30"
-                                            >
-                                                {getItemModeShortLabel(item)}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {itemMode === 'equal' ? (
-                                        <div className="flex flex-wrap gap-2">
-                                            {split.participants.map(p => {
-                                                const isSelected = item.participants.includes(p);
-                                                return (
-                                                    <button
-                                                        key={p}
-                                                        type="button"
-                                                        onClick={() => toggleParticipant(idx, p)}
-                                                        className={cn(
-                                                            'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition duration-200 border shadow-sm',
-                                                            isSelected
-                                                                ? 'bg-primary-500 border-primary-500 text-white shadow-primary-500/20'
-                                                                : 'bg-app border-hairline text-ink-soft hover:bg-surface',
-                                                            locked && 'opacity-40'
+                                        <div className="mt-1 flex items-center gap-2 min-w-0 text-xs text-ink-soft">
+                                            {active.length === 0 ? (
+                                                <span className="flex items-center gap-1 font-medium text-warning-fg">
+                                                    <Icon name="warning" className="text-sm" />
+                                                    Ninguém atribuído
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    {!everyone && (
+                                                        <AvatarStack
+                                                            people={active.map((p) => ({ id: p, name: participantLabel(p), src: participantAvatar(p) }))}
+                                                            max={4}
+                                                        />
+                                                    )}
+                                                    <span className="truncate">
+                                                        {everyone ? 'Todos' : `${active.length} ${active.length === 1 ? 'pessoa' : 'pessoas'}`}
+                                                        {itemMode === 'equal' ? (
+                                                            <> · <Money value={perPerson} />/pessoa</>
+                                                        ) : (
+                                                            ` · ${getItemModeShortLabel(item)}`
                                                         )}
-                                                    >
-                                                        {isSelected && <Icon name="check" className="text-[15px] shrink-0" strokeWidth={3} />}
-                                                        <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" className="shrink-0" />
-                                                        {participantLabel(p)}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {activeParticipants.map(p => (
-                                                <div
-                                                    key={p}
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-hairline bg-app"
-                                                >
-                                                    <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="xs" />
-                                                    <span className="text-ink">{participantLabel(p)}</span>
-                                                    <span className="font-bold text-primary-600 dark:text-primary-400">
-                                                        <Money value={computeParticipantAmount(item, p)} />
                                                     </span>
-                                                </div>
-                                            ))}
+                                                </>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                    <div className="flex gap-2">
-                        <button onClick={addItem} className="flex-1 p-4 border-2 border-dashed border-hairline rounded-xl text-ink-faint hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
-                            + Adicionar Item
-                        </button>
-                        <button onClick={() => setShowScanSheet(true)} className="flex-1 p-4 border-2 border-dashed border-hairline rounded-xl text-ink-faint hover:border-primary-400 hover:text-primary-600 transition flex items-center justify-center gap-2">
-                            <Icon name="receipt_long" className="text-lg" /> Scan Fatura
-                        </button>
-                    </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+
+                <div className="flex gap-2">
+                    <Button variant="secondary" block className="whitespace-nowrap" onClick={() => setItemSheet({ index: null })}>
+                        <Icon name="add" className="text-lg" /> Novo item
+                    </Button>
+                    <Button variant="secondary" block className="whitespace-nowrap" onClick={() => setShowScanSheet(true)}>
+                        <Icon name="receipt_long" className="text-lg" /> Ler fatura
+                    </Button>
                 </div>
             </main>
 
-            {/* Mobile Bottom Totals */}
-            <div
-                className={cn(
-                    'lg:hidden fixed left-0 right-0 bg-surface border-t border-hairline shadow-lg z-40',
-                    'bottom-[var(--bottom-nav-total-height)]'
-                )}
-            >
+            {/* Barra de totais — a única barra fixa em baixo: a barra global
+                não aparece neste ecrã de tarefa (ver o layout do grupo). */}
+            <div className="lg:hidden fixed inset-x-0 bottom-0 bg-surface border-t border-hairline shadow-lg z-40 safe-bottom-nav">
                 <button onClick={() => setTotalsExpanded(!totalsExpanded)} className="w-full px-4 py-3 flex items-center justify-between">
-                    <span className="font-semibold text-ink">Total</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-primary-600 dark:text-primary-400"><Money value={grandTotal} /></span>
+                    <span className="text-left">
+                        <span className="block font-semibold text-ink">Total</span>
+                        {unassignedCount > 0 && (
+                            <span className="block text-xs font-medium text-warning-fg">
+                                {unassignedCount} {unassignedCount === 1 ? 'item' : 'itens'} por atribuir
+                            </span>
+                        )}
+                    </span>
+                    <span className="flex items-center gap-2">
+                        <Money value={grandTotal} className="text-lg font-bold text-ink" />
                         <Icon name="keyboard_arrow_up" className={cn("text-xl text-ink-faint transition-transform", totalsExpanded && "rotate-180")} />
-                    </div>
+                    </span>
                 </button>
                 <Collapse open={totalsExpanded}>
                     <div className="px-4 pb-3 border-t border-hairline bg-surface">
@@ -1350,13 +1220,13 @@ export default function SplitItemsPage() {
                             {sortedTotals.map(([id, amount]) => (
                                 <div key={id} className="flex justify-between">
                                     <span className="text-ink-soft">{participantLabel(id)}</span>
-                                    <span className="font-medium text-primary-600 dark:text-primary-400"><Money value={amount} /></span>
+                                    <Money value={amount} className="font-medium text-ink" />
                                 </div>
                             ))}
                         </div>
-                        <button onClick={handleShare} disabled={sharing} className="w-full mt-2 btn btn-primary py-2 text-sm flex items-center justify-center gap-2">
-                            {sharing ? <LoadingSpinner size="sm" /> : <Icon name="share" className="text-base" />} Partilhar Imagem
-                        </button>
+                        <Button block size="sm" onClick={handleShare} loading={sharing} className="mt-2">
+                            <Icon name="share" className="text-base" /> Partilhar imagem
+                        </Button>
                     </div>
                 </Collapse>
             </div>
@@ -1469,7 +1339,7 @@ export default function SplitItemsPage() {
                                                             type="button"
                                                             onClick={() => {
                                                                 setIsFullscreen(false);
-                                                                setAllocationSheetIdx(idx);
+                                                                setItemSheet({ index: idx });
                                                             }}
                                                             className="mt-1 text-[10px] font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                         >
@@ -1511,7 +1381,7 @@ export default function SplitItemsPage() {
                                                                     type="button"
                                                                     onClick={() => {
                                                                         setIsFullscreen(false);
-                                                                        setAllocationSheetIdx(idx);
+                                                                        setItemSheet({ index: idx });
                                                                     }}
                                                                     className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                                                                 >
@@ -1572,14 +1442,72 @@ export default function SplitItemsPage() {
                 </div>
             )}
 
-            <SplitItemAllocationSheet
-                isOpen={allocationSheetIdx !== null}
-                onClose={() => setAllocationSheetIdx(null)}
-                itemIndex={allocationSheetIdx}
-                item={allocationSheetIdx !== null ? split.items[allocationSheetIdx] ?? null : null}
+            <SplitItemSheet
+                isOpen={itemSheet !== null}
+                onClose={() => setItemSheet(null)}
+                itemIndex={itemSheet?.index ?? null}
+                item={itemSheet?.index != null ? split.items[itemSheet.index] ?? null : null}
                 allParticipants={split.participants}
                 parties={partiesMap}
-                onSave={(item) => void handleSaveItemAllocation(item)}
+                onSave={(item) => void handleSaveItem(item, itemSheet?.index ?? null)}
+                onDelete={itemSheet?.index != null ? () => void removeItem(itemSheet.index as number) : undefined}
+            />
+
+            <Sheet
+                isOpen={showParticipantsSheet}
+                onClose={() => setShowParticipantsSheet(false)}
+                title="Participantes"
+                subtitle={`${split.participants.length} na divisão`}
+                size="large"
+            >
+                <div className="px-1">
+                    <SplitParticipantNameInput
+                        value={newParticipant}
+                        onChange={setNewParticipant}
+                        onSelectExisting={(id) => void addParticipantById(id)}
+                        onAddNew={(name) => void addNewParticipant(name)}
+                        candidates={partiesToAdd}
+                        inputRef={participantInputMobileRef}
+                    />
+                    <ul className="mt-3 divide-y divide-hairline">
+                        {split.participants.map((p) => (
+                            <li key={p} className="flex items-center gap-3 py-2.5">
+                                <Avatar name={participantLabel(p)} src={participantAvatar(p)} size="sm" />
+                                <span className="flex-1 min-w-0 font-medium text-ink truncate">{participantLabel(p)}</span>
+                                {split.participants.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => void removeParticipant(p)}
+                                        aria-label={`Remover ${participantLabel(p)}`}
+                                        className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-ink-faint hover:text-danger-fg hover:bg-danger-bg transition-colors"
+                                    >
+                                        <Icon name="close" className="text-lg" />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </Sheet>
+
+            <ActionSheet
+                isOpen={showMenu}
+                onClose={() => setShowMenu(false)}
+                title={split.name || 'Divisão'}
+                actions={[
+                    {
+                        icon: 'link',
+                        label: 'Convidar a marcar',
+                        onSelect: () => setShowInviteSheet(true),
+                        disabled: splitClosed,
+                    },
+                    { icon: 'tune', label: 'Modos de divisão permitidos', onSelect: () => setShowAllowedModesSheet(true) },
+                    {
+                        icon: splitClosed ? 'lock_open' : 'lock',
+                        label: splitClosed ? 'Reabrir divisão' : 'Fechar divisão',
+                        onSelect: () => void setSplitStatus(!splitClosed),
+                    },
+                ]}
             />
 
             <SplitShareSheet
