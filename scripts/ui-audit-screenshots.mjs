@@ -84,7 +84,7 @@ async function main() {
 
   // 1. Início — Grupos
   await page.goto(`${BASE_URL}/groups`);
-  await waitReady(page, 'text=No total');
+  await waitReady(page, 'text=Devem-te');
   await shot(page, 'inicio-grupos');
 
   // 2. Início — Amigos

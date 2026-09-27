@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { copyText } from '@/lib/clipboard';
 import { useRouter } from 'next/navigation';
 import { groupsApi, placeholdersApi } from '@/lib/pocketbase';
 import { navStart } from '@/lib/navProgress';
@@ -355,10 +356,9 @@ export function GroupSettingsTab({
         if ((error as Error).name === 'AbortError') return;
       }
     }
-    try {
-      await navigator.clipboard.writeText(message);
+    if (await copyText(message)) {
       showToast('Mensagem copiada — cola no WhatsApp ou Instagram', 'success');
-    } catch {
+    } else {
       showToast('Não foi possível partilhar', 'error');
     }
   };
@@ -631,8 +631,9 @@ export function GroupSettingsTab({
               <button
                 type="button"
                 onClick={() => {
-                  void navigator.clipboard.writeText(inviteUrl);
-                  showToast('Link copiado!', 'success');
+                  void copyText(inviteUrl).then((ok) =>
+                    ok ? showToast('Link copiado!', 'success') : showToast('Não foi possível copiar', 'error'),
+                  );
                 }}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
               >

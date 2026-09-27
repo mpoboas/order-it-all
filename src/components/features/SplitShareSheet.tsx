@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { copyText } from '@/lib/clipboard';
 import QRCode from 'react-qr-code';
 import { Sheet } from '@/components/ui/Sheet';
 import { splitsApi } from '@/lib/pocketbase';
@@ -86,12 +87,8 @@ export function SplitShareSheet({
 
   const handleCopy = async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast('Link copiado!', 'success');
-    } catch {
-      showToast('Não foi possível copiar', 'error');
-    }
+    if (await copyText(shareUrl)) showToast('Link copiado!', 'success');
+    else showToast('Não foi possível copiar', 'error');
   };
 
   const handleShare = async () => {
@@ -108,10 +105,9 @@ export function SplitShareSheet({
         if ((error as Error).name === 'AbortError') return;
       }
     }
-    try {
-      await navigator.clipboard.writeText(message);
+    if (await copyText(message)) {
       showToast('Mensagem copiada — cola no WhatsApp ou Instagram', 'success');
-    } catch {
+    } else {
       showToast('Não foi possível partilhar', 'error');
     }
   };

@@ -618,7 +618,7 @@ export default function GroupTripDetailPage() {
 
                                                 {canEdit && (
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className={cn(
+                                                        <span data-decorative className={cn(
                                                             'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
                                                             isWarning ? 'bg-danger-bg text-danger-fg animate-pulse' : 'bg-warning-bg text-warning-fg'
                                                         )}>

@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import type { IconName } from '@/components/ui/Icon';
 
 /**
  * Substitui o `window.confirm()` nativo (cinzento, sem marca, sem tema) por um
@@ -23,10 +24,21 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: ConfirmTone;
+  /** Ícone próprio em vez do do tom (ex.: telemóvel para o MB WAY). */
+  icon?: IconName;
+  /** Bloco extra por baixo da descrição (ex.: número com botão "Copiar"). */
+  content?: ReactNode;
+  /** Confirmar é um link verdadeiro (`<a href>`) — para abrir outra app.
+   *  No iOS só um toque direto num link abre a app por universal link (ex.:
+   *  `revolut.me`); navegar por JS depois de um `await` abre o site. */
+  confirmHref?: string;
 }
 
 interface ConfirmState extends Required<Pick<ConfirmOptions, 'title' | 'confirmLabel' | 'cancelLabel' | 'tone'>> {
   description?: string;
+  icon?: IconName;
+  content?: ReactNode;
+  confirmHref?: string;
 }
 
 type ConfirmFn = (options: ConfirmOptions | string) => Promise<boolean>;
@@ -46,6 +58,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         confirmLabel: opts.confirmLabel ?? 'Confirmar',
         cancelLabel: opts.cancelLabel ?? 'Cancelar',
         tone: opts.tone ?? 'default',
+        icon: opts.icon,
+        content: opts.content,
+        confirmHref: opts.confirmHref,
       });
       setResolver(() => resolve);
     });
@@ -70,6 +85,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         confirmLabel={state?.confirmLabel ?? 'Confirmar'}
         cancelLabel={state?.cancelLabel ?? 'Cancelar'}
         tone={state?.tone ?? 'default'}
+        icon={state?.icon}
+        content={state?.content}
+        confirmHref={state?.confirmHref}
         onConfirm={() => settle(true)}
         onCancel={() => settle(false)}
       />

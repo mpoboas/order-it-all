@@ -286,7 +286,7 @@ export default function ProfileSetupPage() {
                             >
                                 {avatarLoading ? (
                                     <div className="w-full h-full flex items-center justify-center bg-black/40">
-                                        <Icon name="photo" className="text-white/70 animate-pulse text-3xl" />
+                                        <Icon name="photo" data-decorative className="text-white/70 animate-pulse text-3xl" />
                                     </div>
                                 ) : isCameraActive ? (
                                     <video

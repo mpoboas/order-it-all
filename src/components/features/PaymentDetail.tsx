@@ -2,7 +2,10 @@ import { Icon } from '@/components/ui/Icon';
 import { Money } from '@/components/ui/Money';
 import { PaymentParties, paymentHeadline } from '@/components/features/PaymentParties';
 import { relativeOrDatePhrase } from '@/lib/utils';
-import type { Expense, Party } from '@/lib/types';
+import type { Expense, Party, PaymentMethod } from '@/lib/types';
+
+/** Só as apps — "outro" não acrescenta nada à frase. */
+const METHOD_LABEL: Partial<Record<PaymentMethod, string>> = { revolut: 'Revolut', mbway: 'MB WAY' };
 
 interface PaymentDetailProps {
     expense: Expense;
@@ -37,6 +40,7 @@ export function PaymentDetail({ expense, parties, currentUserId }: PaymentDetail
                 </div>
                 <p className="text-sm text-ink-soft">
                     Registado por {addedBy} {relativeOrDatePhrase(expense.created)}
+                    {expense.method && METHOD_LABEL[expense.method] && <> · via {METHOD_LABEL[expense.method]}</>}
                     {wasEdited && updatedBy && <> · editado por {updatedBy}</>}
                 </p>
             </div>

@@ -14,8 +14,8 @@ import { useToast } from '@/context/ToastContext';
 
 type NavOpts = {
   haptic?: boolean;
-  /** 'none' para navegação lateral entre irmãos (trocar de tab) — sem isto,
-   *  `push`/`replace` marcam sempre a transição como "forward" (entrar num
+  /** 'none' para navegação lateral entre irmãos (trocar de tab) — troca
+   *  instantânea, como as tabs nativas, em vez do slide "forward" (entrar num
    *  ecrã, desliza da direita). Ver `src/lib/navTransition.ts`. */
   transition?: 'auto' | 'none';
 };
@@ -30,14 +30,13 @@ function isSamePath(href: string, current: string): boolean {
 
 /**
  * Navegação unificada da app:
- * - **View Transition** (crossfade nativo do browser) via `next-view-transitions`
- *   — o ecrã antigo fica congelado (screenshot) até o novo estar pronto, depois
- *   funde. Sem "flash" de fundo entre páginas. O Header e a BottomNav têm
- *   `view-transition-name` próprio em `globals.css`, por isso não fundem.
+ * - **View Transition** (ver `src/lib/viewTransition.ts`) — o ecrã antigo fica
+ *   congelado (snapshot) até o novo estar PRONTO (sem skeletons, teto ~450 ms),
+ *   depois desliza/troca. O Header e a BottomNav têm `view-transition-name`
+ *   próprio em `globals.css`, por isso não se mexem.
  *   **Exceção:** em ligação lenta (`isSlowConnection`) navegamos sem transição —
- *   o `next-view-transitions` segura o screenshot antigo até a rota nova montar,
- *   e em 3G isso são segundos de ecrã congelado sem barra nem skeleton. Sem
- *   transição, o `loading.tsx` e a barra de topo aparecem assim que puderem.
+ *   em 3G a rota nova pode demorar segundos, e sem o snapshot congelado a barra
+ *   de topo e os skeletons aparecem assim que puderem.
  * - **haptic** ao navegar.
  * - **guarda de rascunhos** por gravar (`UnsavedDraftContext`).
  *
@@ -79,7 +78,7 @@ export function useAppNavigate() {
       tryNavigate(() => {
         if (isAppOffline()) return goOffline(href, 'push');
         navStart();
-        if (opts?.transition !== 'none') markNavDirection('forward');
+        markNavDirection(opts?.transition === 'none' ? 'tab' : 'forward');
         router.push(href);
       });
     },
@@ -93,7 +92,7 @@ export function useAppNavigate() {
       tryNavigate(() => {
         if (isAppOffline()) return goOffline(href, 'replace');
         navStart();
-        if (opts?.transition !== 'none') markNavDirection('forward');
+        markNavDirection(opts?.transition === 'none' ? 'tab' : 'forward');
         router.replace(href);
       });
     },

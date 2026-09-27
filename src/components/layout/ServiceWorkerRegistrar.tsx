@@ -5,6 +5,11 @@ import { usePathname } from 'next/navigation';
 import { isAppOffline } from '@/lib/connectivity';
 import { isSlowConnection } from '@/lib/connection';
 import { registerAppServiceWorker } from '@/lib/serviceWorker';
+// Importado aqui (montado em TODAS as páginas) só pelo efeito lateral: regista
+// o listener de `beforeinstallprompt` logo no arranque. O Chrome dispara esse
+// evento UMA vez, cedo — antes só se ouvia quando o onboarding ou o pedido de
+// notificações estavam carregados, e o evento perdia-se (sem botão "Instalar").
+import '@/lib/installPrompt';
 
 /**
  * Regista o service worker da casca offline — SÓ em builds de produção (em

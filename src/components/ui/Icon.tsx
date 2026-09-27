@@ -8,7 +8,7 @@ import {
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
-    Scale, Activity, Send, Settings, UserPlus, AtSign, CloudOff, Search, Info,
+    Scale, Activity, Send, Settings, UserPlus, AtSign, CloudOff, Search, Info, CreditCard, ArrowDownLeft, ArrowUpRight,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -71,6 +71,9 @@ const MAP = {
     filter_list: ListFilter,
     search: Search,
     info: Info,
+    credit_card: CreditCard,
+    call_received: ArrowDownLeft,
+    call_made: ArrowUpRight,
     checklist: ListChecks,
     view_agenda: Rows3,
     tune: SlidersHorizontal,

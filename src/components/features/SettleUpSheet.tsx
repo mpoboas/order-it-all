@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { Avatar } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Button, ButtonLink } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { CopyableValue } from '@/components/ui/CopyableValue';
 import { PriceInput } from '@/components/ui/PriceInput';
 import { Balance } from '@/components/ui/Balance';
 import { AnimatedStep } from '@/components/ui/AnimatedStep';
 import { PaymentParties, paymentHeadline } from '@/components/features/PaymentParties';
 import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmContext';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
@@ -17,7 +19,9 @@ import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import { notify, notifiableUserIds } from '@/lib/notify';
-import type { Expense, Party } from '@/lib/types';
+import { MBWAY_APP_URL, normalizeRevtag, revolutPaymentUrl } from '@/lib/paymentLinks';
+import { cn } from '@/lib/utils';
+import type { Expense, Party, PaymentMethod } from '@/lib/types';
 
 interface SettleUpSheetProps {
   isOpen: boolean;
@@ -54,6 +58,34 @@ type Step =
 
 const NO_PAIRWISE: Record<string, Record<string, number>> = {};
 
+/** "912345678" → "912 345 678" (só para mostrar; copia-se o original). */
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\s+/g, '');
+  return /^\d{9}$/.test(digits) ? digits.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : phone;
+}
+
+interface MethodOption {
+  key: PaymentMethod;
+  label: string;
+  hint: string;
+  icon: IconName;
+}
+
+/** Métodos para pagar a `payee` — só as apps que ele tem no perfil, e
+ *  "Outro" sempre. Sem nenhuma app, a lista fica só com "Outro" (e não se
+ *  mostra: o método é `other` sem perguntar). */
+function methodOptionsFor(payee: Party | undefined): MethodOption[] {
+  const options: MethodOption[] = [];
+  if (payee?.revtag) {
+    options.push({ key: 'revolut', label: 'Revolut', hint: `@${normalizeRevtag(payee.revtag)} · valor já preenchido`, icon: 'credit_card' });
+  }
+  if (payee?.mbwayPhone) {
+    options.push({ key: 'mbway', label: 'MB WAY', hint: `Envias para ${formatPhone(payee.mbwayPhone)}`, icon: 'phone_iphone' });
+  }
+  options.push({ key: 'other', label: 'Outro', hint: 'Dinheiro, transferência…', icon: 'attach_money' });
+  return options;
+}
+
 /**
  * Acertar contas. Escolher uma pessoa da lista leva a um ecrã só com o
  * essencial: os dois avatares com uma seta de quem paga (esquerda) para quem
@@ -74,7 +106,11 @@ export function SettleUpSheet({
   payment,
 }: SettleUpSheetProps) {
   const { showToast } = useToast();
+  const confirmAction = useConfirm();
   const [step, setStep] = useState<Step>({ kind: 'list' });
+  /** Como é que TU vais pagar — só quando és tu o pagador (num pagamento
+   *  recebido ou entre terceiros não sabemos, fica `other`). */
+  const [method, setMethod] = useState<PaymentMethod>('other');
   /** +1 avança (entra pela direita), −1 volta (entra pela esquerda). */
   const [direction, setDirection] = useState(1);
   const [amount, setAmount] = useState(0);
@@ -127,22 +163,24 @@ export function SettleUpSheet({
     setStep(next);
   };
 
+  /** Entra na confirmação já com o método sugerido: se és tu a pagar, a
+   *  primeira app que o recetor tem (Revolut, depois MB WAY); senão `other`. */
+  const goToConfirm = (payerId: string, payeeId: string, via: 'list' | 'more') => {
+    setMethod(payerId === currentUserId ? methodOptionsFor(parties.get(payeeId))[0].key : 'other');
+    forward({ kind: 'confirm', payerId, payeeId, via });
+  };
+
   const selectCounterparty = (option: CounterpartyOption) => {
     // amountCents > 0 → ele deve-te → ele paga (tu recebes).
     const iAmPayer = option.amountCents < 0;
     setAmount(Math.abs(fromCents(option.amountCents)));
-    forward({
-      kind: 'confirm',
-      payerId: iAmPayer ? currentUserId : option.id,
-      payeeId: iAmPayer ? option.id : currentUserId,
-      via: 'list',
-    });
+    goToConfirm(iAmPayer ? currentUserId : option.id, iAmPayer ? option.id : currentUserId, 'list');
   };
 
   const selectPayee = (payerId: string, payeeId: string) => {
     // Sugere a dívida que já exista entre os dois (se houver).
     setAmount(fromCents(Math.max(0, pairwise[payerId]?.[payeeId] ?? 0)));
-    forward({ kind: 'confirm', payerId, payeeId, via: 'more' });
+    goToConfirm(payerId, payeeId, 'more');
   };
 
   const goBack = () => {
@@ -189,6 +227,7 @@ export function SettleUpSheet({
           payers: [{ party: payerId, amount }],
           shares: [{ party: payeeId, amount }],
           participants: realParticipantIds([payerId, payeeId], parties),
+          method: payerId === currentUserId ? method : 'other',
           created_by: currentUserId,
         });
         await db.expenses.put(created);
@@ -202,6 +241,29 @@ export function SettleUpSheet({
       }
 
       onSaved?.();
+
+      // MB WAY: não há link com valor/número, por isso um diálogo diz o que
+      // enviar e deixa copiar o número antes de abrir a app. (O Revolut não
+      // passa por aqui: o próprio botão "Pagar" é o link — ver o rodapé.)
+      const payee = parties.get(payeeId);
+      if (!payment && payerId === currentUserId) {
+        if (method === 'mbway' && payee?.mbwayPhone) {
+          // O MB WAY não aceita valor nem número por link — só abre a app. O
+          // diálogo diz o que enviar e deixa copiar o número antes de saltar.
+          const phone = payee.mbwayPhone;
+          await confirmAction({
+            title: 'Envia o pagamento no MB WAY',
+            description: `Deves enviar ${formatEUR(amount)} para o número ${formatPhone(phone)} no MB WAY.`,
+            content: <CopyableValue value={phone.replace(/\s+/g, '')} display={formatPhone(phone)} label="Número MB WAY" />,
+            icon: 'phone_iphone',
+            confirmLabel: 'Abrir MB WAY',
+            confirmHref: MBWAY_APP_URL,
+            cancelLabel: 'Agora não',
+          });
+          onClose();
+          return;
+        }
+      }
       onClose();
     } catch (error) {
       showToast(
@@ -259,8 +321,54 @@ export function SettleUpSheet({
         aria-label="Valor do pagamento"
         className="w-full px-4 py-3 rounded-xl border-2 border-hairline focus:border-primary-500 outline-none bg-surface-sunken focus:bg-surface text-3xl font-bold tracking-tight text-center tabular-nums"
       />
+
+      {!payment && payerId === currentUserId && renderMethods(payeeId)}
     </div>
   );
+
+  /** "Como vais pagar?" — só aparece se o recetor tiver Revolut e/ou MB WAY
+   *  no perfil; sem nenhum, o pagamento fica `other` sem perguntar. */
+  const renderMethods = (payeeId: string) => {
+    const methodOptions = methodOptionsFor(parties.get(payeeId));
+    if (methodOptions.length < 2) return null;
+    return (
+      <div role="radiogroup" aria-label="Como vais pagar?" className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink-faint">Como vais pagar?</p>
+        {methodOptions.map((option) => {
+          const selected = method === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setMethod(option.key)}
+              className={cn(
+                'w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors',
+                selected ? 'border-primary-600 bg-primary-50 dark:bg-primary-950' : 'border-hairline bg-surface hover:bg-surface-sunken',
+              )}
+            >
+              <span className="w-10 h-10 shrink-0 rounded-xl bg-surface-sunken text-ink-soft flex items-center justify-center">
+                <Icon name={option.icon} className="text-xl" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold text-ink">{option.label}</span>
+                <span className="block text-xs text-ink-soft truncate">{option.hint}</span>
+              </span>
+              <span
+                className={cn(
+                  'w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center',
+                  selected ? 'border-primary-600' : 'border-hairline-strong',
+                )}
+              >
+                {selected && <span className="w-2.5 h-2.5 rounded-full bg-primary-600" />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderList = () =>
     options.length === 0 ? (
@@ -296,6 +404,19 @@ export function SettleUpSheet({
       </>
     );
 
+  /** Link do Revolut quando és tu a pagar por Revolut — o botão "Pagar"
+   *  passa a ser este link (ver rodapé). */
+  const revolutPayee = step.kind === 'confirm' ? parties.get(step.payeeId) : undefined;
+  const revolutUrl =
+    step.kind === 'confirm' &&
+    !payment &&
+    step.payerId === currentUserId &&
+    method === 'revolut' &&
+    revolutPayee?.revtag &&
+    amount > 0
+      ? revolutPaymentUrl(revolutPayee.revtag, amount)
+      : null;
+
   const submitLabel = payment
     ? 'Guardar'
     : step.kind === 'confirm' && step.payerId === currentUserId
@@ -315,9 +436,36 @@ export function SettleUpSheet({
       footerKey={step.kind}
       footer={
         step.kind === 'confirm' ? (
-          <Button block size="lg" loading={submitting} disabled={amount <= 0} onClick={handleSubmit}>
-            {submitLabel}
-          </Button>
+          revolutUrl ? (
+            // Revolut: o botão "Pagar" É o link — um toque direto num `<a>` é
+            // a única forma de o iOS abrir a app (universal link) em vez do
+            // site. A gravação arranca no mesmo toque, em paralelo.
+            <ButtonLink
+              block
+              size="lg"
+              href={revolutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              disabled={amount <= 0 || submitting}
+              onClick={(e) => {
+                try {
+                  assertOnline();
+                } catch (error) {
+                  // Sem rede não se regista — e não se deixa ir pagar sem registo.
+                  e.preventDefault();
+                  showToast(mutationErrorMessage(error, 'Sem ligação — tenta outra vez.'), 'error');
+                  return;
+                }
+                void handleSubmit();
+              }}
+            >
+              {submitLabel}
+            </ButtonLink>
+          ) : (
+            <Button block size="lg" loading={submitting} disabled={amount <= 0} onClick={handleSubmit}>
+              {submitLabel}
+            </Button>
+          )
         ) : undefined
       }
     >

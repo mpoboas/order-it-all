@@ -11,15 +11,23 @@
  * a `useAppNavigate`).
  */
 
-const RESET_DELAY_MS = 500;
+/** Rede de segurança — normalmente limpa-se no fim da transição
+ *  (`clearNavDirection`), que agora pode esperar pelo ecrã novo até ~450 ms
+ *  antes de animar; um timer curto apagava a direção antes de a animação
+ *  arrancar (ficava crossfade). */
+const RESET_DELAY_MS = 2000;
 let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function markNavDirection(direction: 'forward' | 'back'): void {
+export function markNavDirection(direction: 'forward' | 'back' | 'tab'): void {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.navTransition = direction;
   if (resetTimer) clearTimeout(resetTimer);
-  resetTimer = setTimeout(() => {
-    delete document.documentElement.dataset.navTransition;
-    resetTimer = null;
-  }, RESET_DELAY_MS);
+  resetTimer = setTimeout(clearNavDirection, RESET_DELAY_MS);
+}
+
+export function clearNavDirection(): void {
+  if (typeof document === 'undefined') return;
+  delete document.documentElement.dataset.navTransition;
+  if (resetTimer) clearTimeout(resetTimer);
+  resetTimer = null;
 }

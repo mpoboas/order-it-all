@@ -1,6 +1,6 @@
 import PocketBase, { ClientResponseError, type SendOptions } from 'pocketbase';
 import { isAppOffline, OfflineError, reportNetworkFailure, reportNetworkSuccess } from './connectivity';
-import type { Trip, Order, Item, Split, Group, InvitePreview, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, Placeholder, ExpenseComment, Friendship } from './types';
+import type { Trip, Order, Item, Split, Group, InvitePreview, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, PaymentMethod, Placeholder, ExpenseComment, Friendship } from './types';
 
 // PocketBase client singleton
 const pb = new PocketBase(
@@ -420,6 +420,8 @@ export const expensesApi = {
     shares: ExpenseShare[];
     split_id?: string;
     trip_id?: string;
+    /** Só em pagamentos — como foi pago (Revolut, MB WAY, outro). */
+    method?: PaymentMethod;
     /** Ids de utilizadores reais entre `payers`+`shares` — obrigatório quando
      *  não há `group_id` (é o mecanismo de autorização da despesa direta). */
     participants?: string[];

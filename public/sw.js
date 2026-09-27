@@ -15,7 +15,7 @@
 // novo, ativa-o silenciosamente no próximo fecho/reabertura do site e as
 // caches antigas são limpas.
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SW_PARAMS = new URL(self.location.href).searchParams;
 const CACHE_ENABLED = SW_PARAMS.get('cache') === '1';
 // Cada deploy regista o SW com `build=<id>` (SW novo → pré-guarda os estáticos
@@ -27,9 +27,11 @@ const PAGES_CACHE = `oia-pages-${VERSION}-${BUILD}`;
 const OFFLINE_URL = '/offline';
 const PRECACHE = [
     OFFLINE_URL,
-    '/manifest.json',
+    '/manifest.webmanifest',
     '/android-chrome-192x192.png',
     '/android-chrome-512x512.png',
+    '/icon-maskable-192x192.png',
+    '/icon-maskable-512x512.png',
     '/apple-touch-icon.png',
     '/favicon.ico',
 ];

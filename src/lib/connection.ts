@@ -2,10 +2,9 @@
  * Deteção de ligação lenta (Network Information API — Chromium/Edge; ausente no
  * Safari/Firefox, onde devolve sempre `false`).
  *
- * Usado para desligar o crossfade do View Transitions em 3G: o
- * `next-view-transitions` segura o screenshot do ecrã antigo até a rota nova
- * montar, e numa ligação lenta isso são segundos de ecrã congelado sem qualquer
- * indicação de progresso. Sem transição, o `loading.tsx` e a barra de topo
+ * Usado para desligar as View Transitions em 3G: a transição segura o snapshot
+ * do ecrã antigo até a rota nova estar pronta, e numa ligação lenta isso são
+ * segundos de ecrã congelado sem qualquer indicação de progresso. Sem transição, o `loading.tsx` e a barra de topo
  * aparecem assim que a rede deixa.
  */
 

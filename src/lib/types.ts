@@ -14,6 +14,8 @@ export interface User {
   onboarded?: boolean;
   /** Número de telemóvel MB WAY — mostrado como atalho ao acertar contas. */
   mbway_phone?: string;
+  /** Revtag do Revolut (sem "@") — para o link de pagamento `revolut.me`. */
+  revtag?: string;
   /** Minúsculas, `[a-z0-9_.]{3,20}` — gerado automaticamente a partir do
    *  nome na primeira configuração de perfil; editável depois no Perfil.
    *  Utilizadores antigos ganham um por migração (`scripts/backfill-usernames.mjs`). */
@@ -156,6 +158,8 @@ export interface Party {
   email?: string;
   /** Só para `kind === 'user'` — atalho "Copiar número" no acertar contas. */
   mbwayPhone?: string;
+  /** Só para `kind === 'user'` — pagar pelo Revolut no acertar contas. */
+  revtag?: string;
   /** Só para `kind === 'user'` — mostrado como "@username" na página da pessoa. */
   username?: string;
   kind: 'user' | 'placeholder';
@@ -182,6 +186,10 @@ export interface Placeholder {
 }
 
 export type ExpenseKind = 'expense' | 'payment';
+
+/** Como foi feito um pagamento (`kind === 'payment'`) — só quem pagou sabe;
+ *  pagamentos registados pelo recetor ou por terceiros ficam `other`. */
+export type PaymentMethod = 'mbway' | 'revolut' | 'other';
 
 export type ExpenseSplitMode =
   | 'equal'
@@ -226,6 +234,8 @@ export interface Expense {
   split_id?: string;
   /** Quando lançada a partir do fecho de uma viagem. */
   trip_id?: string;
+  /** Só em pagamentos (`kind === 'payment'`). */
+  method?: PaymentMethod;
   /** Ids de utilizadores reais (nunca placeholders) entre `payers`+`shares`.
    *  Sempre preenchido, mesmo em despesas de grupo (aí é redundante com
    *  `group_id.members`) — é o mecanismo de autorização/sync para despesas

@@ -383,6 +383,7 @@ function partyFromUser(u: User | undefined, fallbackId: string): Party {
     avatar: getUserAvatarUrl(u.id, u.avatar),
     email: u.email,
     mbwayPhone: u.mbway_phone,
+    revtag: u.revtag,
     username: u.username,
     kind: 'user',
   };

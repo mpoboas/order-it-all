@@ -14,9 +14,8 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { LazyPushNotificationManager } from "@/components/features/LazyPushNotificationManager";
 import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
-import { NavDirectionTracker } from "@/components/layout/NavDirectionTracker";
 import { GlobalProgress } from "@/components/layout/GlobalProgress";
-import { ViewTransitions } from "next-view-transitions";
+import { RouteTransitions } from "@/components/layout/RouteTransitions";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,8 +33,12 @@ export const metadata: Metadata = {
       { url: '/favicon-32x32.png', type: 'image/png' },
       { url: '/favicon-16x16.png', type: 'image/png' },
     ],
+    // Opacos (fundo branco): o iOS pinta de preto a transparência de um
+    // apple-touch-icon — o ícone antigo aparecia sobre um quadrado preto.
     apple: [
-      { url: '/apple-touch-icon.png' },
+      { url: '/apple-touch-icon.png', sizes: '180x180' },
+      { url: '/apple-touch-icon-167x167.png', sizes: '167x167' },
+      { url: '/apple-touch-icon-152x152.png', sizes: '152x152' },
     ],
     other: [
       {
@@ -45,7 +48,6 @@ export const metadata: Metadata = {
       }
     ]
   },
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     title: 'Order It All!',
@@ -66,8 +68,13 @@ export const viewport: Viewport = {
   // Necessario para que env(safe-area-inset-*) devolva valores reais e para
   // que a app pinte por baixo da status bar / home indicator.
   viewportFit: 'cover',
-  // Cor da status bar no Android: igual ao topo dos ecras (Header / gradient-mesh).
-  themeColor: '#2563eb',
+  // Cor da barra de estado (Android/Chrome): igual ao cabeçalho, que é
+  // `--surface` — branco no claro, slate-900 no escuro. (Segue o tema do
+  // sistema; o tema escolhido à mão na app não chega a esta meta.)
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+  ],
   // Chrome/Android: encolhe o layout viewport quando o teclado abre (em vez
   // de o sobrepor por cima) — o Safari ainda não implementa isto, daí o
   // reforço via `useVisualViewport` no `<Sheet>` (funciona nos dois).
@@ -109,8 +116,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
-        <ViewTransitions>
-          <NavDirectionTracker />
+        <RouteTransitions>
           <GlobalProgress />
           <UserProvider>
             <SyncProvider>
@@ -133,7 +139,7 @@ export default function RootLayout({
               </GroupProvider>
             </SyncProvider>
           </UserProvider>
-        </ViewTransitions>
+        </RouteTransitions>
       </body>
     </html>
   );

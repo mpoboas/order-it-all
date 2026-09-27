@@ -9,7 +9,7 @@
  * credenciais de PRODUÇÃO). Aqui carrega-se primeiro o `.env.development.local`
  * para o `process.env` — o Next nunca sobrepõe variáveis que já existem.
  *
- * Uso: node scripts/start-local-prod.mjs [--no-build]
+ * Uso: [PORT=3000] node scripts/start-local-prod.mjs [--no-build]   (porta por omissão: 3110)
  * (ou a configuração "prod-local" em .claude/launch.json)
  */
 
@@ -30,6 +30,7 @@ if (!process.argv.includes('--no-build')) {
   const build = spawnSync('npx', ['next', 'build'], { stdio: 'inherit', env });
   if (build.status !== 0) process.exit(build.status ?? 1);
 }
-const server = spawn('npx', ['next', 'start', '-p', '3110'], { stdio: 'inherit', env });
+const port = process.env.PORT || '3110';
+const server = spawn('npx', ['next', 'start', '-p', port], { stdio: 'inherit', env });
 server.on('exit', (code) => process.exit(code ?? 0));
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => server.kill(sig));

@@ -36,6 +36,12 @@ const SIZES: Record<ButtonSize, string> = {
     lg: 'h-13 px-8 text-lg gap-2',
 };
 
+const BASE = [
+    'inline-flex items-center justify-center rounded-full font-semibold',
+    'transition duration-200 ease-in-out active:scale-[0.97]',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+];
+
 export function Button({
     variant = 'primary',
     size = 'md',
@@ -61,9 +67,7 @@ export function Button({
         <button
             type={type}
             className={cn(
-                'inline-flex items-center justify-center rounded-full font-semibold',
-                'transition duration-200 ease-in-out active:scale-[0.97]',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                ...BASE,
                 'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
                 VARIANTS[variant],
                 SIZES[size],
@@ -81,5 +85,56 @@ export function Button({
         >
             {children}
         </button>
+    );
+}
+
+interface ButtonLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    block?: boolean;
+    disabled?: boolean;
+    children: React.ReactNode;
+}
+
+/**
+ * Link com o aspeto de `Button` — para abrir outra app (Revolut, MB WAY). No
+ * iOS um universal link só abre a app quando vem de um toque DIRETO num
+ * `<a href>`; um `location.href` feito por JS (sobretudo depois de um
+ * `await`) abre o site no browser.
+ */
+export function ButtonLink({
+    variant = 'primary',
+    size = 'md',
+    block = false,
+    disabled = false,
+    className,
+    children,
+    onClick,
+    ...props
+}: ButtonLinkProps) {
+    const { trigger } = useWebHaptics();
+    return (
+        <a
+            className={cn(
+                ...BASE,
+                VARIANTS[variant],
+                SIZES[size],
+                block && 'w-full',
+                disabled && 'opacity-50 pointer-events-none',
+                className,
+            )}
+            aria-disabled={disabled || undefined}
+            onClick={(e) => {
+                if (disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                trigger();
+                onClick?.(e);
+            }}
+            {...props}
+        >
+            {children}
+        </a>
     );
 }

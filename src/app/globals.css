@@ -737,6 +737,14 @@ textarea:focus-visible {
     animation: ios-slide-in-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
   }
 }
+/* Troca de tab (Grupos/Amigos, Despesas/Viagens, barra inferior): instantânea,
+   como nas apps nativas — o crossfade mostrava as duas listas sobrepostas. A
+   View Transition continua a segurar o ecrã antigo até o novo estar pronto
+   (sem skeleton pelo meio), só não anima. */
+html[data-nav-transition="tab"]::view-transition-old(root),
+html[data-nav-transition="tab"]::view-transition-new(root) {
+  animation: none;
+}
 @keyframes ios-slide-in-right {
   from { transform: translateX(100%); }
 }

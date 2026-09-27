@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey, maskSecret } from '@/lib/utils';
+import { normalizeRevtag } from '@/lib/paymentLinks';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { isValidUsername } from '@/lib/username';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -14,6 +15,9 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { EditFieldSheet } from '@/components/features/EditFieldSheet';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { IosInstallSteps } from '@/components/features/IosInstallSteps';
+import { Sheet } from '@/components/ui/Sheet';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 
 /** Linha de resumo (ícone + rótulo + valor atual) — toca para abrir o ecrã
@@ -44,7 +48,7 @@ function SummaryRow({
     );
 }
 
-type EditingField = 'name' | 'username' | 'mbway' | 'gemini' | null;
+type EditingField = 'name' | 'username' | 'mbway' | 'revolut' | 'gemini' | null;
 
 export default function ProfilePage() {
     const { user, updateProfile, logout } = useUser();
@@ -55,6 +59,12 @@ export default function ProfilePage() {
     const [editingField, setEditingField] = useState<EditingField>(null);
     const { status: notifStatus, iosNeedsInstall, requestPermission } = useNotificationPermission();
     const [enablingNotifs, setEnablingNotifs] = useState(false);
+    // Instalar a app — sempre à mão no Perfil (padrão das WPAs), além dos
+    // pedidos contextuais do onboarding/notificações. Some quando já está
+    // instalada ou o browser não permite (ex.: Firefox desktop).
+    const { canInstall, iosManualInstall, isStandalone, promptInstall } = useInstallPrompt();
+    const [showIosInstall, setShowIosInstall] = useState(false);
+    const showInstallRow = !isStandalone && (canInstall || iosManualInstall);
 
     const currentGeminiKey = getUserGeminiApiKey(user) ?? '';
     const hasGeminiKey = Boolean(currentGeminiKey);
@@ -196,6 +206,14 @@ export default function ProfilePage() {
                             placeholder="Adicionar número"
                             onClick={() => setEditingField('mbway')}
                         />
+                        <SummaryRow
+                            icon="credit_card"
+                            label="Revolut"
+                            value={user.revtag || ''}
+                            placeholder="Adicionar revtag"
+                            prefix="@"
+                            onClick={() => setEditingField('revolut')}
+                        />
                     </div>
                 </div>
 
@@ -203,6 +221,18 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Preferências</h3>
                     <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
+                        {showInstallRow && (
+                            <SummaryRow
+                                icon="install_mobile"
+                                label="App"
+                                value="Instalar no ecrã principal"
+                                placeholder="Instalar no ecrã principal"
+                                onClick={() => {
+                                    if (iosManualInstall) setShowIosInstall(true);
+                                    else void promptInstall();
+                                }}
+                            />
+                        )}
                         {notifStatus !== 'unsupported' && (
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <div className={cn(
@@ -338,6 +368,25 @@ export default function ProfilePage() {
                 type="tel"
                 onSave={(value) => updateProfile({ mbway_phone: value })}
                 helper="Mostrado a quem tiver de te pagar, para copiar e pagar fora da app."
+            />
+            <Sheet isOpen={showIosInstall} onClose={() => setShowIosInstall(false)} title="Instalar a app" size="auto">
+                <IosInstallSteps />
+            </Sheet>
+            <EditFieldSheet
+                isOpen={editingField === 'revolut'}
+                onClose={() => setEditingField(null)}
+                label="Revtag do Revolut"
+                value={user.revtag || ''}
+                placeholder="revtag"
+                prefix="@"
+                onSave={(value) => updateProfile({ revtag: normalizeRevtag(value).toLowerCase() })}
+                validate={(value) => {
+                    const v = normalizeRevtag(value);
+                    return v === '' || /^[a-zA-Z0-9._-]{2,40}$/.test(v)
+                        ? null
+                        : 'Só letras, números, "_", "-" ou "." — sem espaços.';
+                }}
+                helper="Quem te dever pode pagar-te pelo Revolut com o valor já preenchido. Encontras a tua revtag no perfil da app do Revolut."
             />
             <EditFieldSheet
                 isOpen={editingField === 'gemini'}
