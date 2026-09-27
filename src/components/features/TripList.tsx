@@ -170,7 +170,7 @@ function TripRow({ trip, href, onOpen, onMenu, onLaunchExpense }: TripRowProps) 
                     <Icon name={meta.icon} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-ink truncate">{trip.name}</p>
+                    <p className="font-medium text-ink truncate">{trip.name}</p>
                     <p className="text-xs text-ink-soft truncate mt-0.5">
                         {meta.label}
                         {description && ` · ${description}`}

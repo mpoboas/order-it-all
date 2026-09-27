@@ -16,10 +16,7 @@ import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
-import { partyLabel } from '@/lib/parties';
-import { getCategory } from '@/lib/ledger/categories';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
-import { cn } from '@/lib/utils';
 
 export default function GroupExpensesPage() {
     const params = useParams();
@@ -44,33 +41,12 @@ export default function GroupExpensesPage() {
     const loading = expensesQuery === undefined || ledger === undefined || (expenses.length === 0 && groupSyncing);
 
     const [showForm, setShowForm] = useState(false);
-    const [search, setSearch] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) router.push('/');
     }, [isLoggedIn, router]);
 
-    // Pesquisa por descrição, categoria ou pessoa (pagador/participante) —
-    // sem acentos/maiúsculas, à semelhança do resto da app.
-    const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-    const searchNorm = normalize(search.trim());
-    const filteredExpenses = useMemo(() => {
-        if (!searchNorm || !parties) return expenses;
-        return expenses.filter((e) => {
-            const haystack = [
-                e.description,
-                getCategory(e.category).label,
-                ...e.payers.map((p) => partyLabel(p.party, parties)),
-                ...e.shares.map((s) => partyLabel(s.party, parties)),
-            ]
-                .map(normalize)
-                .join(' ');
-            return haystack.includes(searchNorm);
-        });
-    }, [expenses, searchNorm, parties]);
-
-    const monthGroups = useMemo(() => groupExpensesByMonth(filteredExpenses), [filteredExpenses]);
+    const monthGroups = useMemo(() => groupExpensesByMonth(expenses), [expenses]);
     // Não é só `currentGroup.members` — inclui placeholders (membros sem
     // conta), que também são partes válidas nas despesas do grupo.
     const memberCount = parties?.size || currentGroup?.members?.length || 0;
@@ -96,39 +72,9 @@ export default function GroupExpensesPage() {
                 />
             )}
             <GroupOverviewBar groupId={groupId} />
-            <GroupTabs
-                groupId={groupId}
-                isAdmin={isAdmin}
-                trailing={!loading && expenses.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setShowSearch((v) => !v)}
-                        aria-label="Pesquisar despesas"
-                        aria-pressed={showSearch}
-                        className={cn(
-                            'w-9 h-9 shrink-0 flex items-center justify-center rounded-full transition-colors',
-                            showSearch ? 'bg-surface-sunken text-ink' : 'text-ink-soft hover:bg-surface-sunken',
-                        )}
-                    >
-                        <Icon name="search" className="text-xl" />
-                    </button>
-                )}
-            />
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
             <main className="container mx-auto max-w-2xl pb-24">
-                {showSearch && (
-                    <div className="px-2 sm:px-4 pt-2">
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Pesquisar por descrição, categoria ou pessoa…"
-                            autoFocus
-                            className="w-full px-3 py-2 rounded-xl border border-hairline bg-surface-sunken focus:bg-surface outline-none text-sm"
-                        />
-                    </div>
-                )}
-
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <LoadingSpinner size="lg" />
@@ -143,10 +89,6 @@ export default function GroupExpensesPage() {
                         <button onClick={() => setShowForm(true)} className="btn btn-primary px-6 py-3">
                             Adicionar despesa
                         </button>
-                    </div>
-                ) : filteredExpenses.length === 0 ? (
-                    <div className="text-center py-20 px-4 animate-fade-in-up">
-                        <p className="text-ink-soft">Nenhuma despesa encontrada.</p>
                     </div>
                 ) : (
                     <div className="px-2 sm:px-4 py-4 space-y-4">

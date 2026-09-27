@@ -18,7 +18,7 @@ export function AvatarStack({ people, max = 4, size = 'xs', className }: AvatarS
     return (
         <div className={cn('flex items-center shrink-0', className)}>
             {shown.map((p, i) => (
-                <div key={p.id} className={cn('rounded-full ring-2 ring-surface', i > 0 && overlap)}>
+                <div key={p.id} className={cn('flex rounded-full ring-2 ring-surface', i > 0 && overlap)}>
                     <Avatar name={p.name} src={p.src} size={size} />
                 </div>
             ))}

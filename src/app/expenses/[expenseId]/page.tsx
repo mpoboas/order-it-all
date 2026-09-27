@@ -21,6 +21,8 @@ import { Money } from '@/components/ui/Money';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { ShareTree } from '@/components/features/ShareTree';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
+import { SettleUpSheet } from '@/components/features/SettleUpSheet';
+import { PaymentDetail } from '@/components/features/PaymentDetail';
 import { relativeOrDatePhrase } from '@/lib/utils';
 import { expenseReceiptUrl } from '@/lib/expenseDisplay';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
@@ -85,7 +87,7 @@ export default function DirectExpenseDetailPage() {
     const handleDelete = async () => {
         if (!expense || !user?.id) return;
         if (!(await confirmAction({
-            title: 'Eliminar esta despesa?',
+            title: expense.kind === 'payment' ? 'Eliminar este pagamento?' : 'Eliminar esta despesa?',
             tone: 'danger',
             confirmLabel: 'Eliminar',
         }))) return;
@@ -93,7 +95,7 @@ export default function DirectExpenseDetailPage() {
         try {
             const updated = await expensesApi.softDelete(expense.id, user.id);
             await db.expenses.put(updated);
-            showToast('Despesa eliminada', 'success');
+            showToast(expense.kind === 'payment' ? 'Pagamento eliminado' : 'Despesa eliminada', 'success');
 
             if (parties) {
                 const participantIds = Array.from(
@@ -142,18 +144,21 @@ export default function DirectExpenseDetailPage() {
     const addedBy = expense.expand?.created_by?.name || 'alguém';
     const updatedBy = expense.expand?.updated_by?.name;
     const wasEdited = expense.updated_by && expense.updated_by !== expense.created_by;
+    // Um pagamento (acerto de contas) não é uma despesa: ecrã próprio, e
+    // editar abre o "Acertar contas" em vez do formulário de despesa.
+    const isPayment = expense.kind === 'payment';
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
             <Header
-                title="Detalhes"
+                title={isPayment ? 'Pagamento' : 'Detalhes'}
                 showBack
                 actions={
                     <div className="flex items-center gap-1">
-                        <button type="button" onClick={handleDelete} disabled={deleting} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft" aria-label="Eliminar despesa">
+                        <button type="button" onClick={handleDelete} disabled={deleting} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft" aria-label={isPayment ? 'Eliminar pagamento' : 'Eliminar despesa'}>
                             <Icon name="delete_outline" className="text-lg" />
                         </button>
-                        <button type="button" onClick={() => setShowEdit(true)} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft" aria-label="Editar despesa">
+                        <button type="button" onClick={() => setShowEdit(true)} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-sunken text-ink-soft" aria-label={isPayment ? 'Editar pagamento' : 'Editar despesa'}>
                             <Icon name="edit" className="text-lg" />
                         </button>
                     </div>
@@ -161,64 +166,71 @@ export default function DirectExpenseDetailPage() {
             />
 
             <main className="container mx-auto px-4 py-6 max-w-lg space-y-6">
-                <div className="flex items-center gap-4">
-                    <CategoryIcon category={expense.category} size="lg" />
-                    <div className="min-w-0 flex-1">
-                        <h1 className="text-xl font-bold text-ink break-words">{expense.description}</h1>
-                        <Money value={expense.amount} className="text-2xl font-black text-primary-600 dark:text-primary-400" />
-                    </div>
-                </div>
-
-                <p className="text-xs text-ink-faint">
-                    Adicionado por {addedBy} {relativeOrDatePhrase(expense.created)}
-                    {wasEdited && updatedBy && <> · Editado por {updatedBy}</>}
-                </p>
-
-                <div className="card p-4">
-                    <ShareTree expense={expense} parties={parties!} myId={user?.id} />
-                </div>
-
-                {expense.notes && (
-                    <div className="card p-4">
-                        <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1">Notas</p>
-                        <p className="text-sm text-ink whitespace-pre-wrap">{expense.notes}</p>
-                    </div>
-                )}
-
-                <div>
-                    <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1.5">Recibo</p>
-                    {expenseReceiptUrl(expense) ? (
-                        <div className="relative w-28">
-                            <img
-                                src={expenseReceiptUrl(expense)}
-                                alt="Recibo"
-                                className="w-28 h-28 object-cover rounded-xl border border-hairline"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleRemoveReceipt}
-                                disabled={uploadingReceipt}
-                                className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-danger text-white shadow"
-                                aria-label="Remover recibo"
-                            >
-                                <Icon name="close" className="text-sm" />
-                            </button>
+                {isPayment ? (
+                    <PaymentDetail expense={expense} parties={parties!} currentUserId={user?.id} />
+                ) : (
+                    <>
+                        <div className="flex items-center gap-4">
+                            <CategoryIcon category={expense.category} size="lg" />
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-xl font-bold text-ink break-words">{expense.description}</h1>
+                                <Money value={expense.amount} className="text-2xl font-black text-primary-600 dark:text-primary-400" />
+                            </div>
                         </div>
-                    ) : (
-                        <label className="flex flex-col items-center justify-center w-28 h-28 rounded-xl border-2 border-dashed border-hairline-strong text-ink-faint cursor-pointer hover:border-primary-400 transition-colors">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                className="hidden"
-                                disabled={uploadingReceipt}
-                                onChange={(e) => handleReceiptChange(e.target.files?.[0])}
-                            />
-                            <Icon name="photo_camera" className="text-2xl" />
-                            <span className="text-[11px] mt-1">{uploadingReceipt ? 'A carregar…' : 'Adicionar'}</span>
-                        </label>
-                    )}
-                </div>
+
+                        <p className="text-xs text-ink-faint">
+                            Adicionado por {addedBy} {relativeOrDatePhrase(expense.created)}
+                            {wasEdited && updatedBy && <> · Editado por {updatedBy}</>}
+                        </p>
+
+                        <div className="card p-4">
+                            <ShareTree expense={expense} parties={parties!} myId={user?.id} />
+                        </div>
+
+                        {expense.notes && (
+                            <div className="card p-4">
+                                <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1">Notas</p>
+                                <p className="text-sm text-ink whitespace-pre-wrap">{expense.notes}</p>
+                            </div>
+                        )}
+
+                        <div>
+                            <p className="text-xs font-bold text-ink-faint uppercase tracking-wide mb-1.5">Recibo</p>
+                            {expenseReceiptUrl(expense) ? (
+                                <div className="relative w-28">
+                                    <img
+                                        src={expenseReceiptUrl(expense)}
+                                        alt="Recibo"
+                                        className="w-28 h-28 object-cover rounded-xl border border-hairline"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveReceipt}
+                                        disabled={uploadingReceipt}
+                                        className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-danger text-white shadow"
+                                        aria-label="Remover recibo"
+                                    >
+                                        <Icon name="close" className="text-sm" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center w-28 h-28 rounded-xl border-2 border-dashed border-hairline-strong text-ink-faint cursor-pointer hover:border-primary-400 transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        disabled={uploadingReceipt}
+                                        onChange={(e) => handleReceiptChange(e.target.files?.[0])}
+                                    />
+                                    <Icon name="photo_camera" className="text-2xl" />
+                                    <span className="text-[11px] mt-1">{uploadingReceipt ? 'A carregar…' : 'Adicionar'}</span>
+                                </label>
+                            )}
+                        </div>
+
+                    </>
+                )}
 
                 {parties && user?.id && (
                     <CommentsBar
@@ -230,7 +242,18 @@ export default function DirectExpenseDetailPage() {
                 )}
             </main>
 
-            {parties && user?.id && (
+            {parties && user?.id && isPayment && (
+                <SettleUpSheet
+                    isOpen={showEdit}
+                    onClose={() => setShowEdit(false)}
+                    notifyUrl={(id) => `/expenses/${id}`}
+                    parties={parties}
+                    currentUserId={user.id}
+                    payment={expense}
+                />
+            )}
+
+            {parties && user?.id && !isPayment && (
                 <ExpenseFormSheet
                     isOpen={showEdit}
                     onClose={() => setShowEdit(false)}

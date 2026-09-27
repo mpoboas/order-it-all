@@ -117,7 +117,7 @@ export function payerSummaryLabel(expense: Expense, parties: Map<string, Party>)
   return `${expense.payers.length} pessoas pagaram ${formatEUR(expense.amount)}`;
 }
 
-/** "Pedro T. pagou ao Guga 26,19 €." — frase única para um registo de
+/** "Pedro T. pagou a Guga 26,19 €." — frase única para um registo de
  *  pagamento (kind === 'payment', sempre um pagador e um recebedor). */
 export function paymentSentence(expense: Expense, parties: Map<string, Party>, myId?: string): string {
   const payer = expense.payers[0]?.party;
@@ -134,5 +134,5 @@ export function paymentSentence(expense: Expense, parties: Map<string, Party>, m
   const receiverLabel = partyLabel(receiver, parties);
   return payerIsMe
     ? `Pagaste a ${receiverLabel} ${amount}.`
-    : `${payerLabel} pagou ao ${receiverLabel} ${amount}.`;
+    : `${payerLabel} pagou a ${receiverLabel} ${amount}.`;
 }

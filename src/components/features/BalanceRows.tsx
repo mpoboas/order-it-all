@@ -55,23 +55,19 @@ interface BalanceRowsProps {
   rows: BalanceRow[];
   parties: Map<string, Party>;
   currentUserId?: string;
-  onRemind: (debtorPartyId: string, amountCents: number) => void;
 }
 
 /**
  * Lista de saldos do grupo (folha "Saldos" e página `/groups/[id]/balances`):
  * cada pessoa com o seu saldo no grupo; expandir mostra as dívidas aos pares,
- * que são os mesmos números do cabeçalho do grupo. Na linha de quem está a ver,
- * os pares ficam na 2.ª pessoa ("Bruno deve-te 10,24 €"), iguais ao cabeçalho.
+ * que são os mesmos números do cabeçalho do grupo. Nas linhas expandidas o
+ * verbo é só "deve" ("Bruno deve 10,24 €") — o credor é a pessoa da linha.
  */
-export function BalanceRows({ rows, parties, currentUserId, onRemind }: BalanceRowsProps) {
+export function BalanceRows({ rows, parties, currentUserId }: BalanceRowsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <>
-      <p className="text-xs text-ink-faint mb-2 px-1">
-        Saldo no grupo = o que cada pessoa pagou menos a sua parte. Toca numa pessoa para ver quem deve a quem.
-      </p>
       <div className="card divide-y divide-hairline overflow-hidden">
         {rows.map((row) => {
           const party = parties.get(row.id);
@@ -111,8 +107,7 @@ export function BalanceRows({ rows, parties, currentUserId, onRemind }: BalanceR
                       <p className="text-sm text-ink-soft">
                         {line.amountCents > 0 ? (
                           <>
-                            <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span>{' '}
-                            {isMe ? 'deve-te' : 'deve-lhe'}{' '}
+                            <span className="font-medium text-ink">{partyLabel(line.party, parties)}</span> deve{' '}
                             <span className="font-semibold text-pos">
                               <Money value={fromCents(line.amountCents)} />
                             </span>
@@ -127,15 +122,6 @@ export function BalanceRows({ rows, parties, currentUserId, onRemind }: BalanceR
                           </>
                         )}
                       </p>
-                      {isMe && line.amountCents > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => onRemind(line.party, line.amountCents)}
-                          className="shrink-0 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
-                        >
-                          Lembrar
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>

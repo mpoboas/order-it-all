@@ -8,9 +8,6 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 interface GroupTabsProps {
     groupId: string;
     isAdmin: boolean;
-    /** Ação da vista atual à direita do segmented (ex.: pesquisar despesas) —
-     *  na mesma linha em vez de uma linha própria por baixo (Fase 15). */
-    trailing?: React.ReactNode;
 }
 
 /** Segmented control por baixo do cabeçalho do grupo — Despesas · Viagens
@@ -28,7 +25,7 @@ interface GroupTabsProps {
  *  Viagens, Despesas, Saldos), não em sub-ecrãs (detalhe de despesa/viagem,
  *  itens). Funciona em todas as larguras — no desktop substitui os links
  *  que estavam no `Header`. */
-export function GroupTabs({ groupId, isAdmin, trailing }: GroupTabsProps) {
+export function GroupTabs({ groupId, isAdmin }: GroupTabsProps) {
     const pathname = usePathname();
     const nav = useAppNavigate();
     const basePath = `/groups/${groupId}`;
@@ -45,16 +42,13 @@ export function GroupTabs({ groupId, isAdmin, trailing }: GroupTabsProps) {
 
     return (
         <div className="bg-app px-4 pt-3 pb-2">
-            <div className="flex items-center gap-2 max-w-6xl mx-auto">
-                <SegmentedControl
-                    ariaLabel="Secção do grupo"
-                    items={items}
-                    value={value}
-                    onChange={(href) => nav.push(href, { haptic: false, transition: 'none' })}
-                    className="flex-1"
-                />
-                {trailing}
-            </div>
+            <SegmentedControl
+                ariaLabel="Secção do grupo"
+                items={items}
+                value={value}
+                onChange={(href) => nav.push(href, { haptic: false, transition: 'none' })}
+                className="max-w-6xl mx-auto"
+            />
         </div>
     );
 }

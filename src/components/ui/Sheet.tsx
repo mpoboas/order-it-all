@@ -242,9 +242,15 @@ export function Sheet({
                                 </div>
 
                                 <div className="flex flex-1 flex-col min-h-0 min-w-0">
+                                    {/* `*:shrink-0`: os filhos diretos nunca encolhem para caber.
+                                        Num contentor flex em coluna, um filho com `overflow-hidden`
+                                        (ex.: um `.card` com lista) tem `min-height` 0 e encolhia até
+                                        à altura da folha — cortava o fim da lista e não havia scroll.
+                                        Filhos com `flex-1 min-h-0` (wizards) não mudam: crescem a
+                                        partir de base 0, não encolhem. */}
                                     <div
                                         className={cn(
-                                            'flex flex-1 flex-col min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-6 sm:py-6',
+                                            'flex flex-1 flex-col min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-6 sm:py-6 *:shrink-0',
                                             // Sem footer, o fim do conteudo encosta ao home indicator.
                                             !footer && 'pb-[calc(1rem+var(--safe-bottom))] sm:pb-[calc(1.5rem+var(--safe-bottom))]'
                                         )}

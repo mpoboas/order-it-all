@@ -85,7 +85,7 @@ export function HeroHeader({
                     <h1 className="flex-1 min-w-0 text-2xl font-bold tracking-tight text-white truncate">{title}</h1>
                     <div className="flex items-center shrink-0 pb-0.5">
                         {avatars.map((a, index) => (
-                            <div key={`${a.name}-${index}`} className={cn('rounded-full ring-2 ring-white/80', index > 0 && '-ml-2')}>
+                            <div key={`${a.name}-${index}`} className={cn('flex rounded-full ring-2 ring-white/80', index > 0 && '-ml-2')}>
                                 <Avatar name={a.name} src={a.src} size="sm" />
                             </div>
                         ))}
@@ -132,7 +132,7 @@ export function HeroHeader({
                     {avatars.map((a, index) => (
                         <div
                             key={`${a.name}-${index}`}
-                            className={cn('rounded-full ring-4 ring-app', index > 0 && '-ml-4')}
+                            className={cn('flex rounded-full ring-4 ring-app', index > 0 && '-ml-4')}
                         >
                             <Avatar name={a.name} src={a.src} size="lg" />
                         </div>

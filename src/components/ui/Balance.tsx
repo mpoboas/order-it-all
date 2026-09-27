@@ -32,7 +32,7 @@ interface BalanceProps {
 }
 
 const SIZES = {
-    row: { label: 'text-xs font-medium', value: 'text-base font-semibold tracking-tight' },
+    row: { label: 'text-xs font-medium', value: 'text-base font-medium tracking-tight' },
     hero: { label: 'text-sm font-medium', value: 'text-4xl font-bold tracking-tight' },
 };
 
