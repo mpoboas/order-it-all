@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { pb, authHeaders } from '@/lib/pocketbase';
@@ -11,14 +11,17 @@ import {
     loadGoogleAvatarFromUrl,
     urlToAvatarFile,
 } from '@/lib/googleAuth';
-import { navStart } from '@/lib/navProgress';
+import { safeRedirect, withRedirect } from '@/lib/authRedirect';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 
 export default function ProfileSetupPage() {
     const { user, updateProfile } = useUser();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const redirect = searchParams.get('redirect');
+    const nav = useAppNavigate();
+    const redirect = safeRedirect(useSearchParams().get('redirect'));
     const { showToast } = useToast();
 
     const [name, setName] = useState('');
@@ -232,18 +235,10 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             clearOAuthProfileHints();
-            navStart();
-            if (redirect) {
-                // Convite — mostra o carrossel de boas-vindas primeiro
-                // (com o grupo real do convite no 1º ecrã), preservando o
-                // destino original para o aceitar/auto-join continuar
-                // exatamente como antes assim que o utilizador terminar.
-                router.push(`/onboarding?redirect=${redirect}`);
-            } else {
-                // Registo direto (sem convite) — mostra o carrossel de
-                // boas-vindas antes de cair no /groups vazio.
-                router.push('/onboarding');
-            }
+            // Mostra o carrossel de boas-vindas antes de cair na app. Com
+            // convite, o destino original segue (codificado — um `&` partia-o)
+            // para o aceitar/auto-join continuar no fim do carrossel.
+            nav.replace(withRedirect('/onboarding', redirect));
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar perfil', 'error');
@@ -256,161 +251,116 @@ export default function ProfileSetupPage() {
     const hasPhoto = Boolean(avatarPreview) && !avatarLoading;
 
     return (
-        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                        Configurar Perfil
-                    </h2>
-                    <p className="text-white/80 text-sm">
-                        {hasOAuthHints
-                            ? 'Escolhe o teu nome. A foto é opcional.'
-                            : 'Como te chamamos nos grupos?'}
-                    </p>
-                </div>
-
-                <form className="space-y-6" onSubmit={handleSubmit}>
-                    <div className="flex flex-col items-center gap-5">
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => !isCameraActive && fileInputRef.current?.click()}
-                                disabled={avatarLoading || isCameraActive}
-                                className="relative w-28 h-28 rounded-full overflow-hidden ring-4 ring-white/30 shadow-lg bg-white/10 disabled:cursor-default"
-                                aria-label="Escolher foto da galeria"
-                            >
-                                {avatarLoading ? (
-                                    <div className="w-full h-full flex items-center justify-center bg-black/40">
-                                        <Icon name="photo" data-decorative className="text-white/70 animate-pulse text-3xl" />
-                                    </div>
-                                ) : isCameraActive ? (
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        muted
-                                        playsInline
-                                        className="w-full h-full object-cover scale-x-[-1]"
-                                    />
-                                ) : avatarPreview ? (
-                                    <img
-                                        src={avatarPreview}
-                                        alt=""
-                                        referrerPolicy="no-referrer"
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-500/80 to-primary-600/80">
-                                        {name ? (
-                                            <span className="text-white font-bold text-4xl">
-                                                {name[0].toUpperCase()}
-                                            </span>
-                                        ) : (
-                                            <Icon name="person" className="text-white/80 text-5xl" />
-                                        )}
-                                    </div>
-                                )}
-
-                            </button>
-
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                        </div>
-
-                        <canvas ref={canvasRef} className="hidden" />
-
-                        {isCameraActive ? (
-                            <div className="flex w-full gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleCancelCamera}
-                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white/90 bg-white/10 border border-white/25 hover:bg-white/20 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleCapture}
-                                    className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-primary-600 bg-white hover:bg-gray-50 shadow-md transition-colors flex items-center justify-center gap-1.5"
-                                >
-                                    <Icon name="camera" className="text-lg" />
-                                    Capturar
-                                </button>
+        <AuthShell
+            title="O teu perfil"
+            subtitle={hasOAuthHints ? 'Confirma o teu nome. A foto é opcional.' : 'Como te chamamos nos grupos?'}
+        >
+            <form className="space-y-6" onSubmit={handleSubmit}>
+                <div className="flex flex-col items-center gap-4">
+                    <button
+                        type="button"
+                        onClick={() => !isCameraActive && fileInputRef.current?.click()}
+                        disabled={avatarLoading || isCameraActive}
+                        className="relative w-28 h-28 rounded-full overflow-hidden bg-surface-sunken border border-hairline shadow-sm disabled:cursor-default"
+                        aria-label="Escolher foto da galeria"
+                    >
+                        {avatarLoading ? (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <Icon name="photo" data-decorative className="text-ink-faint animate-pulse text-3xl" />
                             </div>
+                        ) : isCameraActive ? (
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover scale-x-[-1]"
+                            />
+                        ) : avatarPreview ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- blob/objeto local
+                            <img
+                                src={avatarPreview}
+                                alt=""
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                            />
                         ) : (
-                            <div className="w-full space-y-2">
-                                <div className="flex w-full gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={avatarLoading}
-                                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
-                                    >
-                                        <Icon name="photo_library" className="text-lg" />
-                                        Galeria
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={startCamera}
-                                        disabled={avatarLoading}
-                                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
-                                    >
-                                        <Icon name="photo_camera" className="text-lg" />
-                                        Câmara
-                                    </button>
-                                </div>
-
-                                {hasPhoto && (
-                                    <button
-                                        type="button"
-                                        onClick={handleRemovePhoto}
-                                        className="w-full py-2 text-sm font-medium text-white/60 hover:text-red-200 transition-colors"
-                                    >
-                                        Remover foto
-                                    </button>
+                            <div className="w-full h-full flex items-center justify-center bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200">
+                                {name ? (
+                                    <span className="font-bold text-4xl">{name[0].toUpperCase()}</span>
+                                ) : (
+                                    <Icon name="person" className="text-5xl" />
                                 )}
                             </div>
                         )}
-                    </div>
+                    </button>
 
-                    <div>
-                        <label
-                            htmlFor="name"
-                            className="block text-sm font-medium text-white/90 mb-1"
-                        >
-                            Nome
-                        </label>
-                        <input
-                            id="name"
-                            type="text"
-                            required
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Habelius Chabierius"
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
-                        />
-                    </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
 
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
-                        >
-                            Concluir
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    {isCameraActive ? (
+                        <div className="flex w-full gap-3">
+                            <Button variant="ghost" size="sm" className="flex-1" onClick={handleCancelCamera}>
+                                Cancelar
+                            </Button>
+                            <Button size="sm" className="flex-1" onClick={handleCapture}>
+                                <Icon name="camera" className="text-lg" />
+                                Capturar
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="w-full space-y-1">
+                            <div className="flex w-full gap-3">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={avatarLoading}
+                                >
+                                    <Icon name="photo_library" className="text-lg" />
+                                    Galeria
+                                </Button>
+                                <Button variant="secondary" size="sm" className="flex-1" onClick={startCamera} disabled={avatarLoading}>
+                                    <Icon name="photo_camera" className="text-lg" />
+                                    Câmara
+                                </Button>
+                            </div>
+                            {hasPhoto && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemovePhoto}
+                                    className="w-full py-2 text-sm font-medium text-ink-soft hover:text-danger transition-colors"
+                                >
+                                    Remover foto
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <Input
+                    label="Nome"
+                    id="name"
+                    type="text"
+                    autoComplete="name"
+                    autoCapitalize="words"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex.: Ana Silva"
+                />
+
+                <Button type="submit" size="lg" block loading={loading} disabled={!name.trim()}>
+                    Continuar
+                </Button>
+            </form>
+        </AuthShell>
     );
 }

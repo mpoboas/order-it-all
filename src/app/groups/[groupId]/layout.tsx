@@ -12,19 +12,35 @@ import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { navStart } from '@/lib/navProgress';
 import { Icon } from '@/components/ui/Icon';
+import { StatusBarTint } from '@/components/ui/StatusBarTint';
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
+import { GroupOverviewSkeleton } from '@/components/features/GroupOverviewBar';
 
 /** Placeholder do portão do grupo — só aparece em entradas verdadeiramente
  *  frias (grupo ainda não visto neste browser: convite novo, 1.ª sync).
- *  Geometria igual à do `HeroHeader` + `GroupTabs` reais (mesma altura,
- *  incluindo `--safe-top`) para a troca skeleton→conteúdo não dar reflow —
- *  ver Fase 14. O conteúdo por baixo (lista, saldo) é responsabilidade de
- *  cada página/`GroupOverviewBar`, não deste portão. */
+ *  Mesma ordem e geometria da página real: capa (`HeroHeader` compacto, na
+ *  cor da marca), resumo + ações rápidas, separadores e linhas de despesa —
+ *  a troca skeleton→conteúdo não dá reflow (Fase 14). */
 function GroupShellSkeleton() {
     return (
-        <div aria-hidden className="min-h-dvh bg-app animate-pulse">
-            <div className="h-[calc(7rem+var(--safe-top))] bg-surface-sunken" />
-            <div className="px-4 pt-3 pb-2">
+        <div aria-hidden className="min-h-dvh bg-app">
+            <div className="h-[calc(7rem+var(--safe-top))] brand-surface relative">
+                <StatusBarTint background="var(--brand-from)" />
+                <div className="absolute inset-x-4 bottom-3 flex items-end gap-3 animate-pulse">
+                    <div className="h-7 w-44 rounded-full bg-white/25" />
+                    <div className="ml-auto flex">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="-ml-2 first:ml-0 w-8 h-8 rounded-full bg-white/30 ring-2 ring-white/60" />
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <GroupOverviewSkeleton />
+            <div className="px-4 pt-3 pb-2 animate-pulse">
                 <div className="h-9 rounded-full bg-surface-sunken max-w-6xl mx-auto" />
+            </div>
+            <div className="px-2 sm:px-4 py-4 max-w-2xl mx-auto">
+                <ListSkeleton rows={5} leading="dated" />
             </div>
         </div>
     );

@@ -1,5 +1,6 @@
 'use client';
 
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -8,7 +9,6 @@ import { HeroHeader } from '@/components/features/HeroHeader';
 import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
 import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
-import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { TripList } from '@/components/features/TripList';
 import { Icon } from '@/components/ui/Icon';
 import { useTrips, useGroup as useGroupRecord } from '@/lib/db/hooks';
@@ -72,7 +72,7 @@ export default function GroupTripsPage() {
 
                 {/* Loading */}
                 {loading ? (
-                    <EntityCardSkeletonGrid count={3} />
+                    <ListSkeleton rows={3} leading="dated" trailing={false} />
                 ) : trips.length === 0 ? (
                     /* Empty State */
                     <div className="text-center py-20 animate-fade-in-up">

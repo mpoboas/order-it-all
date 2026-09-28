@@ -1,5 +1,6 @@
 'use client';
 
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -9,7 +10,6 @@ import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
@@ -135,13 +135,13 @@ export default function GroupsPage() {
                 }
             />
 
-            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-4 pb-24">
-                <HomeOverview className="mb-6" />
+            <HomeOverview />
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-5 pb-24">
                 <HomeTabs />
 
                 {/* Loading */}
                 {loading ? (
-                    <EntityCardSkeletonGrid count={3} />
+                    <ListSkeleton rows={3} leading="group" />
                 ) : (
                     <>
                         {groups.length === 0 ? (

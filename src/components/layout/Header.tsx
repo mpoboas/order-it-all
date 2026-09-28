@@ -18,9 +18,12 @@ interface HeaderProps {
     actions?: React.ReactNode;
 }
 
-/** Barra fina e neutra — sem gradiente de marca (troca feita depois de nos
- *  aproximarmos do layout do Splitwise: a barra de baixo global é que agora
- *  "diz onde estás na app"; esta é só título + voltar). Trocar de grupo
+/** Barra do topo, no azul da marca (Fase 18 · "alma" — voltou a ser a
+ *  identidade da app, depois de uma fase branca/neutra "à Splitwise").
+ *  `.on-brand` troca os tokens lá dentro: título, chevron e as `actions`
+ *  (`text-ink-soft`, `hover:bg-surface-sunken`) ficam brancos/vidro sem
+ *  mudar nada nos ecrãs que as passam. Cor lisa (igual à barra de estado); o
+ *  gradiente vive na `<BrandBand>` por baixo, que nasce da mesma cor. Trocar de grupo
  *  deixou de ter atalho aqui — usa-se o separador "Grupos" da barra global.
  *  O avatar de perfil também saiu daqui — redundante com o separador
  *  "Perfil" da mesma barra. */
@@ -39,11 +42,11 @@ export function Header({ title, subtitle, showBack, transparent = false, icon, a
     return (
         <header
             className={cn(
-                'sticky top-0 z-40 transition duration-300 safe-top border-b border-hairline',
-                transparent ? 'bg-transparent border-transparent' : 'bg-surface'
+                'sticky top-0 z-40 transition duration-300 safe-top',
+                transparent ? 'bg-transparent' : 'brand-surface on-brand'
             )}
         >
-            {!transparent && <StatusBarTint background="var(--surface)" />}
+            {!transparent && <StatusBarTint background="var(--brand-from)" />}
             <div className="px-4 py-3 md:py-4">
                 <div className="flex items-center justify-between max-w-6xl mx-auto">
                     {/* Left side */}
@@ -61,7 +64,7 @@ export function Header({ title, subtitle, showBack, transparent = false, icon, a
                                     <Icon name="chevron_left" className="text-xl" />
                                 </button>
                             ) : (
-                                <div className="w-9 h-9 rounded-xl bg-surface-sunken flex items-center justify-center mr-3 overflow-hidden">
+                                <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center mr-3 overflow-hidden">
                                     {icon ? (
                                         typeof icon === 'string' ? (
                                             <span className="text-xl">{icon}</span>

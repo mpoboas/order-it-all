@@ -1,5 +1,6 @@
 'use client';
 
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -12,7 +13,6 @@ import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
 import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon } from '@/components/ui/Icon';
 import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
@@ -76,8 +76,8 @@ export default function GroupExpensesPage() {
 
             <main className="container mx-auto max-w-2xl pb-24">
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <LoadingSpinner size="lg" />
+                    <div className="px-2 sm:px-4 py-4">
+                        <ListSkeleton rows={6} leading="dated" />
                     </div>
                 ) : expenses.length === 0 ? (
                     <div className="text-center py-20 px-4 animate-fade-in-up">

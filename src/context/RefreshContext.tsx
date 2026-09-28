@@ -4,6 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { useUser } from '@/context/UserContext';
 import { fullResync } from '@/lib/db/sync';
+import { useSyncStatus } from '@/context/SyncProvider';
+import { finishesWithin, hardReset, isRunningStaleBuild } from '@/lib/appRecovery';
 
 type RefreshHandler = () => void | Promise<void>;
 
@@ -15,11 +17,14 @@ const RefreshContext = createContext<RefreshContextValue | null>(null);
 
 /** Tempo minimo com o indicador visivel, para o gesto nao dar um flash. */
 const MIN_VISIBLE_MS = 400;
+/** Teto do pull-to-refresh — passado isto, recarrega a app. */
+const REFRESH_TIMEOUT_MS = 8_000;
 /** Intervalo minimo entre recargas automaticas, para nao martelar o servidor. */
 const AUTO_REFRESH_THROTTLE_MS = 1500;
 
 export function RefreshProvider({ children }: { children: React.ReactNode }) {
     const { isLoggedIn } = useUser();
+    const { ready: syncReady } = useSyncStatus();
     const handlers = useRef(new Set<RefreshHandler>());
     const lastAutoRefresh = useRef(0);
 
@@ -34,16 +39,27 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
         await Promise.all([...handlers.current].map((handler) => handler()));
     }, []);
 
-    // Pull-to-refresh = "põe tudo fresco": o sync incremental com reconciliação
-    // de apagados + re-arma o realtime (fullResync), mais quaisquer handlers
-    // por-ecrã registados (páginas públicas sem cache local, ex. /split/[code]).
+    // Pull-to-refresh = "põe tudo fresco" — e tem de resolver QUALQUER estado
+    // preso no instante a seguir (o utilizador puxa exatamente quando algo não
+    // está bem). Por ordem:
+    //  1. o JS é de outro build que não o do servidor (service worker antigo a
+    //     servir código velho) → limpa SW + caches e recarrega;
+    //  2. o arranque do sync nunca terminou (lista presa em skeleton) →
+    //     recarrega da rede;
+    //  3. sync incremental com reconciliação + realtime (fullResync) e os
+    //     handlers por-ecrã (ex. /split/[code]); se não terminar em 8 s,
+    //     recarrega da rede em vez de deixar o indicador a rodar.
     const onRefresh = useCallback(async () => {
-        await Promise.all([
-            fullResync().catch(() => {}),
-            runAll(),
+        // `hardReset` recarrega da rede sem service worker pelo meio — um
+        // `reload()` simples voltava a receber a cópia velha do SW.
+        if (await isRunningStaleBuild()) return hardReset();
+        if (isLoggedIn && !syncReady) return hardReset();
+        const [finished] = await Promise.all([
+            finishesWithin(Promise.all([fullResync().catch(() => {}), runAll()]), REFRESH_TIMEOUT_MS),
             new Promise((resolve) => setTimeout(resolve, MIN_VISIBLE_MS)),
         ]);
-    }, [runAll]);
+        if (!finished) return hardReset();
+    }, [runAll, isLoggedIn, syncReady]);
 
     const canRefresh = useCallback(
         () => isLoggedIn || handlers.current.size > 0,

@@ -6,6 +6,7 @@ import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useUser } from '@/context/UserContext';
 import { groupsApi } from '@/lib/pocketbase';
+import { safeRedirect } from '@/lib/authRedirect';
 import { getGroupAvatarUrl, guessGroupEmoji } from '@/lib/groupAvatars';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -195,7 +196,8 @@ export default function OnboardingPage() {
     const { user, updateProfile } = useUser();
     const { isStandalone } = useInstallPrompt();
     const searchParams = useSearchParams();
-    const redirect = searchParams.get('redirect');
+    // Só caminhos internos — o valor vem do URL (ver `authRedirect.ts`).
+    const redirect = safeRedirect(searchParams.get('redirect'));
     const trackRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollingProgrammatically = useRef(false);

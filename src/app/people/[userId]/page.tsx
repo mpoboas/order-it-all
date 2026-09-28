@@ -1,5 +1,7 @@
 'use client';
 
+import { useSyncStatus } from '@/context/SyncProvider';
+import { BalanceHeroSkeleton, ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -15,7 +17,6 @@ import { mutationErrorMessage } from '@/lib/db/mutations';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { HeroHeader } from '@/components/features/HeroHeader';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Money } from '@/components/ui/Money';
 import { Icon } from '@/components/ui/Icon';
@@ -41,6 +42,7 @@ export default function PersonDetailPage() {
     const confirmAction = useConfirm();
 
     const people = usePeopleBalances(user?.id);
+    const { ready: syncReady } = useSyncStatus();
     const friendships = useFriendships(user?.id);
     const sharedExpenses = useSharedExpenses(user?.id, userId);
     const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -130,11 +132,16 @@ export default function PersonDetailPage() {
 
     // Duas regiões, duas prontidões — cada uma aparece assim que os seus
     // próprios dados chegarem, sem esperar pela mais lenta das duas (Fase 14).
-    const peopleLoading = people === undefined;
-    const sharedLoading = sharedExpenses === undefined;
+    // Com a cache local ainda vazia (1.ª sincronização a decorrer), "não
+    // encontrei esta pessoa / sem despesas" é só "ainda não chegou" — mostrar
+    // "Contas em dia" e "Sem despesas em comum" nessa altura era mentira.
+    const peopleLoading = people === undefined || (!person && !syncReady);
+    const sharedLoading = sharedExpenses === undefined || (sharedExpenses.length === 0 && !syncReady);
     const settled = person ? Math.abs(person.netCents) < EPS : true;
 
-    const personName = person?.party.name ?? 'Pessoa';
+    // A carregar: capa neutra (azul) e sem nome, em vez de "Pessoa" numa cor
+    // que depois salta para a da pessoa.
+    const personName = person?.party.name ?? (peopleLoading ? '' : 'Pessoa');
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
@@ -153,9 +160,7 @@ export default function PersonDetailPage() {
 
             <main className="container mx-auto max-w-lg px-2 sm:px-4 pb-4 space-y-4">
                 {peopleLoading ? (
-                    <div className="flex justify-center py-10">
-                        <LoadingSpinner size="lg" />
-                    </div>
+                    <BalanceHeroSkeleton />
                 ) : (
                     <>
                         {person && !settled && (
@@ -197,9 +202,7 @@ export default function PersonDetailPage() {
                     sua própria query resolver, sem esperar por `people` nem
                     vice-versa (Fase 14). */}
                 {sharedLoading ? (
-                    <div className="flex justify-center py-10">
-                        <LoadingSpinner size="lg" />
-                    </div>
+                    <ListSkeleton rows={4} leading="category" />
                 ) : sharedExpenses.length === 0 ? (
                     <p className="text-center text-ink-soft py-12">Sem despesas em comum.</p>
                 ) : (

@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning';
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning' | 'inverse';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,11 +15,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children: React.ReactNode;
 }
 
-// Uma cor de ação (primary). Tudo plano — sem gradientes. secondary é a mesma
-// cor em tom baixo; warning/danger são estado, não marca.
+// Uma cor de ação (primary), com volume: leve degradê + sombra azul
+// (`.btn-brand`, globals.css — Fase 18 "alma"). secondary é a mesma cor em tom
+// baixo; warning/danger são estado, não marca. `inverse` é o botão principal
+// SOBRE o azul da marca (auth, convite, faixas `.on-brand`): branco, texto azul.
 const VARIANTS: Record<ButtonVariant, string> = {
     primary:
-        'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-600 shadow-sm',
+        'btn-brand text-white focus-visible:ring-primary-600',
+    inverse:
+        'bg-white text-primary-700 hover:bg-primary-50 shadow-lg shadow-primary-950/25 focus-visible:ring-white focus-visible:ring-offset-primary-600',
     secondary:
         'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900 focus-visible:ring-primary-600',
     danger:
@@ -73,7 +77,7 @@ export function Button({
                 SIZES[size],
                 block && 'w-full',
                 loading && 'btn-loading',
-                variant === 'ghost' || variant === 'secondary' || variant === 'warning'
+                variant === 'ghost' || variant === 'secondary' || variant === 'warning' || variant === 'inverse'
                     ? 'btn-loading--dark'
                     : null,
                 className,

@@ -17,9 +17,21 @@ pb.autoCancellation(false);
 //  - uma falha de REDE (status 0, não cancelamento) põe a app em modo offline
 //    (lie-fi); qualquer resposta do servidor, mesmo 4xx/5xx, prova que há rede.
 const originalSend = pb.send.bind(pb);
+// Teto por pedido: sem isto, um pedido que fique pendurado (rede a mudar ao
+// acordar o telemóvel, ligação meio-morta) nunca resolvia — e o sync, que só
+// corre um de cada vez, ficava "a correr" para sempre: nem o pull-to-refresh
+// voltava a pedir nada. Quem passa o seu próprio `signal` fica com ele.
+const REQUEST_TIMEOUT_MS = 20_000;
+
 pb.send = (async (path: string, options: SendOptions) => {
   const method = (options?.method || 'GET').toUpperCase();
   if (method !== 'GET' && isAppOffline()) throw new OfflineError();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (options && !options.signal) {
+    const ctrl = new AbortController();
+    timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    options = { ...options, signal: ctrl.signal };
+  }
   try {
     const result = await originalSend(path, options);
     reportNetworkSuccess();
@@ -30,6 +42,8 @@ pb.send = (async (path: string, options: SendOptions) => {
       else if (err.status > 0) reportNetworkSuccess();
     }
     throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }) as typeof pb.send;
 
@@ -266,7 +280,19 @@ export const usersApi = {
   update: async (id: string, data: any) => {
     return await pb.collection('users').update(id, data);
   },
-  
+
+  /** Envia o email de reposição (link para `/auth/reset-password?token=…` —
+   *  ver `pb/migrations/7_password_reset_email.js`). O PocketBase responde
+   *  sempre 204, exista ou não a conta (não revela que emails estão
+   *  registados). */
+  requestPasswordReset: async (email: string) => {
+    return await pb.collection('users').requestPasswordReset(email);
+  },
+
+  confirmPasswordReset: async (token: string, password: string, passwordConfirm: string) => {
+    return await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm);
+  },
+
   logout: () => {
     pb.authStore.clear();
   }

@@ -1,10 +1,11 @@
 'use client';
 
-import { coverGradientFor } from '@/lib/coverColor';
+import { coverColorFor, coverGradientFor } from '@/lib/coverColor';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBarTint } from '@/components/ui/StatusBarTint';
 import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from 'react';
 
 interface HeroHeaderAvatar {
     name: string;
@@ -44,7 +45,11 @@ export function HeroHeader({
     variant = 'profile',
 }: HeroHeaderProps) {
     const coverBackground = background.kind === 'gradient' ? { background: coverGradientFor(background.seed) } : undefined;
-    const tintBackground = background.kind === 'gradient' ? coverGradientFor(background.seed) : 'rgba(0,0,0,0.55)';
+    // Cor da barra de estado (e do topo da capa, que nasce dela): nos grupos o
+    // azul da marca, como no Início; nos amigos a cor da capa da pessoa (ou o
+    // azul, se a capa for uma foto).
+    const edgeColor =
+        variant === 'compact' || background.kind === 'image' ? 'var(--brand-from)' : coverColorFor(background.seed);
 
     const navButtons = (
         <div className="relative flex items-center justify-between px-4 safe-top-min">
@@ -52,7 +57,7 @@ export function HeroHeader({
                 type="button"
                 aria-label="Voltar"
                 onClick={onBack}
-                className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
+                className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center text-white hover:bg-white/30 transition-colors active:scale-95"
             >
                 <Icon name="chevron_left" className="text-xl" />
             </button>
@@ -61,7 +66,7 @@ export function HeroHeader({
                     type="button"
                     aria-label={topRightAction.label}
                     onClick={topRightAction.onClick}
-                    className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur flex items-center justify-center text-white hover:bg-black/30 transition-colors active:scale-95"
+                    className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center text-white hover:bg-white/30 transition-colors active:scale-95"
                 >
                     <Icon name={topRightAction.icon} className="text-xl" />
                 </button>
@@ -74,12 +79,23 @@ export function HeroHeader({
             <div className="h-[calc(7rem+var(--safe-top))] relative overflow-hidden" style={coverBackground}>
                 {background.kind === 'image' && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={background.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    // Foto do grupo ligeiramente desfocada e ampliada: é quase
+                    // sempre um avatar pequeno esticado (pixelizava) — assim
+                    // vira textura de fundo, e o véu azul dá-lhe a cor da marca.
+                    <img src={background.url} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-[3px]" />
                 )}
                 {/* Véu de baixo para cima — o título branco tem de ler-se sobre
-                    qualquer foto ou gradiente claro. */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10" />
-                <StatusBarTint background={tintBackground} />
+                    qualquer foto ou gradiente claro. Nas fotos é azul da marca
+                    (duotone), nos gradientes por nome só escurece. */}
+                <div
+                    className={cn(
+                        'absolute inset-0 bg-gradient-to-t',
+                        background.kind === 'image'
+                            ? 'from-primary-950/90 via-primary-800/65 to-primary-600/55'
+                            : 'from-black/45 via-black/10 to-transparent',
+                    )}
+                />
+                <HeroTopEdge color={edgeColor} />
                 {navButtons}
                 <div className="absolute inset-x-4 bottom-3 flex items-end gap-3">
                     <h1 className="flex-1 min-w-0 text-2xl font-bold tracking-tight text-white truncate">{title}</h1>
@@ -125,7 +141,7 @@ export function HeroHeader({
                     com o que está mesmo por baixo. Para foto de fundo, aproxima
                     com o tom escuro do overlay em vez da imagem (evita esticar
                     a mesma foto a duas escalas diferentes numa faixa de 16px). */}
-                <StatusBarTint background={tintBackground} />
+                <HeroTopEdge color={edgeColor} />
                 {navButtons}
 
                 <div className="absolute left-1/2 -translate-x-1/2 -bottom-8 flex items-center">
@@ -150,5 +166,45 @@ export function HeroHeader({
                 {subtitle && <p className="text-sm text-ink-faint">{subtitle}</p>}
             </div>
         </div>
+    );
+}
+
+/**
+ * Topo da capa com cor ÚNICA — o iPhone pinta a barra de estado com a cor que
+ * deteta no topo da página, e a capa (foto, gradiente diagonal) não tem uma;
+ * a barra ficava clara. Três peças:
+ *  - uma faixa sólida FIXA no topo (`.brand-top-edge`) enquanto a capa está à
+ *    vista — é dela que o iOS tira a cor; some quando a capa sai do ecrã
+ *    (senão ficava por cima da lista ao fazer scroll);
+ *  - o topo da capa desvanece a partir dessa cor (sem costura);
+ *  - `StatusBarTint` com a mesma cor (instalações antigas e Android).
+ */
+function HeroTopEdge({ color }: { color: string }) {
+    const sentinel = useRef<HTMLDivElement>(null);
+    const [coverInView, setCoverInView] = useState(true);
+
+    useEffect(() => {
+        const el = sentinel.current;
+        if (!el || typeof IntersectionObserver === 'undefined') return;
+        const io = new IntersectionObserver(([entry]) => setCoverInView(entry.isIntersecting));
+        io.observe(el);
+        return () => io.disconnect();
+    }, []);
+
+    return (
+        <>
+            {/* 24px acima do fundo da capa: deixa de se ver quando a capa já
+                não cobre a faixa do topo. */}
+            <div ref={sentinel} aria-hidden className="absolute inset-x-0 bottom-6 h-px pointer-events-none" />
+            <div
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-24 pointer-events-none"
+                style={{ background: `linear-gradient(to bottom, ${color} 24px, transparent)` }}
+            />
+            {/* z-index auto: fica por baixo dos botões voltar/definições (vêm
+                depois no DOM). */}
+            {coverInView && <div aria-hidden className="brand-top-edge" style={{ backgroundColor: color, zIndex: 'auto' }} />}
+            <StatusBarTint background={color} />
+        </>
     );
 }

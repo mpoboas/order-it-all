@@ -3,7 +3,7 @@ import type { RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import { pb } from '@/lib/pocketbase';
 import type { Group, User, Expense, Placeholder, ExpenseComment, Friendship } from '@/lib/types';
 import { db, extractUsersFromExpand, metaGet, metaSet } from './schema';
-import { isAppOffline, markSynced } from '@/lib/connectivity';
+import { checkConnectivity, isAppOffline, markSynced } from '@/lib/connectivity';
 
 /**
  * Sincronização local-first, com **âmbito por grupo**.
@@ -452,8 +452,17 @@ let queuedOpts: SyncOpts | null = null;
 let queuedPromise: Promise<void> | null = null;
 let resolveQueued: (() => void) | null = null;
 
+/** Um catch-up a correr há mais do que isto está pendurado — deixa de bloquear
+ *  os seguintes (os pedidos têm teto de 20 s, isto é a rede de segurança). */
+const STALE_RUN_MS = 60_000;
+let runningSince = 0;
+
 export function catchUp(opts: SyncOpts = {}): Promise<void> {
+  if (running && Date.now() - runningSince > STALE_RUN_MS) {
+    running = null;
+  }
   if (!running) {
+    runningSince = Date.now();
     runningOpts = opts;
     running = withRetryOnce(() => runCatchUp(opts))
       .catch((err) => console.error('[sync] catchUp falhou', err))
@@ -481,6 +490,7 @@ function drainQueue(): void {
   queuedPromise = null;
   resolveQueued = null;
   runningOpts = opts;
+  runningSince = Date.now();
   running = withRetryOnce(() => runCatchUp(opts))
     .catch((err) => console.error('[sync] catchUp falhou', err))
     .finally(() => {
@@ -527,7 +537,15 @@ async function runCatchUp(opts: SyncOpts): Promise<void> {
  * o realtime.
  */
 export async function fullResync(): Promise<void> {
-  await ensureRealtime();
+  // Gesto explícito do utilizador: não confiar no "offline" que ficou guardado.
+  // Um pedido que falhe ao acordar o telemóvel (rede ainda a subir) põe a app
+  // em modo offline, e o `catchUp` sai logo sem tentar — o pull-to-refresh
+  // não fazia nada até o health check (com backoff até 30 s) acertar. Aqui
+  // pergunta-se já ao PB; se responder, sai do modo offline e segue.
+  if (isAppOffline()) await checkConnectivity();
+  // Realtime em paralelo, não à frente: ligar o SSE pode demorar (ou ficar
+  // pendurado numa rede má) e não pode atrasar os dados que o utilizador pediu.
+  void ensureRealtime().catch(() => {});
   await catchUp({ reconcileDeletes: true, fullGroups: true });
 }
 

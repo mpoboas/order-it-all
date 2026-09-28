@@ -32,7 +32,7 @@ export function ExpandableFab({ icon, label, onClick }: ExpandableFabProps) {
             type="button"
             onClick={onClick}
             aria-label={label}
-            className="fixed right-3 z-30 h-12 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 flex items-center font-semibold active:scale-95 transition-transform duration-150"
+            className="fixed right-3 z-30 h-12 rounded-full btn-brand text-white flex items-center font-semibold active:scale-95 transition-transform duration-150"
             style={{ bottom: 'calc(var(--bottom-nav-total-height) + 0.75rem)' }}
         >
             <span className="h-12 w-12 flex items-center justify-center shrink-0">

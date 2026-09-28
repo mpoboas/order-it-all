@@ -148,10 +148,12 @@
                        recibo), alertas
        rounded-3xl   → sheets (só os cantos de cima) e diálogos centrados */
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  /* Sombras suaves com um toque do azul da marca (Fase 18 · "alma") — em vez
+     de cinzento neutro, os cartões parecem pousados sobre a luz da app. */
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 2px 8px -4px rgb(30 64 175 / 0.12);
+  --shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(30 64 175 / 0.22);
+  --shadow-md: 0 2px 4px 0 rgb(15 23 42 / 0.04), 0 14px 32px -14px rgb(30 64 175 / 0.28);
+  --shadow-lg: 0 4px 8px 0 rgb(15 23 42 / 0.04), 0 24px 48px -18px rgb(30 64 175 / 0.32);
   --shadow-glow: 0 0 40px -12px var(--primary-500);
 
   --z-header: 40;
@@ -312,8 +314,18 @@ select,
   user-select: text;
 }
 
+/* Fundo do html/body = a cor da barra de estado do ecrã atual (azul da marca,
+   ou a cor da capa num amigo — ver `StatusBarTint`). Todas as páginas pintam
+   o seu próprio fundo (`bg-app`, `AuthBackdrop`), por isso isto quase nunca se
+   vê — mas é a cor que o iPhone usa na barra de estado quando não encontra um
+   elemento fixo com cor única no topo: durante a transição entre ecrãs (as
+   duas páginas a deslizar) caía no fundo claro da app e a barra piscava a
+   branco. */
+html {
+  background-color: var(--status-bar-color);
+}
 body {
-  background: var(--bg-primary);
+  background: var(--status-bar-color);
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100dvh;
@@ -570,15 +582,183 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
-/* ===== GRADIENT BACKGROUNDS ===== */
-/* Único gradiente ainda em uso (ecrãs de auth, convite, splash). */
+/* ===== MARCA · "ALMA" (Fase 18) ==========================================
+   O azul da marca é a identidade da app — não uma cor de botão. Três peças:
+
+   · `.gradient-mesh` — o gradiente azul vibrante, a toda a tela (entrar,
+     criar conta, convite, boas-vindas). No escuro fica mais profundo.
+   · `.brand-surface` / `.brand-band` — a barra do topo (`<Header>`, cor lisa,
+     igual à barra de estado) e a faixa por baixo dela nos ecrãs principais
+     (`<BrandBand>`), que nasce da mesma cor e ganha o gradiente para baixo
+     (canto inferior direito) — sem costura com a barra fixa nem com a barra
+     de estado.
+   · `.on-brand` — troca os tokens semânticos lá dentro (texto branco, campos
+     e superfícies de vidro). Qualquer componente (Input, Button ghost, ícones
+     `text-ink-soft`…) fica automaticamente legível sobre o azul, sem props.
+   · `.glass-card` — o vidro fosco (backdrop-blur) dos cartões sobre o azul. */
+
+:root {
+  --brand-from: var(--primary-600);
+  --brand-to:   var(--primary-700);
+}
+.dark {
+  --brand-from: var(--primary-800);
+  --brand-to:   var(--primary-950);
+}
+
+/* Tons de `primary-600` para baixo em toda a área: o texto branco precisa de
+   ≥ 4,5:1 (WCAG AA) em QUALQUER ponto do gradiente — com `primary-300/400`
+   (versão antiga) as zonas claras davam ~2:1 e o subtítulo/rodapé mal se
+   liam. O brilho vem das manchas em `primary-500`, longe do texto. */
 .gradient-mesh {
-  background-color: var(--primary-600);
+  background-color: var(--primary-700);
   background-image:
-    radial-gradient(at 40% 20%, var(--primary-400) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, var(--primary-500) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, var(--primary-300) 0px, transparent 50%),
-    radial-gradient(at 80% 100%, var(--primary-700) 0px, transparent 50%);
+    linear-gradient(to bottom, var(--brand-from) 24px, transparent 140px),
+    radial-gradient(at 15% 10%, var(--primary-500) 0px, transparent 45%),
+    radial-gradient(at 90% 5%, var(--primary-600) 0px, transparent 50%),
+    radial-gradient(at 0% 70%, var(--primary-600) 0px, transparent 50%),
+    radial-gradient(at 85% 100%, var(--primary-900) 0px, transparent 55%);
+}
+.dark .gradient-mesh {
+  background-color: var(--primary-950);
+  background-image:
+    linear-gradient(to bottom, var(--brand-from) 24px, transparent 140px),
+    radial-gradient(at 15% 10%, var(--primary-700) 0px, transparent 45%),
+    radial-gradient(at 90% 5%, var(--primary-800) 0px, transparent 50%),
+    radial-gradient(at 0% 70%, var(--primary-800) 0px, transparent 50%),
+    radial-gradient(at 85% 100%, #0b1437 0px, transparent 55%);
+}
+
+/* Manchas desfocadas por cima do gradiente — a "luz" das páginas de auth. */
+.brand-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+}
+
+/* Topo de cor ÚNICA (`--brand-from`), igual à barra de estado do telemóvel —
+   um gradiente da esquerda para a direita acabava noutro tom do lado direito
+   e, no iPhone, a quebra entre a barra de estado e a barra do topo saltava à
+   vista. A barra do topo é lisa; a profundidade vive na faixa por baixo, que
+   nasce da mesma cor e escurece/brilha para BAIXO (canto inferior direito). */
+.brand-surface {
+  background-color: var(--brand-from);
+}
+.brand-band {
+  background-color: var(--brand-from);
+  background-image:
+    radial-gradient(130% 120% at 100% 100%, var(--brand-to) 0%, transparent 65%),
+    radial-gradient(60% 80% at 0% 115%, rgb(96 165 250 / 0.4), transparent 70%);
+}
+.dark .brand-band {
+  background-image:
+    radial-gradient(130% 120% at 100% 100%, var(--brand-to) 0%, transparent 65%),
+    radial-gradient(60% 80% at 0% 115%, rgb(59 130 246 / 0.22), transparent 70%);
+}
+
+.on-brand {
+  --text:           #ffffff;
+  --text-soft:      rgb(255 255 255 / 0.92);
+  --text-faint:     rgb(255 255 255 / 0.8);
+  --surface:        rgb(255 255 255 / 0.18);
+  --surface-sunken: rgb(255 255 255 / 0.14);
+  --border:         rgb(255 255 255 / 0.22);
+  --border-strong:  rgb(255 255 255 / 0.34);
+  color: var(--text);
+}
+.on-brand input:focus,
+.on-brand textarea:focus {
+  border-color: rgb(255 255 255 / 0.8);
+}
+/* O autofill do iOS/Chrome pinta o campo de claro com texto escuro — no
+   vidro fica um bloco branco. Mantém o texto branco e um fundo azul. */
+.on-brand input:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  box-shadow: 0 0 0 1000px rgb(59 130 246 / 0.45) inset;
+  transition: background-color 9999s ease-out;
+}
+
+/* Vidro só em peças DECORATIVAS ou com texto grande/curto (logótipo, ícones,
+   lista de vantagens das boas-vindas) — nunca atrás de formulários (NN/g:
+   texto pequeno sobre vidro perde contraste conforme o que está por trás).
+   Tinta azul-escura (não branca) por baixo do blur: garante ≥ 4,5:1 para o
+   texto branco em qualquer ponto do gradiente. */
+.glass-card {
+  /* SEM backdrop-filter: por cima de um gradiente liso o desfoque não se vê,
+     e no iPhone o WebKit só o aplica quando promove o elemento a camada
+     (~1 s depois) — o cartão "saltava" para azul-elétrico (saturate). Uma
+     tinta translúcida dá o mesmo efeito de vidro, estável desde o 1.º frame. */
+  background: rgb(23 37 84 / 0.28);
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 1.5rem; /* = rounded-3xl — cartão "hero" sobre a marca */
+  box-shadow: 0 24px 48px -20px rgb(15 23 42 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.dark .glass-card {
+  background: rgb(15 23 42 / 0.45);
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow: 0 24px 48px -20px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+/* Quem pede menos transparência no sistema (iOS/macOS "Reduzir
+   transparência") recebe um cartão opaco. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card {
+    background: var(--primary-800);
+  }
+}
+
+/* O formulário dos ecrãs de acesso: cartão SÓLIDO (branco / slate-900) com os
+   tokens normais do tema — campos brancos com borda visível, texto escuro.
+   O padrão dos bancos (Revolut, Monzo…): a marca no fundo, a tarefa num
+   cartão limpo. */
+.auth-card {
+  background: var(--surface);
+  border-radius: 1.5rem;
+  box-shadow: 0 30px 60px -24px rgb(15 23 42 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.12);
+}
+
+/* Campos do formulário de acesso: fundo branco (como na versão original) e
+   contorno com ≥ 3:1 contra o cartão (WCAG 1.4.11) — o `border-hairline`
+   geral é decorativo (~1,5:1) e o campo quase desaparecia. */
+.auth-card input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+  background-color: #ffffff;
+  border-color: var(--slate-500); /* 4,8:1 no branco (slate-400 dava 2,6:1) */
+}
+.auth-card input:focus {
+  border-color: var(--primary-600);
+}
+.dark .auth-card input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+  background-color: var(--slate-950);
+  border-color: var(--slate-500);
+}
+.dark .auth-card input:focus {
+  border-color: var(--primary-400);
+}
+
+/* Links de texto dos ecrãs de acesso: azul dentro do cartão, branco (e
+   sublinhado — não depende só da cor) sobre o gradiente. */
+.auth-link { color: var(--primary-600); }
+.dark .auth-link { color: var(--primary-400); }
+.on-brand .auth-link {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 0.6);
+  text-underline-offset: 3px;
+}
+
+/* Botão principal — azul com um leve degradê e sombra colorida (dá-lhe
+   volume, "pede para ser tocado"), em vez de um retângulo plano. */
+.btn-brand {
+  background-color: var(--primary-600);
+  background-image: linear-gradient(180deg, var(--primary-500), var(--primary-600) 85%);
+  box-shadow: 0 8px 20px -8px rgb(37 99 235 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
+.btn-brand:hover {
+  background-image: linear-gradient(180deg, var(--primary-600), var(--primary-700) 85%);
+}
+.dark .btn-brand {
+  box-shadow: 0 8px 20px -8px rgb(37 99 235 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 
 /* ===== BUTTONS ===== */
@@ -743,6 +923,33 @@ textarea:focus-visible {
    (sem skeleton pelo meio), só não anima. */
 html[data-nav-transition="tab"]::view-transition-old(root),
 html[data-nav-transition="tab"]::view-transition-new(root) {
+  animation: none;
+}
+
+/* Cabeçalho só de UM dos lados (ex.: grupo → despesa: a página do grupo tem a
+   capa, não um <header>): a animação por defeito do browser fazia-o aparecer
+   de opacidade 0 — e como o <header> sai do snapshot da página (tem nome
+   próprio, ver mais abaixo), no sítio dele ficava um buraco claro. No iPhone a
+   barra de estado apanhava esse topo claro e piscava a branco ao entrar.
+   Assim desliza junto com a página, como a barra de navegação do iOS. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-nav-transition="forward"]::view-transition-new(app-header):only-child {
+    animation: ios-slide-in-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="forward"]::view-transition-old(app-header):only-child {
+    animation: ios-slide-out-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="back"]::view-transition-new(app-header):only-child {
+    animation: ios-slide-in-left 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html[data-nav-transition="back"]::view-transition-old(app-header):only-child {
+    animation: ios-slide-out-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+}
+/* Sem direção (crossfade) ou troca de tab: aparece/desaparece de uma vez, sem
+   fade — nunca um topo claro a meio. */
+html:not([data-nav-transition="forward"]):not([data-nav-transition="back"])::view-transition-new(app-header):only-child,
+html:not([data-nav-transition="forward"]):not([data-nav-transition="back"])::view-transition-old(app-header):only-child {
   animation: none;
 }
 @keyframes ios-slide-in-right {
@@ -957,10 +1164,62 @@ label[for^="web-haptics-"] input {
     top: 0;
     left: 0;
     right: 0;
-    height: var(--status-tint-h);
+    /* Só nas instalações antigas (`black-translucent`, área segura > 0). Com
+       a barra opaca (`default`) a área segura do topo é 0 → altura 0: nunca
+       tapa o conteúdo. */
+    height: min(var(--status-tint-h), env(safe-area-inset-top, 0px));
     z-index: 2000;
     pointer-events: none;
   }
+}
+
+/* ===== Cor da barra de estado do iOS (iOS 26+) =====
+   Com `apple-mobile-web-app-status-bar-style: default` (barra opaca — o iOS 27
+   desfoca o topo das WPAs em `black-translucent`), o iOS ignora o
+   `theme-color` e usa o `background-color` de um elemento REAL (pseudo-
+   elementos não contam) fixo no topo. Este tem 1px, a cor do topo do ecrã
+   atual (`<StatusBarTint>` define `--status-bar-color`) e por omissão o azul
+   da marca — a barra do topo da app, o splash e os ecrãs de acesso. */
+:root {
+  --status-bar-color: var(--brand-from);
+}
+/* Ecrãs de marca (boas-vindas, acesso, convite, splash): sem cabeçalho fixo
+   no topo, o iOS cai no fundo do `body` para a barra de estado — que era o
+   claro da app (barra branca). Aqui o html/body passam ao azul. Só nesses
+   ecrãs: dentro da app o cabeçalho fixo azul já dá a cor, e um body azul
+   podia espreitar entre ecrãs. */
+html:has(.brand-page),
+html:has(.brand-page) body {
+  background-color: var(--brand-from);
+}
+
+/* Faixa sólida no topo dos ecrãs de marca: o iPhone pinta a barra de estado
+   com a cor que deteta no TOPO da página (dentro da app é o cabeçalho fixo).
+   O gradiente com manchas não tem uma cor uniforme lá em cima — a barra
+   ficava branca. Esta faixa fixa dá-lhe a cor do cabeçalho da app, e o
+   `.gradient-mesh` nasce dela (camada `--mesh-top`), sem costura. */
+.brand-top-edge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background-color: var(--brand-from);
+  /* Por cima das manchas de luz, por baixo do conteúdo (z-10): o botão
+     "voltar" continua sempre visível. */
+  z-index: 1;
+  pointer-events: none;
+}
+
+.status-bar-color {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--status-bar-color);
+  z-index: 2001;
+  pointer-events: none;
 }
 
 /* ===== Modo offline (Fase 13 · Parte B) =====
@@ -972,4 +1231,16 @@ html.app-offline {
 }
 :root {
   --offline-banner-h: 2.25rem;
+}
+
+/* Sombras do Tailwind (`shadow-sm`, `shadow-lg`, …) com o mesmo toque azul das
+   `--shadow*` acima. Em `@layer base` de propósito: uma cor explícita
+   (`shadow-primary-600/30`, camada utilities) continua a ganhar. */
+@layer base {
+  :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl) {
+    --tw-shadow-color: rgb(30 64 175 / 0.14);
+  }
+  .dark :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl) {
+    --tw-shadow-color: rgb(0 0 0 / 0.45);
+  }
 }

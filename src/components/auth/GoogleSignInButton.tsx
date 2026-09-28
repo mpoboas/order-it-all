@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useToast } from '@/context/ToastContext';
+import { cn } from '@/lib/utils';
 import {
   getGoogleOAuthInAppBrowserMessage,
   startGoogleOAuth,
@@ -46,7 +47,17 @@ export function GoogleSignInButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={`w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white/90 hover:bg-white text-gray-800 rounded-xl font-semibold text-base shadow-lg border border-white/40 transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
+      aria-busy={loading || undefined}
+      className={cn(
+        'w-full h-13 px-6 inline-flex items-center justify-center gap-3 rounded-full',
+        // Vive dentro do cartão branco dos ecrãs de acesso: contorno visível
+        // (≥ 3:1, WCAG 1.4.11) em vez de depender da sombra.
+        'bg-surface border-2 border-hairline-strong text-ink text-base font-semibold',
+        'transition duration-200 hover:bg-surface-sunken active:scale-[0.97]',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-600',
+        'disabled:cursor-not-allowed',
+        loading && 'btn-loading btn-loading--dark',
+      )}
     >
       <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
         <path
@@ -73,12 +84,10 @@ export function GoogleSignInButton({
 
 export function AuthDivider() {
   return (
-    <div className="relative flex items-center py-1">
-      <div className="flex-grow border-t border-white/30" />
-      <span className="flex-shrink mx-3 text-white/70 text-xs font-medium uppercase tracking-wide">
-        ou
-      </span>
-      <div className="flex-grow border-t border-white/30" />
+    <div className="flex items-center gap-3 py-1" role="separator">
+      <div className="flex-1 border-t border-hairline" />
+      <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">ou</span>
+      <div className="flex-1 border-t border-hairline" />
     </div>
   );
 }

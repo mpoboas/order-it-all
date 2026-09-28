@@ -16,9 +16,10 @@ import type { MetadataRoute } from 'next';
  * adaptativos do Android — sem estes, o Android metia o desenho transparente
  * num círculo branco pequeno.
  *
- * Cores: `background_color` é o fundo do ecrã de arranque (Android) — igual
- * ao fundo da app para não haver salto de cor ao abrir; `theme_color` pinta a
- * barra de estado — igual ao cabeçalho (branco), que já não é azul.
+ * Cores: `background_color` é o fundo do ecrã de arranque (Android) — o azul
+ * da marca, igual ao ecrã de arranque da própria app (`<AppSplash>`, o que se
+ * vê enquanto o JS carrega), para abrir sem salto de cor; `theme_color` pinta a
+ * barra de estado — o azul da marca, igual à barra do topo (`<Header>`).
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -28,12 +29,15 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Organiza compras em grupo e divide contas sem discussões.',
     lang: 'pt-PT',
     dir: 'ltr',
-    start_url: '/',
+    // `/groups` e não `/`: o `/` é o ecrã de boas-vindas — com sessão fazia
+    // um flash dele antes de redirecionar. Sem sessão, `/groups` manda para
+    // `/`. O `id` fica `/` para não mudar a identidade das apps já instaladas.
+    start_url: '/groups',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#f8fafc',
-    theme_color: '#ffffff',
+    background_color: '#2563eb',
+    theme_color: '#2563eb',
     categories: ['finance', 'productivity', 'shopping'],
     prefer_related_applications: false,
     icons: [

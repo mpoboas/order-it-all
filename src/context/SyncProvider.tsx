@@ -66,7 +66,33 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    (async () => {
+    // Arranque: hidrata (1.ª vez) ou apanha o que mudou, e liga o realtime.
+    // Se falhar (típico ao abrir a WPA no Android com a rede ainda a acordar),
+    // volta a tentar sozinho — antes ficava `ready: false` até recarregar a
+    // página, e nem o pull-to-refresh desbloqueava a lista vazia.
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const retryListeners: Array<[EventTarget, string]> = [
+      [window, 'online'],
+      [window, 'app:online'],
+      [document, 'visibilitychange'],
+    ];
+    const clearRetry = () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      for (const [target, type] of retryListeners) target.removeEventListener(type, onRetrySignal);
+    };
+    function onRetrySignal() {
+      if (document.visibilityState !== 'visible' || cancelled()) return;
+      clearRetry();
+      void boot();
+    }
+    const scheduleRetry = () => {
+      clearRetry();
+      retryTimer = setTimeout(onRetrySignal, 5000);
+      for (const [target, type] of retryListeners) target.addEventListener(type, onRetrySignal);
+    };
+
+    const boot = async () => {
       try {
         const cachedUser = await metaGet('session:userId');
         if (cachedUser && cachedUser !== userId) {
@@ -89,9 +115,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         await startRealtime();
       } catch (err) {
         console.error('[sync] hydration failed', err);
-        if (!cancelled()) setStatus({ hydrating: false, ready: false });
+        if (cancelled()) return;
+        setStatus({ hydrating: false, ready: false });
+        scheduleRetry();
       }
-    })();
+    };
+    void boot();
+    return clearRetry;
   }, [userId]);
 
   // Sinais que disparam catch-up (grupos + grupo ativo).

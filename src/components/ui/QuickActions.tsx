@@ -44,8 +44,8 @@ export function QuickActions({ actions, className }: QuickActionsProps) {
                             'w-12 h-12 rounded-full flex items-center justify-center transition',
                             'group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-primary-600 group-focus-visible:ring-offset-2',
                             action.primary
-                                ? 'bg-primary-600 text-white shadow-sm group-hover:bg-primary-700'
-                                : 'bg-surface-sunken text-ink group-hover:bg-hairline',
+                                ? 'btn-brand text-white'
+                                : 'bg-primary-50 text-primary-700 group-hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-300 dark:group-hover:bg-primary-900',
                         )}
                     >
                         <Icon name={action.icon} className="text-xl" />

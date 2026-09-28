@@ -5,6 +5,7 @@ import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Header } from '@/components/layout/Header';
+import { BrandBand } from '@/components/layout/BrandBand';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn, getUserGeminiApiKey, maskSecret } from '@/lib/utils';
 import { normalizeRevtag } from '@/lib/paymentLinks';
@@ -34,7 +35,7 @@ function SummaryRow({
 }) {
     return (
         <button type="button" onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors">
-            <div className="w-9 h-9 rounded-xl bg-surface-sunken flex items-center justify-center text-ink-soft shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-300 flex items-center justify-center shrink-0">
                 <Icon name={icon} className="text-lg" />
             </div>
             <div className="min-w-0 flex-1">
@@ -136,12 +137,11 @@ export default function ProfilePage() {
                 }
             />
 
-            <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
-
-                {/* Cabeçalho — avatar + nome + email, à Splitwise (linha, não cartão). */}
+            <BrandBand>
+                {/* Cabeçalho — avatar + nome + email, na faixa da marca. */}
                 <div className="flex items-center gap-4 px-1">
                     <div className="relative shrink-0 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-hairline">
+                        <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-white/60">
                             {isLoading ? (
                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
                                     <LoadingSpinner size="sm" />
@@ -155,7 +155,7 @@ export default function ProfilePage() {
                                 />
                             )}
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-primary-600 ring-2 ring-app flex items-center justify-center text-white">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white text-primary-600 ring-2 ring-white/60 flex items-center justify-center">
                             <Icon name="photo_camera" className="text-[13px]" />
                         </div>
                         <input
@@ -172,7 +172,9 @@ export default function ProfilePage() {
                         {user.username && <p className="text-sm text-ink-faint truncate">@{user.username}</p>}
                     </div>
                 </div>
+            </BrandBand>
 
+            <div className="max-w-md mx-auto px-4 pt-6 space-y-6">
                 {/* Perfil */}
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Perfil</h3>
@@ -239,7 +241,7 @@ export default function ProfilePage() {
                                     "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                                     notifStatus === 'granted'
                                         ? "bg-success-bg text-success-fg"
-                                        : "bg-surface-sunken text-ink-soft"
+                                        : "bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-300"
                                 )}>
                                     <Icon
                                         name={

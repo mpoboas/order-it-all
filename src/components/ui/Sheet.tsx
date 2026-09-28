@@ -132,6 +132,13 @@ export function Sheet({
     // cima. `window.visualViewport` encolhe sempre, em Android e iOS.
     const viewport = useVisualViewport();
     const viewportStyle = viewport ? { top: viewport.offsetTop, height: viewport.height } : undefined;
+    // Teclado aberto (o visual viewport encolheu bem mais do que qualquer
+    // barra do browser): a zona do home indicator fica tapada pelo teclado,
+    // por isso a margem `--safe-bottom` no fundo da folha era só uma folga
+    // grande entre o botão e a barra de AutoFill do iOS. Aí basta um espaço
+    // pequeno.
+    const keyboardOpen = !!viewport && typeof window !== 'undefined' && window.innerHeight - viewport.height > 150;
+    const keyboardPad = keyboardOpen ? { paddingBottom: '0.75rem' } : undefined;
 
     const headerDismiss = handleDismiss;
 
@@ -254,6 +261,7 @@ export function Sheet({
                                             // Sem footer, o fim do conteudo encosta ao home indicator.
                                             !footer && 'pb-[calc(1rem+var(--safe-bottom))] sm:pb-[calc(1.5rem+var(--safe-bottom))]'
                                         )}
+                                        style={!footer ? keyboardPad : undefined}
                                     >
                                         {children}
                                     </div>
@@ -264,6 +272,7 @@ export function Sheet({
                                         <motion.div
                                             key={footerKey}
                                             className="shrink-0 px-4 pt-3 pb-4 sm:px-6 sm:pt-4 sm:pb-6 border-t border-hairline bg-surface safe-bottom"
+                                            style={keyboardPad}
                                             variants={footerVariants}
                                             initial="enter"
                                             animate="center"

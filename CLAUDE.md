@@ -19,8 +19,12 @@ grande parte disto automaticamente; o resto é convenção.
   `text-ink`/`text-ink-soft`/`text-ink-faint`, `border-hairline`/`border-hairline-strong`, e por estado
   `bg-{success,warning,danger,info}-bg` + `text-{...}-fg` (também `bg-danger`, `bg-status-{pending,bought,missing}`
   para pastilhas saturadas). A cor de ação (marca) é `primary-*`. Exceções conscientes e documentadas:
-  `src/app/auth/**` (vidro fosco sempre-claro sobre gradiente — os tokens de tema não se aplicam ali),
   `src/app/dev/ui/**` (mostra as cores cruas de propósito), `Icon.tsx`.
+- **Marca ("alma")**: o azul da marca é a identidade da app — nada de "limpar" para branco neutro. Peças
+  em `globals.css` (secção "MARCA · ALMA"): `.gradient-mesh` + `<AuthBackdrop>`/`<AuthShell>` (auth,
+  convite, boas-vindas, com `.glass-card`), `<Header>` sempre azul (`.brand-surface`), `<BrandBand>` nos
+  ecrãs principais, `.on-brand` (troca os tokens lá dentro: texto branco, campos de vidro — os
+  componentes não precisam de props), `Button variant="inverse"` para o botão principal sobre o azul.
 - **Ícones**: `<Icon name="..." />` (`src/components/ui/Icon.tsx`, Lucide) — nunca SVG inline nem emoji como
   ícone funcional. `name` é o nome antigo do Material Icons; se faltar um mapeamento, adiciona ao `MAP`.
 - **Primitivos**: `Button`, `Badge`, `Card`, `Money`, `PriceInput`, `Input`/`Textarea`, `EntityListCard`

@@ -49,7 +49,7 @@ export function SegmentedControl<K extends string>({
                         onClick={() => !active && onChange(item.key)}
                         className={cn(
                             'flex-1 rounded-full text-sm font-semibold transition-colors',
-                            active ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink',
+                            active ? 'bg-surface text-primary-700 dark:text-primary-300 shadow-sm' : 'text-ink-soft hover:text-ink',
                         )}
                     >
                         {item.label}

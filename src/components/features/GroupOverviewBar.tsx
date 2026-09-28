@@ -51,24 +51,7 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
     // quando o ledger resolve, um "pop" isolado a esta faixa. Um placeholder
     // com a mesma geometria (mesmo padding/alturas dos dois blocos reais)
     // troca para conteúdo sem mexer no resto do ecrã (Fase 14).
-    if (!ledger || !myBalance) {
-        return (
-            <div aria-hidden className="animate-pulse">
-                <div className="px-4 pt-3 pb-1 bg-surface space-y-1.5">
-                    <div className="h-3.5 w-48 rounded bg-surface-sunken" />
-                    <div className="h-3.5 w-40 rounded bg-surface-sunken" />
-                </div>
-                <div className="flex justify-center px-4 py-3 border-b border-hairline bg-surface">
-                    {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="flex-1 max-w-24 flex flex-col items-center gap-1.5 py-1">
-                            <div className="w-12 h-12 rounded-full bg-surface-sunken" />
-                            <div className="h-3 w-12 rounded-full bg-surface-sunken" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
+    if (!ledger || !myBalance) return <GroupOverviewSkeleton />;
 
     return (
         <>
@@ -111,5 +94,26 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
                 />
             )}
         </>
+    );
+}
+
+/** Placeholder do resumo + ações rápidas — mesma geometria dos blocos reais.
+ *  Também usado pelo portão do grupo (`groups/[groupId]/layout.tsx`). */
+export function GroupOverviewSkeleton() {
+    return (
+        <div aria-hidden className="animate-pulse">
+            <div className="px-4 pt-3 pb-1 bg-surface space-y-1.5">
+                <div className="h-3.5 w-48 rounded bg-surface-sunken" />
+                <div className="h-3.5 w-40 rounded bg-surface-sunken" />
+            </div>
+            <div className="flex justify-center px-4 py-3 border-b border-hairline bg-surface">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="flex-1 max-w-24 flex flex-col items-center gap-1.5 py-1">
+                        <div className="w-12 h-12 rounded-full bg-surface-sunken" />
+                        <div className="h-3 w-12 rounded-full bg-surface-sunken" />
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }

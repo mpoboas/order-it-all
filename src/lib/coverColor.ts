@@ -27,3 +27,9 @@ export function coverGradientFor(name: string): string {
   const [from, to] = PALETTE[hashString(name.trim().toLowerCase()) % PALETTE.length];
   return `linear-gradient(135deg, ${from}, ${to})`;
 }
+
+/** Cor sólida do topo da capa (o início do gradiente) — para a barra de
+ *  estado do iOS, que só aceita uma cor, não um gradiente (`StatusBarTint`). */
+export function coverColorFor(name: string): string {
+  return PALETTE[hashString(name.trim().toLowerCase()) % PALETTE.length][0];
+}

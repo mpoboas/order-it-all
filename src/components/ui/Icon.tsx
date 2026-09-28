@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react';
 import {
     Plus, PlusCircle, Minus, X, Check, CheckCircle2, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
     ArrowRight, ArrowLeftRight, Pencil, Trash2, Copy, Share, Share2, Link, Link2Off,
-    Lock, LockOpen, Eye, User, Users, Star, ShieldCheck, ShoppingCart, ShoppingBag, Store,
+    Lock, LockOpen, Eye, EyeOff, Mail, MailCheck, User, Users, Star, ShieldCheck, ShoppingCart, ShoppingBag, Store,
     BadgeCheck, Tag, CircleHelp, Hourglass, Clock, Calculator, Camera, Image,
     Images, FileText, ReceiptText, RefreshCw, Key, ListFilter, ListChecks,
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
@@ -45,6 +45,9 @@ const MAP = {
     lock: Lock,
     lock_open: LockOpen,
     visibility: Eye,
+    visibility_off: EyeOff,
+    mail: Mail,
+    mark_email_read: MailCheck,
     person: User,
     group: Users,
     groups: Users,

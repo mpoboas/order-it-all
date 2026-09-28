@@ -1,13 +1,15 @@
 'use client';
 
+import { useSyncStatus } from '@/context/SyncProvider';
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useAllExpenses, useGroups } from '@/lib/db/hooks';
 import { buildActivityFeed, type ActivityVerb } from '@/lib/ledger/feed';
 import { Header } from '@/components/layout/Header';
+import { BrandBand } from '@/components/layout/BrandBand';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { Avatar } from '@/components/ui/Avatar';
 import { Money } from '@/components/ui/Money';
@@ -40,6 +42,7 @@ export default function ActivityPage() {
         [groupsQuery],
     );
 
+    const { ready: syncReady } = useSyncStatus();
     const feed = useMemo(() => {
         if (!expensesQuery) return undefined;
         return buildActivityFeed(expensesQuery).slice(0, 60);
@@ -61,12 +64,14 @@ export default function ActivityPage() {
                 }
             />
 
-            <main className="container mx-auto max-w-lg px-2 sm:px-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-ink mb-4 mt-4 animate-fade-in-up">Atividade</h2>
-                {!feed ? (
-                    <div className="flex justify-center py-20">
-                        <LoadingSpinner size="lg" />
-                    </div>
+            <BrandBand>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-ink">Atividade</h2>
+                <p className="text-sm text-ink-soft">O que aconteceu nos teus grupos e com os teus amigos.</p>
+            </BrandBand>
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-4">
+                {/* Feed vazio antes da 1.ª sincronização = ainda a carregar. */}
+                {!feed || (feed.length === 0 && !syncReady) ? (
+                    <ListSkeleton rows={6} leading="activity" trailing={false} bare />
                 ) : feed.length === 0 ? (
                     <div className="text-center py-20 px-4">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">

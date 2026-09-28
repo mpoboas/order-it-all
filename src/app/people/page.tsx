@@ -1,5 +1,7 @@
 'use client';
 
+import { useSyncStatus } from '@/context/SyncProvider';
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -14,7 +16,6 @@ import { HomeOverview } from '@/components/features/HomeOverview';
 import { HomeTabs } from '@/components/features/HomeTabs';
 import { ExpandableFab } from '@/components/features/ExpandableFab';
 import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Avatar } from '@/components/ui/Avatar';
 import { Balance } from '@/components/ui/Balance';
 import { Icon } from '@/components/ui/Icon';
@@ -28,6 +29,7 @@ export default function PeoplePage() {
     const nav = useAppNavigate();
     const { user, isLoggedIn } = useUser();
     const { showToast } = useToast();
+    const { ready: syncReady } = useSyncStatus();
     const people = usePeopleBalances(user?.id);
     const friendships = useFriendships(user?.id);
     const [showAddFriend, setShowAddFriend] = useState(false);
@@ -92,8 +94,8 @@ export default function PeoplePage() {
                 }
             />
 
-            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-4 pb-24">
-                <HomeOverview className="mb-6" />
+            <HomeOverview />
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-5 pb-24">
                 <HomeTabs />
 
                 {friendships && friendships.incoming.length > 0 && (
@@ -132,10 +134,9 @@ export default function PeoplePage() {
                     </div>
                 )}
 
-                {!people ? (
-                    <div className="flex justify-center py-20">
-                        <LoadingSpinner size="lg" />
-                    </div>
+                {/* Lista vazia antes da 1.ª sincronização = ainda a carregar, não "sem saldos". */}
+                {!people || (people.length === 0 && !syncReady) ? (
+                    <ListSkeleton rows={4} leading="person" />
                 ) : people.length === 0 ? (
                     <div className="text-center py-20 px-4">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">

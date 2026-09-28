@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, typ
 import { pb, usersApi } from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
 import { unsubscribeFromPushNotifications } from '@/lib/notifications';
+import { AppSplash } from '@/components/layout/AppSplash';
 
 interface UserContextType {
     user: any | null;
@@ -97,9 +98,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         router.push('/');
     }, [router]);
 
-    // Prevent hydration mismatch
+    // Prevent hydration mismatch — até ler a sessão, o ecrã de arranque azul
+    // (também é o HTML que o servidor manda: 1.º frame da WPA, ver AppSplash).
     if (!isHydrated) {
-        return null;
+        return <AppSplash />;
     }
 
     return (

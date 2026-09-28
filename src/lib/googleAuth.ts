@@ -1,5 +1,6 @@
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { safeRedirect, withRedirect } from '@/lib/authRedirect';
 import { getAppOAuthRedirectUrl as getSharedOAuthRedirectUrl } from '@/lib/googleOAuthShared';
 import {
   getInAppBrowserMessage,
@@ -196,19 +197,11 @@ export function buildPostAuthPath(
   redirectPath: string | null,
   onboarded?: boolean
 ): string {
-  if (needsSetup) {
-    return redirectPath
-      ? `/auth/profile-setup?redirect=${encodeURIComponent(redirectPath)}`
-      : '/auth/profile-setup';
-  }
+  if (needsSetup) return withRedirect('/auth/profile-setup', redirectPath);
   // Conta antiga (de antes do onboarding existir), ainda não vista — mostra
   // o carrossel uma vez, preservando o `redirect` (ex.: link de convite).
-  if (!onboarded) {
-    return redirectPath
-      ? `/onboarding?redirect=${encodeURIComponent(redirectPath)}`
-      : '/onboarding';
-  }
-  return redirectPath || '/groups';
+  if (!onboarded) return withRedirect('/onboarding', redirectPath);
+  return safeRedirect(redirectPath) || '/groups';
 }
 
 /** Request higher-res Google avatar when URL uses a small size suffix. */

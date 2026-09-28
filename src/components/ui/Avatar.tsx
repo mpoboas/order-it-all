@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { cn, getInitials } from '@/lib/utils';
+import { coverGradientFor } from '@/lib/coverColor';
 
 interface AvatarProps {
     name: string;
@@ -64,9 +65,10 @@ export function Avatar({ name, src, size = 'md', stacked = false, className }: A
                 shellClass,
                 'inline-flex items-center justify-center font-bold text-white'
             )}
-            style={{
-                background: `linear-gradient(135deg, var(--primary-600), var(--primary-800))`,
-            }}
+            // Cor própria por pessoa (a mesma paleta das capas de grupo/amigo,
+            // estável por nome) — uma lista de membros deixa de ser um muro
+            // de círculos azuis iguais e cada um tem "a sua" cor.
+            style={{ background: coverGradientFor(displayName) }}
             title={displayName}
             aria-hidden
         >

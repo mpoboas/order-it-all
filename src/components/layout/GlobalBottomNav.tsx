@@ -54,7 +54,14 @@ export function GlobalBottomNav() {
                                 active ? 'text-primary-600' : 'text-ink-soft'
                             )}
                         >
-                            <div className={cn('transition-transform duration-200', active && 'scale-110')}>
+                            {/* Pílula azul por trás do separador ativo — a cor da marca
+                                a dizer "estás aqui", em vez de só um ponto. */}
+                            <div
+                                className={cn(
+                                    'flex items-center justify-center h-8 w-14 rounded-full transition duration-200',
+                                    active && 'bg-primary-50 dark:bg-primary-950',
+                                )}
+                            >
                                 {isProfile && user ? (
                                     <Avatar
                                         name={user.name || user.email}
@@ -66,10 +73,9 @@ export function GlobalBottomNav() {
                                     <Icon name={item.icon} className="text-2xl" strokeWidth={active ? 2.25 : 1.75} />
                                 )}
                             </div>
-                            <span className={cn('text-xs mt-1 font-medium', active && 'font-semibold')}>
+                            <span className={cn('text-xs mt-0.5 font-medium', active && 'font-semibold')}>
                                 {item.label}
                             </span>
-                            {active && <div className="absolute bottom-0.5 w-1 h-1 rounded-full bg-primary-600" />}
                         </button>
                     );
                 })}
