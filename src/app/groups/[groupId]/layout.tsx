@@ -151,7 +151,9 @@ export default function GroupLayout({
     // atrás), a bottom nav aparece no mesmo render que o resto do ecrã.
     return (
         <UnsavedDraftProvider>
-            <div className={isTaskScreen ? undefined : 'has-bottom-nav'}>
+            {/* `bg-app`: o espaço reservado à barra de baixo pinta o fundo da
+                app — o `body` tem a cor da barra de estado (azul). */}
+            <div className={isTaskScreen ? 'bg-app' : 'bg-app has-bottom-nav'}>
                 {children}
                 {!isTaskScreen && <GlobalBottomNav />}
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import { useExpenses, useGroupLedger } from '@/lib/db/hooks';
@@ -31,6 +31,21 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
     const [showSettleUp, setShowSettleUp] = useState(false);
     const [showBalances, setShowBalances] = useState(false);
     const [showTotals, setShowTotals] = useState(false);
+
+    // `?abrir=saldos|acertar` — outros ecrãs (detalhe de amigo, Definições do grupo)
+    // abrem o grupo já com a folha certa aberta. Lido uma vez e tirado do URL,
+    // para voltar atrás não a reabrir.
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        const open = url.searchParams.get('abrir');
+        if (!open) return;
+        void Promise.resolve().then(() => {
+            if (open === 'saldos') setShowBalances(true);
+            if (open === 'acertar') setShowSettleUp(true);
+        });
+        url.searchParams.delete('abrir');
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }, []);
 
     const myBalance = ledger && user?.id ? balanceFor(user.id, ledger.pairwise, ledger.net) : null;
     const expenses = (expensesQuery ?? []).filter((e) => !e.deleted_at);

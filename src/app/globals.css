@@ -1211,6 +1211,15 @@ html:has(.brand-page) body {
   pointer-events: none;
 }
 
+/* Variante das capas (grupo/amigo): só o iPhone precisa dela — no desktop e
+   no Android era só uma banda sólida sem função. */
+.brand-top-edge--ios {
+  display: none;
+}
+html.is-ios .brand-top-edge--ios {
+  display: block;
+}
+
 .status-bar-color {
   position: fixed;
   top: 0;

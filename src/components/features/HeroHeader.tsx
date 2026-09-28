@@ -5,7 +5,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBarTint } from '@/components/ui/StatusBarTint';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface HeroHeaderAvatar {
     name: string;
@@ -78,10 +78,10 @@ export function HeroHeader({
         return (
             <div className="h-[calc(7rem+var(--safe-top))] relative overflow-hidden" style={coverBackground}>
                 {background.kind === 'image' && (
-                    // eslint-disable-next-line @next/next/no-img-element
                     // Foto do grupo ligeiramente desfocada e ampliada: é quase
                     // sempre um avatar pequeno esticado (pixelizava) — assim
                     // vira textura de fundo, e o véu azul dá-lhe a cor da marca.
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={background.url} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-[3px]" />
                 )}
                 {/* Véu de baixo para cima — o título branco tem de ler-se sobre
@@ -98,7 +98,9 @@ export function HeroHeader({
                 <HeroTopEdge color={edgeColor} />
                 {navButtons}
                 <div className="absolute inset-x-4 bottom-3 flex items-end gap-3">
-                    <h1 className="flex-1 min-w-0 text-2xl font-bold tracking-tight text-white truncate">{title}</h1>
+                    {/* Wrap até 2 linhas (nomes compridos inteiros); a capa tem altura
+                        fixa e os botões lá em cima — uma 3.ª linha ia bater neles. */}
+                    <h1 className="flex-1 min-w-0 text-2xl font-bold leading-tight tracking-tight text-white line-clamp-2 break-words text-balance">{title}</h1>
                     <div className="flex items-center shrink-0 pb-0.5">
                         {avatars.map((a, index) => (
                             <div key={`${a.name}-${index}`} className={cn('flex rounded-full ring-2 ring-white/80', index > 0 && '-ml-2')}>
@@ -162,7 +164,7 @@ export function HeroHeader({
             </div>
 
             <div className="pt-12 pb-4 px-4 text-center">
-                <h1 className="text-xl font-bold text-ink truncate">{title}</h1>
+                <h1 className="text-xl font-bold text-ink break-words text-balance">{title}</h1>
                 {subtitle && <p className="text-sm text-ink-faint">{subtitle}</p>}
             </div>
         </div>
@@ -173,37 +175,35 @@ export function HeroHeader({
  * Topo da capa com cor ÚNICA — o iPhone pinta a barra de estado com a cor que
  * deteta no topo da página, e a capa (foto, gradiente diagonal) não tem uma;
  * a barra ficava clara. Três peças:
- *  - uma faixa sólida FIXA no topo (`.brand-top-edge`) enquanto a capa está à
- *    vista — é dela que o iOS tira a cor; some quando a capa sai do ecrã
- *    (senão ficava por cima da lista ao fazer scroll);
- *  - o topo da capa desvanece a partir dessa cor (sem costura);
+ *  - uma faixa sólida FIXA no topo (`.brand-top-edge--ios`) — é dela que o
+ *    iOS tira a cor. Só no iPhone e só com a página no topo (scroll 0): a
+ *    capa desliza com o scroll e a faixa não, por isso ao mínimo scroll ficava
+ *    uma banda azul lisa por cima da imagem e dos botões;
+ *  - o topo da capa desvanece a partir dessa cor (sem costura com a faixa);
  *  - `StatusBarTint` com a mesma cor (instalações antigas e Android).
  */
 function HeroTopEdge({ color }: { color: string }) {
-    const sentinel = useRef<HTMLDivElement>(null);
-    const [coverInView, setCoverInView] = useState(true);
+    const [atTop, setAtTop] = useState(true);
 
     useEffect(() => {
-        const el = sentinel.current;
-        if (!el || typeof IntersectionObserver === 'undefined') return;
-        const io = new IntersectionObserver(([entry]) => setCoverInView(entry.isIntersecting));
-        io.observe(el);
-        return () => io.disconnect();
+        const update = () => setAtTop(window.scrollY <= 2);
+        update();
+        window.addEventListener('scroll', update, { passive: true });
+        return () => window.removeEventListener('scroll', update);
     }, []);
 
     return (
         <>
-            {/* 24px acima do fundo da capa: deixa de se ver quando a capa já
-                não cobre a faixa do topo. */}
-            <div ref={sentinel} aria-hidden className="absolute inset-x-0 bottom-6 h-px pointer-events-none" />
             <div
                 aria-hidden
                 className="absolute inset-x-0 top-0 h-24 pointer-events-none"
                 style={{ background: `linear-gradient(to bottom, ${color} 24px, transparent)` }}
             />
-            {/* z-index auto: fica por baixo dos botões voltar/definições (vêm
-                depois no DOM). */}
-            {coverInView && <div aria-hidden className="brand-top-edge" style={{ backgroundColor: color, zIndex: 'auto' }} />}
+            {/* z-index auto: fica por baixo dos botões voltar/definições (vêm depois
+                no DOM). */}
+            {atTop && (
+                <div aria-hidden className="brand-top-edge brand-top-edge--ios" style={{ backgroundColor: color, zIndex: 'auto' }} />
+            )}
             <StatusBarTint background={color} />
         </>
     );

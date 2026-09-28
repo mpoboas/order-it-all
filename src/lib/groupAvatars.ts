@@ -1,5 +1,4 @@
 import type { Group } from '@/lib/types';
-import { getUserAvatarUrl } from '@/lib/orderParticipants';
 
 export const GROUP_EMOJIS = [
   '👥',
@@ -45,9 +44,3 @@ export function getGroupHeroBackground(group: Pick<Group, 'id' | 'name' | 'avata
   return url ? { kind: 'image', url } : { kind: 'gradient', seed: group.name };
 }
 
-/** Até `max` avatares dos membros do grupo, para o stack do `HeroHeader`. */
-export function groupHeroAvatars(group: Pick<Group, 'expand'>, max = 3): { name: string; src?: string }[] {
-  return (group.expand?.members ?? [])
-    .slice(0, max)
-    .map((m) => ({ name: m.name, src: getUserAvatarUrl(m.id, m.avatar) }));
-}

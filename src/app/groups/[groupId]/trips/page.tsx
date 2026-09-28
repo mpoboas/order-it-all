@@ -8,7 +8,8 @@ import { useGroup } from '@/context/GroupContext';
 import { HeroHeader } from '@/components/features/HeroHeader';
 import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
-import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
+import { getGroupHeroBackground } from '@/lib/groupAvatars';
+import { useGroupHeroPeople } from '@/hooks/useGroupHeroPeople';
 import { TripList } from '@/components/features/TripList';
 import { Icon } from '@/components/ui/Icon';
 import { useTrips, useGroup as useGroupRecord } from '@/lib/db/hooks';
@@ -36,6 +37,8 @@ export default function GroupTripsPage() {
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
 
+    const heroPeople = useGroupHeroPeople(group);
+
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {
         if (isAdmin) router.replace(`/groups/${groupId}/admin`);
@@ -44,7 +47,6 @@ export default function GroupTripsPage() {
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
 
-    const heroAvatars = group ? groupHeroAvatars(group) : [];
 
     return (
         <div className="min-h-dvh bg-app has-bottom-nav">
@@ -53,14 +55,14 @@ export default function GroupTripsPage() {
                     variant="compact"
                     title={group.name}
                     background={getGroupHeroBackground(group)}
-                    avatars={heroAvatars}
-                    avatarOverflowCount={Math.max(0, group.members.length - heroAvatars.length)}
+                    avatars={heroPeople.avatars}
+                    avatarOverflowCount={heroPeople.overflow}
                     onBack={() => nav.up()}
-                    topRightAction={isAdmin ? {
+                    topRightAction={{
                         icon: 'settings',
                         label: 'Definições do grupo',
                         onClick: () => nav.push(`/groups/${groupId}/settings`, { haptic: false }),
-                    } : undefined}
+                    }}
                 />
             )}
             <GroupOverviewBar groupId={groupId} />

@@ -31,6 +31,9 @@ import { useOnline } from '@/hooks/useOnline';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { groupHomeHref } from '@/lib/navHierarchy';
 
+/** Quanto tempo um grupo novo fica na lista mesmo com as contas em dia. */
+const RECENT_GROUP_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
@@ -52,8 +55,13 @@ export default function GroupsPage() {
     const balances = useGroupBalances(user?.id);
     const [showSettled, setShowSettled] = useState(false);
 
-    const settledGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) < 1);
-    const activeGroups = groups.filter((g) => Math.abs(balances?.get(g.id) ?? 0) >= 1);
+    // Um grupo fica na lista enquanto não estiver em dia OU nos primeiros 7
+    // dias depois de criado — um grupo acabado de criar tem saldo zero e ia
+    // logo parar a "Mostrar N grupos em dia", como se já estivesse arrumado.
+    const isRecent = (g: { created: string }) => Date.now() - new Date(g.created).getTime() < RECENT_GROUP_MS;
+    const isSettled = (g: { id: string }) => Math.abs(balances?.get(g.id) ?? 0) < 1;
+    const settledGroups = groups.filter((g) => isSettled(g) && !isRecent(g));
+    const activeGroups = groups.filter((g) => !isSettled(g) || isRecent(g));
     const visibleGroups = showSettled ? groups : activeGroups;
 
     // Redirect if not logged in

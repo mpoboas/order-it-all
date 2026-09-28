@@ -43,7 +43,8 @@ export function HomeOverview({ className }: { className?: string }) {
                         className="ring-2 ring-white/50"
                     />
                     <div className="min-w-0">
-                        <h2 className="text-2xl font-bold tracking-tight text-ink truncate">
+                        {/* Nome inteiro, com wrap — nunca "Olá, Chimpanzini Banan…". */}
+                        <h2 className="text-2xl font-bold leading-tight tracking-tight text-ink break-words text-balance">
                             Olá, {user?.name || 'amigo'}! 👋
                         </h2>
                         {settled && <p className="text-sm font-medium text-ink-soft">Contas em dia em todo o lado ✨</p>}

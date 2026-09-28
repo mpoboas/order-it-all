@@ -37,7 +37,7 @@ export function GroupTabs({ groupId, isAdmin }: GroupTabsProps) {
 
     usePrefetchRoutes([`${basePath}/expenses`, `${basePath}/admin`, `${basePath}/trips`]);
 
-    // Nenhum ativo fora das duas secções (ex.: `/balances`).
+    // Nenhum ativo fora das duas secções.
     const value = items.find((item) => pathname.startsWith(item.key))?.key ?? null;
 
     return (

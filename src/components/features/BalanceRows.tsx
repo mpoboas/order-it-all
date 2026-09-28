@@ -58,7 +58,7 @@ interface BalanceRowsProps {
 }
 
 /**
- * Lista de saldos do grupo (folha "Saldos" e página `/groups/[id]/balances`):
+ * Lista de saldos do grupo (folha "Saldos"):
  * cada pessoa com o seu saldo no grupo; expandir mostra as dívidas aos pares,
  * que são os mesmos números do cabeçalho do grupo. Nas linhas expandidas o
  * verbo é só "deve" ("Bruno deve 10,24 €") — o credor é a pessoa da linha.

@@ -24,7 +24,8 @@ import { useConfirm } from '@/context/ConfirmContext';
 import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
 import { HeroHeader } from '@/components/features/HeroHeader';
-import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
+import { getGroupHeroBackground } from '@/lib/groupAvatars';
+import { useGroupHeroPeople } from '@/hooks/useGroupHeroPeople';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -42,6 +43,7 @@ function AdminDashboardContent() {
     const params = useParams();
     const groupId = params.groupId as string;
     const { currentGroup, isAdmin } = useGroup();
+    const heroPeople = useGroupHeroPeople(currentGroup);
     const { user } = useUser();
     const online = useOnline();
     const router = useRouter();
@@ -248,7 +250,6 @@ function AdminDashboardContent() {
     }
 
     const isCreator = currentGroup.creator === user?.id;
-    const heroAvatars = groupHeroAvatars(currentGroup);
 
     return (
         <div className="min-h-screen bg-app has-bottom-nav">
@@ -256,14 +257,14 @@ function AdminDashboardContent() {
                 variant="compact"
                 title={currentGroup.name}
                 background={getGroupHeroBackground(currentGroup)}
-                avatars={heroAvatars}
-                avatarOverflowCount={Math.max(0, currentGroup.members.length - heroAvatars.length)}
+                avatars={heroPeople.avatars}
+                avatarOverflowCount={heroPeople.overflow}
                 onBack={() => nav.up()}
-                topRightAction={isAdmin ? {
+                topRightAction={{
                     icon: 'settings',
                     label: 'Definições do grupo',
                     onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
-                } : undefined}
+                }}
             />
             <GroupOverviewBar groupId={groupId} />
             <GroupTabs groupId={groupId} isAdmin={isAdmin} />

@@ -86,7 +86,7 @@ export default function PersonDetailPage() {
         const targets = [...groupsWithBalance.map((g) => g.groupId), ...(hasDirectBalance ? [DIRECT_TARGET] : [])];
         if (targets.length === 1) {
             if (targets[0] === DIRECT_TARGET) setShowDirectSettleUp(true);
-            else nav.push(`/groups/${targets[0]}/balances`, { haptic: false });
+            else nav.push(`/groups/${targets[0]}/expenses?abrir=acertar`, { haptic: false });
         } else {
             setShowGroupPicker(true);
         }
@@ -243,7 +243,7 @@ export default function PersonDetailPage() {
                                 type="button"
                                 onClick={() => {
                                     setShowGroupPicker(false);
-                                    nav.push(`/groups/${g.groupId}/balances`, { haptic: false });
+                                    nav.push(`/groups/${g.groupId}/expenses?abrir=acertar`, { haptic: false });
                                 }}
                                 className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-surface-sunken rounded-lg px-1 -mx-1 transition-colors"
                             >

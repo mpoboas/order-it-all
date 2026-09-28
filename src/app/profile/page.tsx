@@ -167,7 +167,7 @@ export default function ProfilePage() {
                         />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <h2 className="text-lg font-bold text-ink truncate">{user.name || 'Sem nome'}</h2>
+                        <h2 className="text-lg font-bold leading-tight text-ink break-words">{user.name || 'Sem nome'}</h2>
                         <p className="text-sm text-ink-faint truncate">{user.email}</p>
                         {user.username && <p className="text-sm text-ink-faint truncate">@{user.username}</p>}
                     </div>

@@ -12,7 +12,8 @@ import { HeroHeader } from '@/components/features/HeroHeader';
 import { GroupTabs } from '@/components/features/GroupTabs';
 import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
 import { ExpandableFab } from '@/components/features/ExpandableFab';
-import { getGroupHeroBackground, groupHeroAvatars } from '@/lib/groupAvatars';
+import { getGroupHeroBackground } from '@/lib/groupAvatars';
+import { useGroupHeroPeople } from '@/hooks/useGroupHeroPeople';
 import { Icon } from '@/components/ui/Icon';
 import { ExpenseRow } from '@/components/features/ExpenseRow';
 import { ExpenseFormSheet } from '@/components/features/ExpenseFormSheet';
@@ -47,10 +48,7 @@ export default function GroupExpensesPage() {
     }, [isLoggedIn, router]);
 
     const monthGroups = useMemo(() => groupExpensesByMonth(expenses), [expenses]);
-    // Não é só `currentGroup.members` — inclui placeholders (membros sem
-    // conta), que também são partes válidas nas despesas do grupo.
-    const memberCount = parties?.size || currentGroup?.members?.length || 0;
-    const heroAvatars = currentGroup ? groupHeroAvatars(currentGroup) : [];
+    const heroPeople = useGroupHeroPeople(currentGroup);
 
     if (!isLoggedIn) return null;
 
@@ -61,14 +59,14 @@ export default function GroupExpensesPage() {
                     variant="compact"
                     title={currentGroup.name}
                     background={getGroupHeroBackground(currentGroup)}
-                    avatars={heroAvatars}
-                    avatarOverflowCount={Math.max(0, memberCount - heroAvatars.length)}
+                    avatars={heroPeople.avatars}
+                    avatarOverflowCount={heroPeople.overflow}
                     onBack={() => nav.up()}
-                    topRightAction={isAdmin ? {
+                    topRightAction={{
                         icon: 'settings',
                         label: 'Definições do grupo',
                         onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
-                    } : undefined}
+                    }}
                 />
             )}
             <GroupOverviewBar groupId={groupId} />

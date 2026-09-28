@@ -725,16 +725,18 @@ export const groupsApi = {
   // `members-`/`admins+`/… são os modificadores atómicos do PocketBase — em
   // vez de ler o array, alterá-lo e reescrevê-lo inteiro (duas alterações em
   // simultâneo perdiam uma delas).
-  removeMember: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    // Cannot remove creator
-    if (group.creator === userId) {
-      throw new Error('Cannot remove the group creator');
-    }
-    return await pb.collection('groups').update<Group>(groupId, {
-      'members-': userId,
-      'admins-': userId,
+  /** Sair do grupo (o próprio) ou remover um membro — pela rota do servidor,
+   *  que impõe "contas fechadas" (saldo zero, sem pedidos em viagens abertas)
+   *  e as permissões. Um 409 traz `block` (ver `src/lib/memberGuards.ts`). */
+  removeMember: async (groupId: string, userId: string): Promise<void> => {
+    const res = await fetch(`/api/groups/${groupId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
     });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string; block?: unknown };
+      throw Object.assign(new Error(data.error || 'Erro ao remover'), { status: res.status, block: data.block });
+    }
   },
 
   promoteToAdmin: async (groupId: string, userId: string): Promise<Group> => {

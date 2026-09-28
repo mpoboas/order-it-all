@@ -30,7 +30,7 @@ export function ClaimPlaceholderSheet({ isOpen, onClose, placeholder, members, o
     try {
       const updated = await placeholdersApi.claim(placeholder.id, userId);
       await db.placeholders.put(updated);
-      showToast('Associado', 'success');
+      showToast(`${placeholder.name} associado`, 'success');
       onClaimed();
       onClose();
     } catch {
@@ -44,8 +44,8 @@ export function ClaimPlaceholderSheet({ isOpen, onClose, placeholder, members, o
     <Sheet
       isOpen={isOpen}
       onClose={onClose}
-      title="Associar a…"
-      subtitle={placeholder?.name}
+      title={`Quem é ${placeholder?.name ?? ''}?`}
+      subtitle="As despesas e saldos passam para a conta escolhida"
       size="medium"
     >
       {members.length === 0 ? (
