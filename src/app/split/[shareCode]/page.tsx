@@ -261,7 +261,7 @@ export default function PublicSplitPage() {
     }
     const item = split.items[itemIndex];
     if (!include && item?.locked) {
-      showToast('Este item está bloqueado — não podes remover-te', 'error');
+      showToast('Este item está bloqueado. Não te podes remover.', 'error');
       return;
     }
     setTogglingIdx(itemIndex);
@@ -300,7 +300,7 @@ export default function PublicSplitPage() {
       ) {
         showToast('Esta divisão está fechada', 'error');
       } else if (message.includes('bloqueado') || message.includes('locked')) {
-        showToast('Este item está bloqueado — não podes remover-te', 'error');
+        showToast('Este item está bloqueado. Não te podes remover.', 'error');
       } else {
         showToast('Erro ao guardar', 'error');
       }
@@ -332,7 +332,7 @@ export default function PublicSplitPage() {
       ) {
         showToast('Esta divisão está fechada', 'error');
       } else if (message.includes('bloqueado') || message.includes('locked')) {
-        showToast('Este item está bloqueado — não podes remover-te', 'error');
+        showToast('Este item está bloqueado. Não te podes remover.', 'error');
       } else {
         showToast('Erro ao guardar', 'error');
       }

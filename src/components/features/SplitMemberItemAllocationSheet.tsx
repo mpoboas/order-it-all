@@ -589,7 +589,7 @@ export function SplitMemberItemAllocationSheet({
               </div>
               {locked && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — os participantes não podem ser
+                  Este item está bloqueado. Os participantes não podem ser
                   alterados.
                 </p>
               )}
@@ -654,7 +654,7 @@ export function SplitMemberItemAllocationSheet({
               <ul>{renderValueRow(myName, 'primary')}</ul>
               {locked && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — os valores não podem ser alterados.
+                  Este item está bloqueado. Os valores não podem ser alterados.
                 </p>
               )}
 
@@ -706,7 +706,7 @@ export function SplitMemberItemAllocationSheet({
               </div>
               {locked && wasParticipating && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — a tua parte não pode ser alterada.
+                  Este item está bloqueado. A tua parte não pode ser alterada.
                 </p>
               )}
 
@@ -783,7 +783,7 @@ export function SplitMemberItemAllocationSheet({
             {draftMode === 'shares' && (
               <p className="text-ink-soft">
                 {summary && summary.assigned > 0
-                  ? `${summary.assigned} parte${summary.assigned === 1 ? '' : 's'} no total — o valor é proporcional.`
+                  ? `${summary.assigned} parte${summary.assigned === 1 ? '' : 's'} no total. Cada um paga em proporção.`
                   : 'Indica quantas unidades consumiste (ex.: 2 cervejas).'}
               </p>
             )}

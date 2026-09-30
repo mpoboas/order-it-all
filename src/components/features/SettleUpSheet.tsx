@@ -19,8 +19,10 @@ import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import { notify, notifiableUserIds } from '@/lib/notify';
-import { MBWAY_APP_URL, normalizeRevtag, revolutPaymentUrl } from '@/lib/paymentLinks';
+import { MBWAY_APP_URL, normalizeRevtag, revolutPaymentUrl, settleUpNote } from '@/lib/paymentLinks';
+import { useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { cn } from '@/lib/utils';
+import { PaymentLogo } from '@/components/ui/PaymentLogo';
 import type { Expense, Party, PaymentMethod } from '@/lib/types';
 
 interface SettleUpSheetProps {
@@ -77,7 +79,7 @@ interface MethodOption {
 function methodOptionsFor(payee: Party | undefined): MethodOption[] {
   const options: MethodOption[] = [];
   if (payee?.revtag) {
-    options.push({ key: 'revolut', label: 'Revolut', hint: `@${normalizeRevtag(payee.revtag)} · valor já preenchido`, icon: 'credit_card' });
+    options.push({ key: 'revolut', label: 'Revolut', hint: `@${normalizeRevtag(payee.revtag)}`, icon: 'credit_card' });
   }
   if (payee?.mbwayPhone) {
     options.push({ key: 'mbway', label: 'MB WAY', hint: `Envias para ${formatPhone(payee.mbwayPhone)}`, icon: 'phone_iphone' });
@@ -115,6 +117,8 @@ export function SettleUpSheet({
   const [direction, setDirection] = useState(1);
   const [amount, setAmount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  /** Para a nota do Revolut ("Saldar dívida de …"); sem grupo entre amigos. */
+  const group = useGroupRecord(groupId);
 
   const options = useMemo((): CounterpartyOption[] => {
     const result: CounterpartyOption[] = [];
@@ -127,6 +131,8 @@ export function SettleUpSheet({
     }
     return result.sort((a, b) => Math.abs(b.amountCents) - Math.abs(a.amountCents));
   }, [pairwise, currentUserId]);
+
+  const noBalances = options.length === 0;
 
   /** Toda a gente que pode pagar/receber — um placeholder já reclamado é
    *  representado pelo utilizador que o reclamou. Tu primeiro. */
@@ -150,7 +156,9 @@ export function SettleUpSheet({
       });
       setAmount(payment.amount);
     } else {
-      setStep({ kind: 'list' });
+      // Sem saldos por acertar, a lista estaria vazia: vai direto a "Quem está
+      // a pagar?" (o mesmo que "Mais opções") para registar um pagamento na mesma.
+      setStep({ kind: noBalances ? 'pickPayer' : 'list' });
       setAmount(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,7 +193,10 @@ export function SettleUpSheet({
 
   const goBack = () => {
     setDirection(-1);
-    if (step.kind === 'pickPayer') setStep({ kind: 'list' });
+    if (step.kind === 'pickPayer') {
+      if (noBalances) return; // Sem lista para onde voltar.
+      setStep({ kind: 'list' });
+    }
     else if (step.kind === 'pickPayee') setStep({ kind: 'pickPayer' });
     else if (step.kind === 'confirm') {
       setStep(step.via === 'more' ? { kind: 'pickPayee', payerId: step.payerId } : { kind: 'list' });
@@ -212,7 +223,7 @@ export function SettleUpSheet({
         void notify({
           targetUserIds: notifiableUserIds([payerId, payeeId], parties, currentUserId),
           title: '✏️ Pagamento editado',
-          message: `${label(currentUserId)} editou um pagamento — ${formatEUR(amount)}.`,
+          message: `${label(currentUserId)} editou um pagamento de ${formatEUR(amount)}.`,
           url: url(saved.id),
         });
       } else {
@@ -348,9 +359,13 @@ export function SettleUpSheet({
                 selected ? 'border-primary-600 bg-primary-50 dark:bg-primary-950' : 'border-hairline bg-surface hover:bg-surface-sunken',
               )}
             >
-              <span className="w-10 h-10 shrink-0 rounded-xl bg-surface-sunken text-ink-soft flex items-center justify-center">
-                <Icon name={option.icon} className="text-xl" />
-              </span>
+              {option.key === 'other' ? (
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-surface-sunken text-ink-soft flex items-center justify-center">
+                  <Icon name={option.icon} className="text-xl" />
+                </span>
+              ) : (
+                <PaymentLogo app={option.key} size="lg" variant="symbol" />
+              )}
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold text-ink">{option.label}</span>
                 <span className="block text-xs text-ink-soft truncate">{option.hint}</span>
@@ -414,7 +429,7 @@ export function SettleUpSheet({
     method === 'revolut' &&
     revolutPayee?.revtag &&
     amount > 0
-      ? revolutPaymentUrl(revolutPayee.revtag, amount)
+      ? revolutPaymentUrl(revolutPayee.revtag, amount, settleUpNote(group?.name))
       : null;
 
   const submitLabel = payment
@@ -431,7 +446,11 @@ export function SettleUpSheet({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      onBack={step.kind === 'list' || (step.kind === 'confirm' && step.via === 'edit') ? undefined : goBack}
+      onBack={
+        step.kind === 'list' || (step.kind === 'pickPayer' && noBalances) || (step.kind === 'confirm' && step.via === 'edit')
+          ? undefined
+          : goBack
+      }
       size="full"
       footerKey={step.kind}
       footer={
@@ -453,7 +472,7 @@ export function SettleUpSheet({
                 } catch (error) {
                   // Sem rede não se regista — e não se deixa ir pagar sem registo.
                   e.preventDefault();
-                  showToast(mutationErrorMessage(error, 'Sem ligação — tenta outra vez.'), 'error');
+                  showToast(mutationErrorMessage(error, 'Sem ligação. Tenta outra vez.'), 'error');
                   return;
                 }
                 void handleSubmit();

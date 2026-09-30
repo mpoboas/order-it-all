@@ -65,7 +65,7 @@ export function SplitShareSheet({
 
   const handleToggle = async () => {
     if (splitClosed) {
-      showToast('Divisão fechada — reabre para ativar o link', 'error');
+      showToast('A divisão está fechada. Reabre-a para ativar o link.', 'error');
       return;
     }
     setLoading(true);
@@ -97,7 +97,7 @@ export function SplitShareSheet({
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: `Divisão — ${split.name}`,
+          title: `Divisão: ${split.name}`,
           text: message,
         });
         return;
@@ -106,7 +106,7 @@ export function SplitShareSheet({
       }
     }
     if (await copyText(message)) {
-      showToast('Mensagem copiada — cola no WhatsApp ou Instagram', 'success');
+      showToast('Mensagem copiada. Cola-a no WhatsApp ou onde quiseres.', 'success');
     } else {
       showToast('Não foi possível partilhar', 'error');
     }

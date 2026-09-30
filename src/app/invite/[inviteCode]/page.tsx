@@ -141,7 +141,7 @@ export default function InvitePage() {
                     </p>
                     <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink text-balance">{group.name}</h1>
                     <p className="mt-3 text-base text-ink-soft text-pretty">
-                        Combinem as compras do grupo e acertem as contas, tudo no mesmo sítio.
+                        Aqui combinam as compras e acertam as contas do grupo.
                     </p>
                 </div>
             </main>

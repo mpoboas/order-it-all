@@ -21,26 +21,50 @@ import { useLayoutEffect } from 'react';
  * deixava a janela exata onde a página inteira "salta" para trás na
  * primeira abertura de um sheet com campo em foco automático.
  */
+/**
+ * Contador partilhado: vários modais podem estar abertos ao mesmo tempo (um
+ * `ConfirmDialog` por cima de um `<Sheet>`) e fechar por qualquer ordem. Só o
+ * primeiro bloqueio guarda o estado original do `<body>` e só o último a
+ * sair o repõe. Antes, cada um guardava "o anterior": se o sheet fechasse
+ * antes do diálogo, o diálogo repunha o `position: fixed` do sheet e a
+ * página seguinte ficava sem scroll até recarregar.
+ */
+let locks = 0;
+let saved: { scrollY: number; position: string; top: string; left: string; right: string; width: string } | null = null;
+
+/** @internal (exportado para testes) */
+export function lockBody() {
+  locks += 1;
+  if (locks > 1) return;
+  const { style } = document.body;
+  const scrollY = window.scrollY;
+  saved = { scrollY, position: style.position, top: style.top, left: style.left, right: style.right, width: style.width };
+  style.position = 'fixed';
+  style.top = `-${scrollY}px`;
+  style.left = '0';
+  style.right = '0';
+  style.width = '100%';
+}
+
+/** @internal (exportado para testes) */
+export function unlockBody() {
+  locks = Math.max(0, locks - 1);
+  if (locks > 0 || !saved) return;
+  const { style } = document.body;
+  const { scrollY, ...prev } = saved;
+  saved = null;
+  style.position = prev.position;
+  style.top = prev.top;
+  style.left = prev.left;
+  style.right = prev.right;
+  style.width = prev.width;
+  window.scrollTo(0, scrollY);
+}
+
 export function useBodyScrollLock(locked: boolean): void {
   useLayoutEffect(() => {
     if (!locked) return;
-    const scrollY = window.scrollY;
-    const { style } = document.body;
-    const prev = { position: style.position, top: style.top, left: style.left, right: style.right, width: style.width };
-
-    style.position = 'fixed';
-    style.top = `-${scrollY}px`;
-    style.left = '0';
-    style.right = '0';
-    style.width = '100%';
-
-    return () => {
-      style.position = prev.position;
-      style.top = prev.top;
-      style.left = prev.left;
-      style.right = prev.right;
-      style.width = prev.width;
-      window.scrollTo(0, scrollY);
-    };
+    lockBody();
+    return unlockBody;
   }, [locked]);
 }

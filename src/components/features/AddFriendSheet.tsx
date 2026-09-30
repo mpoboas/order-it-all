@@ -77,7 +77,7 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
       showToast('Pedido de amizade enviado', 'success');
       void notify({
         targetUserIds: [found.id],
-        title: '👋 Pedido de amizade',
+        title: 'Pedido de amizade',
         message: `${currentUserName} quer ser teu amigo.`,
         url: '/people',
       });

@@ -235,10 +235,10 @@ export default function ProfileSetupPage() {
 
             await updateProfile(formData);
             clearOAuthProfileHints();
-            // Mostra o carrossel de boas-vindas antes de cair na app. Com
-            // convite, o destino original segue (codificado — um `&` partia-o)
-            // para o aceitar/auto-join continuar no fim do carrossel.
-            nav.replace(withRedirect('/onboarding', redirect));
+            // A seguir: MB WAY/Revolut (opcionais) e depois o carrossel de
+            // boas-vindas. Com convite, o destino original segue (codificado,
+            // um `&` partia-o) para o aceitar/auto-join continuar no fim.
+            nav.replace(withRedirect('/auth/payment-setup', redirect));
         } catch (error) {
             console.error(error);
             showToast('Erro ao atualizar perfil', 'error');

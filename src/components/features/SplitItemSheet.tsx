@@ -137,7 +137,7 @@ export function SplitItemSheet({
         if (mode === 'equal') {
             const n = draft.participants.length;
             return n === 0
-                ? 'Ainda ninguém — o item fica por atribuir.'
+                ? 'Ninguém escolhido. O item fica por atribuir.'
                 : `${formatEUR(draft.price)} a dividir por ${n} ${n === 1 ? 'pessoa' : 'pessoas'}`;
         }
         if (mode === 'percentage') {

@@ -1,4 +1,3 @@
-import { Icon } from '@/components/ui/Icon';
 import { Money } from '@/components/ui/Money';
 import { PaymentParties, paymentHeadline } from '@/components/features/PaymentParties';
 import { relativeOrDatePhrase } from '@/lib/utils';
@@ -43,11 +42,6 @@ export function PaymentDetail({ expense, parties, currentUserId }: PaymentDetail
                     {expense.method && METHOD_LABEL[expense.method] && <> · via {METHOD_LABEL[expense.method]}</>}
                     {wasEdited && updatedBy && <> · editado por {updatedBy}</>}
                 </p>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-surface-sunken px-4 py-3 text-sm text-ink-soft">
-                <Icon name="info" className="text-lg shrink-0 mt-0.5" />
-                <p>Este pagamento foi registado na app para acertar contas. Nenhum dinheiro foi transferido por aqui.</p>
             </div>
 
             {expense.notes && (

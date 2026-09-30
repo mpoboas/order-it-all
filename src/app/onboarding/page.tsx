@@ -159,7 +159,7 @@ function InstallStep({ onFinish }: { onFinish: () => void }) {
                 <div className="w-full flex items-center gap-3 rounded-full bg-success-bg text-success-fg px-4 h-13">
                     <Icon name="check_circle" className="text-lg shrink-0" />
                     <span className="text-sm font-semibold">
-                        Aplicação instalada — já a encontras no ecrã principal.
+                        App instalada. Já a encontras no ecrã principal.
                     </span>
                 </div>
                 <Button block size="lg" variant="secondary" onClick={onFinish}>
@@ -309,43 +309,43 @@ export default function OnboardingPage() {
                 ref={trackRef}
                 className="flex-1 flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar"
             >
-                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6">
+                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6 short:gap-4 tiny:gap-3">
                     <div className="w-full max-w-sm">
                         <GroupPreviewCard {...inviteGroup} />
                     </div>
-                    <div className="space-y-2 text-center max-w-sm">
-                        <h1 className="text-2xl font-bold text-ink">
+                    <div className="space-y-2 short:space-y-1 text-center max-w-sm">
+                        <h1 className="text-2xl short:text-xl font-bold text-ink">
                             Comprar em grupo ficou mais simples
                         </h1>
-                        <p className="text-ink-soft">
+                        <p className="text-ink-soft short:text-sm">
                             Cria grupos, junta os pedidos de todos e divide cada despesa de forma
                             justa.
                         </p>
                     </div>
                 </div>
 
-                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6">
+                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6 short:gap-4 tiny:gap-3">
                     <div className="w-full max-w-sm">
                         <TripPreviewCard />
                     </div>
-                    <div className="space-y-2 text-center max-w-sm">
-                        <h1 className="text-2xl font-bold text-ink">Faz pedidos durante a viagem</h1>
-                        <p className="text-ink-soft">
+                    <div className="space-y-2 short:space-y-1 text-center max-w-sm">
+                        <h1 className="text-2xl short:text-xl font-bold text-ink">Faz pedidos durante a viagem</h1>
+                        <p className="text-ink-soft short:text-sm">
                             Cada pessoa adiciona o que precisa e todos os pedidos ficam organizados
                             no mesmo lugar.
                         </p>
                     </div>
                 </div>
 
-                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6">
+                <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6 short:gap-4 tiny:gap-3">
                     <div className="w-full max-w-sm">
                         <SplitPreviewCard />
                     </div>
-                    <div className="space-y-2 text-center max-w-sm">
-                        <h1 className="text-2xl font-bold text-ink">
+                    <div className="space-y-2 short:space-y-1 text-center max-w-sm">
+                        <h1 className="text-2xl short:text-xl font-bold text-ink">
                             Divide as despesas sem complicações
                         </h1>
-                        <p className="text-ink-soft">
+                        <p className="text-ink-soft short:text-sm">
                             Usa Divisões para escolher quem participa. Cada pessoa paga apenas a
                             sua parte.
                         </p>
@@ -353,10 +353,10 @@ export default function OnboardingPage() {
                 </div>
 
                 {!isStandalone && (
-                    <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-5 overflow-y-auto">
-                        <div className="space-y-2 text-center max-w-sm">
-                            <h1 className="text-2xl font-bold text-ink">A aplicação, sempre à mão</h1>
-                            <p className="text-ink-soft">
+                    <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-5 short:gap-3 overflow-y-auto">
+                        <div className="space-y-2 short:space-y-1 text-center max-w-sm">
+                            <h1 className="text-2xl short:text-xl font-bold text-ink">A aplicação, sempre à mão</h1>
+                            <p className="text-ink-soft short:text-sm">
                                 Instala a aplicação para uma melhor experiência de utilização e para
                                 receberes notificações dos teus pedidos e divisões.
                             </p>
@@ -368,14 +368,14 @@ export default function OnboardingPage() {
                             />
                             <NotificationPreview
                                 title="Nova despesa"
-                                body="Foste adicionado a Jantar do grupo — deves 12,50 € a Miguel."
+                                body="Foste adicionado a Jantar do grupo. Deves 12,50 € ao Miguel."
                             />
                         </div>
                     </div>
                 )}
             </div>
 
-            <div className="px-6 pb-2 pt-1 shrink-0 space-y-4">
+            <div className="px-6 pb-2 pt-1 shrink-0 space-y-4 short:space-y-2">
                 <div className="flex items-center justify-center gap-2">
                     {Array.from({ length: slideCount }).map((_, i) => (
                         <button

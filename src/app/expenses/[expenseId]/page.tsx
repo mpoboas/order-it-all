@@ -104,7 +104,7 @@ export default function DirectExpenseDetailPage() {
                 void notify({
                     targetUserIds: notifiableUserIds(participantIds, parties, user.id),
                     title: '🗑️ Despesa eliminada',
-                    message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" — ${formatEUR(updated.amount)}.`,
+                    message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" (${formatEUR(updated.amount)}).`,
                     url: returnUrl,
                 });
             }

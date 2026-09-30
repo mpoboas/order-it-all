@@ -374,7 +374,7 @@ export function InvoiceScanSheet({
 
   const sheetSubtitle =
     scanStep === 'upload'
-      ? 'Fotografa ou carrega o talão — o Gemini cruza com a lista'
+      ? 'Fotografa ou carrega o talão e o Gemini compara-o com a lista'
       : scanStep === 'processing'
         ? 'A identificar produtos e preços'
         : 'Confirma antes de aplicar';
@@ -399,7 +399,7 @@ export function InvoiceScanSheet({
         className="btn-primary w-full py-3.5"
         disabled={scanBlocked}
       >
-        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido. Volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -693,7 +693,7 @@ export function InvoiceScanSheet({
 
           {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-[var(--text-muted)] font-medium">
-              Limite diário do Gemini atingido — volta amanhã.
+              Chegaste ao limite diário do Gemini. Volta amanhã.
             </p>
           )}
         </div>

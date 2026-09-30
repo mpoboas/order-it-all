@@ -201,7 +201,7 @@ export function ExpenseFormSheet({
         // (vêm dos itens) — não gravar partes que já não somam o total.
         const sharesCents = sharesPayload.reduce((sum, s) => sum + toCents(s.amount), 0);
         if (isEditing && sharesCents !== amountCents) {
-          showToast('O total mudou — revê a divisão por itens antes de gravar.', 'error');
+          showToast('O total mudou. Revê a divisão por itens antes de gravar.', 'error');
           setSubmitting(false);
           return;
         }
@@ -269,7 +269,7 @@ export function ExpenseFormSheet({
       void notify({
         targetUserIds: targets,
         title: isEditing ? '✏️ Despesa editada' : '💰 Nova despesa',
-        message: `${partyLabel(currentUserId, parties)} ${isEditing ? 'editou' : 'adicionou'} "${saved.description}" — ${formatEUR(saved.amount)}.`,
+        message: `${partyLabel(currentUserId, parties)} ${isEditing ? 'editou' : 'adicionou'} "${saved.description}" (${formatEUR(saved.amount)}).`,
         url: notifyUrl ? notifyUrl(saved) : `/groups/${groupId}/expenses/${saved.id}`,
       });
     } catch (error) {
@@ -287,7 +287,7 @@ export function ExpenseFormSheet({
         const load = await confirmAction({
           title: mutationErrorMessage(error, 'Esta despesa foi alterada por outra pessoa entretanto.'),
           description:
-            'Carrega a versão atual para veres o que mudou (perdes o que alteraste aqui), ou volta ao formulário — no aviso lá em cima podes escolher gravar por cima.',
+            'Carrega a versão atual para veres o que mudou (perdes o que alteraste aqui), ou volta ao formulário. No aviso lá em cima podes escolher gravar por cima.',
           confirmLabel: 'Carregar a versão atual',
           cancelLabel: 'Voltar ao formulário',
           tone: 'warning',
@@ -324,7 +324,7 @@ export function ExpenseFormSheet({
             <div role="alert" className="rounded-2xl bg-warning-bg text-warning-fg px-4 py-3 text-sm">
               <p className="font-semibold">
                 {deletedUnderneath
-                  ? 'Esta despesa foi apagada entretanto — já não pode ser gravada.'
+                  ? 'Esta despesa foi apagada entretanto e já não pode ser gravada.'
                   : `${changedBy ?? 'Alguém'} alterou esta despesa enquanto editavas.`}
               </p>
               {!deletedUnderneath && expense && (
@@ -392,7 +392,7 @@ export function ExpenseFormSheet({
                   )}
                 </>
               ) : (
-                'Valor provisório — o total final vem dos itens.'
+                'Valor provisório. O total final vem dos itens.'
               )}
             </p>
           )}
@@ -414,7 +414,7 @@ export function ExpenseFormSheet({
               onClick={() => setShowPayerSheet(true)}
               className="block w-full text-center text-sm font-semibold text-warning-fg"
             >
-              Os pagadores somam {formatEUR(fromCents(payersCents))} de {formatEUR(amount)} — ajustar
+              Os pagadores somam {formatEUR(fromCents(payersCents))} de {formatEUR(amount)}. Ajustar
             </button>
           )}
 

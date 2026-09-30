@@ -333,7 +333,7 @@ export function TripToExpenseSheet({
 
                     {totalCents <= 0 && (
                         <p className="rounded-xl bg-warning-bg px-3 py-2 text-xs text-warning-fg">
-                            Nenhum item com preço — não é possível gerar uma despesa.
+                            Nenhum item tem preço, por isso não dá para criar a despesa.
                         </p>
                     )}
                 </div>

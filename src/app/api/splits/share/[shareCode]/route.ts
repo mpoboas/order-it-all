@@ -113,7 +113,7 @@ export async function PATCH(
         throw new PatchReject(400, 'Invalid participant');
       }
       if (isSplitClosed(split)) {
-        throw new PatchReject(403, 'Divisão fechada — já não é possível alterar');
+        throw new PatchReject(403, 'Esta divisão está fechada e já não pode ser alterada.');
       }
       if (itemIndex >= split.items.length) {
         throw new PatchReject(400, 'Invalid item');
@@ -190,7 +190,7 @@ export async function PATCH(
             403,
             mode === 'unequal' && totalIsValid === false
               ? 'O total dividido tem de corresponder ao preço do item'
-              : 'Item bloqueado — não podes alterar esta divisão'
+              : 'Este item está bloqueado. Não podes alterar a divisão.'
           );
         }
 
@@ -201,7 +201,7 @@ export async function PATCH(
             if (Math.abs(before - after) >= 0.01) {
               throw new PatchReject(
                 403,
-                'Item bloqueado — não podes alterar esta divisão'
+                'Este item está bloqueado. Não podes alterar a divisão.'
               );
             }
           }
@@ -231,7 +231,7 @@ export async function PATCH(
           throw new PatchReject(
             toggleResult.reason === 'locked' ? 403 : 400,
             toggleResult.reason === 'locked'
-              ? 'Item bloqueado — quem participa está fixo'
+              ? 'Este item está bloqueado: quem participa não pode mudar.'
               : 'Invalid item'
           );
         }
@@ -262,7 +262,7 @@ export async function PATCH(
     }
     if (error instanceof SplitVersionConflictError) {
       return NextResponse.json(
-        { error: 'Muita gente a mexer ao mesmo tempo — tenta outra vez.' },
+        { error: 'Outras pessoas estavam a alterar esta divisão. Tenta outra vez.' },
         { status: 409 }
       );
     }

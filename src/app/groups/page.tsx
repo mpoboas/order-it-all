@@ -232,7 +232,7 @@ export default function GroupsPage() {
                         </button>
                         {!online && (
                             <p className="mt-2 text-center text-xs text-ink-faint">
-                                Sem ligação — precisas de rede para criar um grupo.
+                                Sem ligação. Precisas de rede para criar um grupo.
                             </p>
                         )}
                     </div>

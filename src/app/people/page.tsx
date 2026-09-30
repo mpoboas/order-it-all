@@ -55,7 +55,7 @@ export default function PeoplePage() {
             await db.friendships.put(updated);
             void notify({
                 targetUserIds: [otherUserId],
-                title: '🎉 Pedido de amizade aceite',
+                title: 'Pedido de amizade aceite',
                 message: `${user?.name || 'Alguém'} aceitou o teu pedido de amizade.`,
                 url: '/people',
             });

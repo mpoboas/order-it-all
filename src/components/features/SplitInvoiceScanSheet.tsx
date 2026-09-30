@@ -256,10 +256,10 @@ export function SplitInvoiceScanSheet({
 
   const sheetSubtitle =
     scanStep === 'upload'
-      ? 'Fotografa ou carrega o talão — o Gemini lê os itens'
+      ? 'Fotografa ou carrega o talão e o Gemini lê os itens'
       : scanStep === 'processing'
         ? 'A identificar itens e preços'
-        : 'Ninguém fica associado — atribuis a seguir';
+        : 'Ninguém fica associado. Atribuis a seguir.';
 
   const footer =
     scanStep === 'review' ? (
@@ -282,7 +282,7 @@ export function SplitInvoiceScanSheet({
         className="btn-primary w-full py-3.5"
         disabled={scanBlocked}
       >
-        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido. Volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -478,7 +478,7 @@ export function SplitInvoiceScanSheet({
 
           {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-ink-faint font-medium">
-              Limite diário do Gemini atingido — volta amanhã.
+              Chegaste ao limite diário do Gemini. Volta amanhã.
             </p>
           )}
         </div>

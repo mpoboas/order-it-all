@@ -59,13 +59,13 @@ export default function LoginPage() {
             }
         >
             <GoogleSignInButton redirect={redirect} />
-            <div className="my-5">
+            <div className="my-5 short:my-3">
                 <AuthDivider />
             </div>
 
             {error && <AuthError>{error}</AuthError>}
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4 short:space-y-3" onSubmit={handleSubmit}>
                 <Input
                     label="Email"
                     id="email"
@@ -77,7 +77,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="o-teu@email.com"
+                    placeholder="teu@email.com"
                 />
                 <div>
                     <PasswordInput
@@ -96,7 +96,7 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <Button type="submit" size="lg" block loading={loading} className="mt-2">
+                <Button type="submit" size="lg" block loading={loading} className="mt-2 short:mt-1">
                     Entrar
                 </Button>
             </form>

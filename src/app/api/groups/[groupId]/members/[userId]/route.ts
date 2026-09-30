@@ -36,7 +36,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Esta pessoa já não está no grupo' }, { status: 404 });
     }
     if (targetId === group.creator) {
-      return NextResponse.json({ error: 'O dono não pode sair do grupo — pode eliminá-lo.' }, { status: 403 });
+      return NextResponse.json({ error: 'O dono não pode sair do grupo. Pode eliminá-lo nas definições.' }, { status: 403 });
     }
     const self = requesterId === targetId;
     if (!self) {

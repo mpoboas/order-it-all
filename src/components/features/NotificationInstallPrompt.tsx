@@ -193,7 +193,7 @@ export function NotificationInstallPrompt({ onClose, orderItem }: NotificationIn
                         />
                         <NotificationPreview
                             title="Nova despesa"
-                            body="Foste adicionado a Jantar do grupo — deves 12,50 € a Miguel."
+                            body="Foste adicionado a Jantar do grupo. Deves 12,50 € ao Miguel."
                         />
                     </div>
                 </div>

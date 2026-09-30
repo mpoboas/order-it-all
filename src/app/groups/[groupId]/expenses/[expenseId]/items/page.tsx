@@ -269,7 +269,7 @@ export default function SplitItemsPage() {
                     // automática volta a correr sozinha quando a versão nova
                     // chegar (é derivada dos itens); só a reatribuição manual
                     // de pagadores precisa de avisar.
-                    if (opts.manual) showToast('A despesa mudou entretanto — revê quem pagou e tenta outra vez.', 'error');
+                    if (opts.manual) showToast('A despesa foi alterada entretanto. Revê quem pagou e tenta outra vez.', 'error');
                     return 'conflict';
                 }
                 console.error('[expense] falha ao sincronizar total dos itens', err);
@@ -403,7 +403,7 @@ export default function SplitItemsPage() {
                 console.error('Error saving split items:', error);
             }
             showToast(
-                'Muita gente a mexer ao mesmo tempo — recarreguei. Confirma e tenta outra vez.',
+                'Outras pessoas estavam a alterar esta divisão. Atualizei os dados: confirma e tenta outra vez.',
                 'error',
             );
         } finally {
@@ -773,7 +773,7 @@ export default function SplitItemsPage() {
                     ? 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                     : 'text-ink-faint hover:bg-surface-sunken'
             )}
-            title={locked ? 'Desbloquear — permite entrar/sair deste item' : 'Bloquear — fixa quem participa neste item'}
+            title={locked ? 'Desbloquear (qualquer pessoa pode entrar ou sair deste item)' : 'Bloquear (fixa quem participa neste item)'}
         >
             <Icon
                 name={locked ? 'lock' : 'lock_open'}

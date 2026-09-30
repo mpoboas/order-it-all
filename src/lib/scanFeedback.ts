@@ -7,7 +7,7 @@ import type { ScanFailure } from '@/lib/scanTypes';
 export function invoiceScanFailureMessage(failure: ScanFailure): string {
   switch (failure.code) {
     case 'quota_daily':
-      return 'Chegaste ao limite diário de leituras de fatura do Gemini. As leituras voltam amanhã — entretanto podes adicionar os itens à mão. 🧾';
+      return 'Chegaste ao limite diário de leituras de faturas do Gemini. Amanhã já podes ler mais; por agora, adiciona os itens à mão.';
     case 'quota_rate':
       return `Muitas leituras seguidas. Espera ~${failure.retryAfterSeconds}s e tenta de novo.`;
     case 'invalid_key':

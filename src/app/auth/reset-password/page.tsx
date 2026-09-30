@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
             <AuthShell
                 icon="link_off"
                 title="Link expirado"
-                subtitle="Este link de recuperação já não é válido — expira passado algum tempo e só pode ser usado uma vez."
+                subtitle="Este link já não é válido. Os links de recuperação expiram e só funcionam uma vez."
                 footer={<AuthLink onClick={() => nav.replace('/auth/login')}>Voltar a entrar</AuthLink>}
             >
                 <Button size="lg" block onClick={() => nav.replace('/auth/forgot-password')}>

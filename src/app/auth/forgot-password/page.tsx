@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
                     autoFocus
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="o-teu@email.com"
+                    placeholder="teu@email.com"
                 />
                 <Button type="submit" size="lg" block loading={loading} className="mt-2">
                     Enviar link

@@ -93,7 +93,7 @@ export function SplitMemberDetailView({
       } catch {
         onSplitUpdate(rollback);
       }
-      showToast('Não consegui guardar — tenta outra vez.', 'error');
+      showToast('Não foi possível guardar. Tenta outra vez.', 'error');
     } finally {
       setTogglingIdx(null);
     }
@@ -119,7 +119,7 @@ export function SplitMemberDetailView({
     );
     if (!precheck.ok) {
       if (precheck.reason === 'locked') {
-        showToast('Este item está bloqueado — quem participa está fixo', 'error');
+        showToast('Este item está bloqueado: quem participa não pode mudar.', 'error');
       }
       return;
     }

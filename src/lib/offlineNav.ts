@@ -23,4 +23,4 @@ export async function navigateWhileOffline(href: string, mode: 'push' | 'replace
 }
 
 export const OFFLINE_NAV_BLOCKED_MESSAGE =
-  'Sem ligação — este ecrã ainda não foi aberto neste dispositivo, por isso não há cópia guardada.';
+  'Sem ligação. Este ecrã ainda não foi aberto neste dispositivo, por isso não há cópia guardada.';

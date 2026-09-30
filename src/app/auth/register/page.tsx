@@ -62,7 +62,7 @@ export default function RegisterPage() {
         <AuthShell
             back
             title="Criar conta"
-            subtitle="Organiza as compras do grupo e acerta as contas, sem discussões."
+            subtitle="Organiza as compras do grupo e acerta as contas."
             footer={
                 <>
                     Já tens conta? <AuthLink onClick={toLogin}>Entrar</AuthLink>
@@ -70,7 +70,7 @@ export default function RegisterPage() {
             }
         >
             <GoogleSignInButton redirect={redirect} />
-            <div className="my-5">
+            <div className="my-5 short:my-3">
                 <AuthDivider />
             </div>
 
@@ -88,7 +88,7 @@ export default function RegisterPage() {
                 </AuthError>
             )}
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4 short:space-y-3" onSubmit={handleSubmit}>
                 <Input
                     label="Email"
                     id="email"
@@ -100,7 +100,7 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="o-teu@email.com"
+                    placeholder="teu@email.com"
                 />
                 <PasswordInput
                     label="Password"
@@ -117,7 +117,7 @@ export default function RegisterPage() {
                     error={passwordError}
                 />
 
-                <Button type="submit" size="lg" block loading={loading} className="mt-2">
+                <Button type="submit" size="lg" block loading={loading} className="mt-2 short:mt-1">
                     Criar conta
                 </Button>
             </form>

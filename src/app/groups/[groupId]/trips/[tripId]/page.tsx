@@ -155,7 +155,7 @@ export default function GroupTripDetailPage() {
             return;
         }
         if (!online) {
-            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
+            showToast('Sem ligação. Precisas de rede para criar um pedido.', 'error');
             return;
         }
         setEditingOrderId(null);

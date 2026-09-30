@@ -292,7 +292,7 @@ export function GroupInfo({
         }
         await shareInvite(
             {
-                title: `Convite — ${group.name}`,
+                title: `Convite para ${group.name}`,
                 text: `Olá ${p.name}! Já estás nas contas do grupo ${group.name} no Order It. Entra por aqui para veres as tuas despesas: ${inviteUrlFor(group, p.id)}`,
             },
             showToast,
@@ -357,7 +357,7 @@ export function GroupInfo({
             !on &&
             !(await confirmAction({
                 title: 'Desligar "Simplificar dívidas"?',
-                description: 'Os saldos passam a mostrar os pares originais — quem pagou o quê a quem, sem os reorganizar.',
+                description: 'Os saldos passam a mostrar quem deve a quem em cada despesa, sem os juntar.',
                 tone: 'warning',
                 confirmLabel: 'Desligar',
             }))
@@ -419,7 +419,7 @@ export function GroupInfo({
                         <SettingsRow
                             icon="add"
                             label="Adicionar pessoa sem conta"
-                            sublabel="Só o nome — para dividir despesas com quem não usa a app"
+                            sublabel="Para dividir despesas com quem não usa a app"
                             tone="brand"
                             onClick={() => setAddOpen(true)}
                         />
@@ -451,7 +451,7 @@ export function GroupInfo({
                         <SettingsRow
                             icon="calculate"
                             label="Simplificar dívidas"
-                            sublabel="Menos pagamentos — o total de cada um não muda"
+                            sublabel="Menos pagamentos para acertar. O total de cada um não muda."
                             trailing={
                                 <Switch checked={group.simplify_debts ?? true} onChange={setSimplify} label="Simplificar dívidas" />
                             }
@@ -475,7 +475,7 @@ export function GroupInfo({
                     footer={
                         isCreator
                             ? 'Eliminar apaga todas as despesas, viagens e pedidos do grupo, para todos.'
-                            : 'Só podes sair com as contas acertadas — saldo a zero neste grupo.'
+                            : 'Para sair, o teu saldo neste grupo tem de estar a zero.'
                     }
                 >
                     {!isCreator && <SettingsRow icon="logout" label="Sair do grupo" tone="danger" onClick={() => void leaveGroup()} />}

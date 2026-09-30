@@ -56,7 +56,7 @@ export function CopyableValue({ value, display, label }: CopyableValueProps) {
             </div>
             {status === 'failed' && (
                 <p role="status" className="mt-2 text-xs text-warning-fg">
-                    Não consegui copiar — mantém o dedo no número para o copiares.
+                    Não foi possível copiar. Mantém o dedo no número para o copiares.
                 </p>
             )}
         </div>

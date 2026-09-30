@@ -26,7 +26,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: '/',
     name: 'Order It All!',
     short_name: 'Order It All',
-    description: 'Organiza compras em grupo e divide contas sem discussões.',
+    description: 'Organiza as compras do grupo e acerta as contas.',
     lang: 'pt-PT',
     dir: 'ltr',
     // `/groups` e não `/`: o `/` é o ecrã de boas-vindas — com sessão fazia

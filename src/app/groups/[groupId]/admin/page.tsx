@@ -335,7 +335,7 @@ function AdminDashboardContent() {
                         </Button>
                         {!online && (
                             <p className="mt-2 text-center text-xs text-ink-faint">
-                                Sem ligação — precisas de rede para criar uma viagem.
+                                Sem ligação. Precisas de rede para criar uma viagem.
                             </p>
                         )}
                     </div>

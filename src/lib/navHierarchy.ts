@@ -11,8 +11,8 @@
  *       /groups/[g]/expenses/[e]               → /groups/[g]/expenses
  *         /groups/[g]/expenses/[e]/items        → /groups/[g]/expenses/[e]
  *       /groups/[g]/admin/trips/[t]           → /groups/[g]/admin
- *     /groups/[g]/settings                    → separador de onde abriu (expenses/trips/admin),
- *                                                 ou Despesas por omissão (engrenagem, só admins)
+ *     /groups/[g]/(settings|summary)          → separador de onde abriu (expenses/trips/admin),
+ *                                                 ou Despesas por omissão (engrenagem / "Resumo")
  */
 export function parentPath(pathname: string): string | null {
   const m = pathname.match(/^\/groups\/([^/]+)(?:\/(.+?))?\/?$/);
@@ -23,9 +23,9 @@ export function parentPath(pathname: string): string | null {
   if (!rest) return '/groups'; // /groups/[g]
 
   const seg = rest.split('/');
-  if (seg[0] === 'settings') {
-    // A engrenagem abre-se tanto de Despesas como de Viagens/Admin — "voltar"
-    // deve ir para onde a settings foi aberta, não sempre para o Admin.
+  if (seg[0] === 'settings' || seg[0] === 'summary') {
+    // A engrenagem e o "Resumo" abrem-se tanto de Despesas como de
+    // Viagens/Admin — "voltar" vai para onde foram abertos.
     const prev = previousVisit();
     const prevIsGroupRoot = prev && /^\/groups\/[^/]+\/(expenses|trips|admin)$/.test(prev);
     return prevIsGroupRoot ? prev! : groupHomeHref(groupId);

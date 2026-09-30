@@ -32,7 +32,7 @@ export function isConflictError(err: unknown): boolean {
 /** Mensagem amigável para um erro de mutação (offline vs erro do servidor). */
 export function mutationErrorMessage(err: unknown, fallback = 'Ocorreu um erro.'): string {
   if (err instanceof OfflineError || isOffline()) {
-    return 'Sem ligação — tenta outra vez quando tiveres rede.';
+    return 'Sem ligação. Tenta outra vez quando tiveres rede.';
   }
   const e = err as { data?: { message?: string }; message?: string } | undefined;
   return e?.data?.message || e?.message || fallback;

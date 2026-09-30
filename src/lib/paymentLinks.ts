@@ -11,8 +11,15 @@ export function normalizeRevtag(revtag: string): string {
   return revtag.trim().replace(/^@+/, '');
 }
 
-/** `revolut.me/{revtag}?amount={cêntimos}&currency=EUR&note=Order%20It`. */
-export function revolutPaymentUrl(revtag: string, amountEuros: number): string {
+/** `revolut.me/{revtag}?amount={cêntimos}&currency=EUR&note={nota}` — a nota
+ *  aparece no Revolut de quem recebe (ex.: `Saldar dívida de "Casa de férias"`). */
+export function revolutPaymentUrl(revtag: string, amountEuros: number, note = 'Order It'): string {
   const cents = Math.round(amountEuros * 100);
-  return `https://revolut.me/${encodeURIComponent(normalizeRevtag(revtag))}?amount=${cents}&currency=EUR&note=Order%20It`;
+  return `https://revolut.me/${encodeURIComponent(normalizeRevtag(revtag))}?amount=${cents}&currency=EUR&note=${encodeURIComponent(note)}`;
+}
+
+/** Nota do pagamento pelo Revolut ao acertar contas. */
+export function settleUpNote(groupName?: string | null): string {
+  const name = groupName?.trim();
+  return name ? `Saldar dívida de "${name}"` : 'Saldar dívida';
 }

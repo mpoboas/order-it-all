@@ -14,6 +14,7 @@ import { isValidUsername } from '@/lib/username';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { PaymentLogo, type PaymentApp } from '@/components/ui/PaymentLogo';
 import { EditFieldSheet } from '@/components/features/EditFieldSheet';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
@@ -24,9 +25,11 @@ import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
 /** Linha de resumo (ícone + rótulo + valor atual) — toca para abrir o ecrã
  *  "dinâmico" de edição (`EditFieldSheet`, Fase 9). */
 function SummaryRow({
-    icon, label, value, placeholder, onClick, prefix,
+    icon, logo, label, value, placeholder, onClick, prefix,
 }: {
-    icon: IconName;
+    icon?: IconName;
+    /** Logótipo da app de pagamento, em vez do ícone. */
+    logo?: PaymentApp;
     label: string;
     value: string;
     placeholder: string;
@@ -35,9 +38,13 @@ function SummaryRow({
 }) {
     return (
         <button type="button" onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken transition-colors">
-            <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-300 flex items-center justify-center shrink-0">
-                <Icon name={icon} className="text-lg" />
-            </div>
+            {logo ? (
+                <PaymentLogo app={logo} size="md" variant="symbol" />
+            ) : (
+                <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-300 flex items-center justify-center shrink-0">
+                    {icon && <Icon name={icon} className="text-lg" />}
+                </div>
+            )}
             <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold text-ink-faint uppercase tracking-wide">{label}</p>
                 <p className={cn('text-ink truncate', !value && 'text-ink-faint')}>
@@ -81,7 +88,7 @@ export default function ProfilePage() {
             if (permission === 'granted') {
                 showToast('Notificações ativadas', 'success');
             } else if (permission === 'denied') {
-                showToast('Permissão recusada — ativa nas definições do navegador', 'error');
+                showToast('Permissão recusada. Ativa-a nas definições do navegador.', 'error');
             }
         } catch {
             showToast('Não foi possível ativar notificações', 'error');
@@ -202,14 +209,14 @@ export default function ProfilePage() {
                     <h3 className="text-xs font-bold text-ink-faint uppercase tracking-wider ml-1">Pagamentos</h3>
                     <div className="card divide-y divide-hairline overflow-hidden bg-surface border border-hairline">
                         <SummaryRow
-                            icon="phone_iphone"
-                            label="Número MB WAY"
+                            logo="mbway"
+                            label="MB WAY"
                             value={user.mbway_phone || ''}
                             placeholder="Adicionar número"
                             onClick={() => setEditingField('mbway')}
                         />
                         <SummaryRow
-                            icon="credit_card"
+                            logo="revolut"
                             label="Revolut"
                             value={user.revtag || ''}
                             placeholder="Adicionar revtag"
@@ -260,7 +267,7 @@ export default function ProfilePage() {
                                     <p className="font-semibold text-ink text-sm">Notificações</p>
                                     <p className="text-xs text-ink-faint">
                                         {notifStatus === 'granted' && 'Ativas neste dispositivo'}
-                                        {notifStatus === 'denied' && 'Bloqueadas — ativa nas definições do navegador'}
+                                        {notifStatus === 'denied' && 'Bloqueadas. Ativa-as nas definições do navegador.'}
                                         {notifStatus === 'default' && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
                                         {notifStatus === 'default' && !iosNeedsInstall && 'Recebe um aviso quando há viagens novas'}
                                     </p>
@@ -354,7 +361,7 @@ export default function ProfilePage() {
                 onSave={(value) => updateProfile({ username: value.toLowerCase() })}
                 validate={(value) => {
                     const v = value.toLowerCase();
-                    return isValidUsername(v) ? null : '3-20 letras minúsculas, números, "_" ou "." — sem ponto a abrir/fechar.';
+                    return isValidUsername(v) ? null : '3 a 20 caracteres: letras minúsculas, números, "_" ou ".". Não pode começar nem acabar em ".".';
                 }}
                 parseError={(err) => {
                     const fieldError = (err as { response?: { data?: { username?: unknown } } })?.response?.data?.username;
@@ -364,7 +371,7 @@ export default function ProfilePage() {
             <EditFieldSheet
                 isOpen={editingField === 'mbway'}
                 onClose={() => setEditingField(null)}
-                label="Número MB WAY"
+                label="MB WAY"
                 value={user.mbway_phone || ''}
                 placeholder="912 345 678"
                 type="tel"
@@ -386,9 +393,9 @@ export default function ProfilePage() {
                     const v = normalizeRevtag(value);
                     return v === '' || /^[a-zA-Z0-9._-]{2,40}$/.test(v)
                         ? null
-                        : 'Só letras, números, "_", "-" ou "." — sem espaços.';
+                        : 'Só letras, números, "_", "-" ou ".", sem espaços.';
                 }}
-                helper="Quem te dever pode pagar-te pelo Revolut com o valor já preenchido. Encontras a tua revtag no perfil da app do Revolut."
+                helper="Quem te dever pode pagar-te diretamente pelo Revolut. Encontras a tua revtag no perfil da app do Revolut."
             />
             <EditFieldSheet
                 isOpen={editingField === 'gemini'}

@@ -31,7 +31,7 @@ export async function shareInvite(
             if ((error as Error).name === 'AbortError') return;
         }
     }
-    if (await copyText(text)) showToast('Mensagem copiada — cola no WhatsApp ou onde quiseres', 'success');
+    if (await copyText(text)) showToast('Mensagem copiada. Cola-a no WhatsApp ou onde quiseres.', 'success');
     else showToast('Não foi possível partilhar', 'error');
 }
 
@@ -58,8 +58,8 @@ export function InviteSheet({
     const share = () =>
         shareInvite(
             {
-                title: `Convite — ${group.name}`,
-                text: `Junta-te ao grupo ${group.name} no Order It — combinamos as compras e acertamos as contas lá: ${url}`,
+                title: `Convite para ${group.name}`,
+                text: `Junta-te ao grupo ${group.name} no Order It: ${url}`,
             },
             showToast,
         );
@@ -109,7 +109,7 @@ export function InviteSheet({
             <div className="space-y-5">
                 {active ? (
                     <>
-                        <p className="text-sm text-ink-soft">Quem abrir o link entra no grupo — com conta ou criando uma.</p>
+                        <p className="text-sm text-ink-soft">Quem abrir o link entra no grupo. Se ainda não tiver conta, cria uma.</p>
                         <SettingsSection>
                             <SettingsRow
                                 icon="link"
@@ -125,7 +125,7 @@ export function InviteSheet({
                     </>
                 ) : (
                     <p className="text-sm text-ink-soft">
-                        {isAdmin ? 'O link de convite está desligado — liga-o para partilhar.' : 'Os convites estão desligados por um administrador.'}
+                        {isAdmin ? 'O link de convite está desligado. Liga-o para o partilhares.' : 'Os convites estão desligados por um administrador.'}
                     </p>
                 )}
 

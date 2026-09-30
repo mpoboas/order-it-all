@@ -47,7 +47,7 @@ export function HomeOverview({ className }: { className?: string }) {
                         <h2 className="text-2xl font-bold leading-tight tracking-tight text-ink break-words text-balance">
                             Olá, {user?.name || 'amigo'}! 👋
                         </h2>
-                        {settled && <p className="text-sm font-medium text-ink-soft">Contas em dia em todo o lado ✨</p>}
+                        {settled && <p className="text-sm font-medium text-ink-soft">Tens as contas em dia.</p>}
                     </div>
                 </div>
             </BrandBand>

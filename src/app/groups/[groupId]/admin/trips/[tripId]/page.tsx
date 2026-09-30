@@ -253,7 +253,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             return;
         }
         if (!online) {
-            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
+            showToast('Sem ligação. Precisas de rede para criar um pedido.', 'error');
             return;
         }
         setNewOrderSession('expanded');
@@ -337,7 +337,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast(
                 siblingsLeft <= 0
-                    ? 'Produto eliminado — pedido vazio removido'
+                    ? 'Produto eliminado. O pedido ficou vazio e foi removido.'
                     : 'Produto eliminado',
                 'success',
             );

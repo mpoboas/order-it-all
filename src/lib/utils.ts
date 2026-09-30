@@ -33,7 +33,7 @@ export function getRelativeTime(dateString: string): string {
 
 // O `month: 'short'` do Intl em pt-PT devolve numérico ("7/09") — parece uma
 // data truncada. Mês por extenso curto, à mão.
-const MONTHS_PT = [
+export const MONTHS_PT = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
   'jul', 'ago', 'set', 'out', 'nov', 'dez',
 ];

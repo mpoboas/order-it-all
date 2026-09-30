@@ -162,6 +162,20 @@ export function useOrders(tripId: string | undefined): Order[] | undefined {
   }, [tripId]);
 }
 
+/** Todos os produtos pedidos nas viagens de um grupo (Resumo → "O Clássico
+ *  da Lista"). Só nome/quantidade/data — é o que o prémio precisa. */
+export function useGroupOrderItems(groupId: string | undefined): { name: string; quantity: number; created: string }[] | undefined {
+  return useCachedLiveQuery(`group-order-items:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const tripIds = (await db.trips.where('group_id').equals(groupId).toArray()).map((t) => t.id);
+    if (!tripIds.length) return [];
+    const orderIds = (await db.orders.where('trip_id').anyOf(tripIds).toArray()).map((o) => o.id);
+    if (!orderIds.length) return [];
+    const items = await db.items.where('order_id').anyOf(orderIds).toArray();
+    return items.map((it) => ({ name: it.name, quantity: it.quantity, created: it.created }));
+  }, [groupId]);
+}
+
 export function useItems(orderIds: string[]): Item[] | undefined {
   const key = orderIds.join(',');
   return useCachedLiveQuery(`items:${key}`, async () => {

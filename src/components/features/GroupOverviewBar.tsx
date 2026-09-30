@@ -10,14 +10,14 @@ import { BalanceBand } from '@/components/features/BalanceBand';
 import { QuickActions } from '@/components/ui/QuickActions';
 import { SettleUpSheet } from '@/components/features/SettleUpSheet';
 import { BalancesSheet } from '@/components/features/BalancesSheet';
-import { TotalsSheet } from '@/components/features/TotalsSheet';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 
 interface GroupOverviewBarProps {
     groupId: string;
 }
 
 /** Faixa entre o nome do grupo (hero) e as tabs (Despesas/Viagens) — saldo
- *  líquido + as ações do grupo (Acertar contas, Saldos, Totais, Exportar).
+ *  líquido + as ações do grupo (Acertar contas, Saldos, Resumo, Exportar).
  *  Autossuficiente e IDÊNTICA nas duas tabs — mesma lógica do `HomeOverview`
  *  no Início: o que fica entre o título e as tabs não muda consoante a tab
  *  ativa por baixo, só o conteúdo abaixo das tabs varia. "Pesquisar" fica
@@ -30,7 +30,7 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
     const expensesQuery = useExpenses(groupId);
     const [showSettleUp, setShowSettleUp] = useState(false);
     const [showBalances, setShowBalances] = useState(false);
-    const [showTotals, setShowTotals] = useState(false);
+    const nav = useAppNavigate();
 
     // `?abrir=saldos|acertar` — outros ecrãs (detalhe de amigo, Definições do grupo)
     // abrem o grupo já com a folha certa aberta. Lido uma vez e tirado do URL,
@@ -81,7 +81,7 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
                 actions={[
                     { icon: 'swap_horiz', label: 'Acertar contas', onClick: () => setShowSettleUp(true), primary: true },
                     { icon: 'balance', label: 'Saldos', onClick: () => setShowBalances(true) },
-                    { icon: 'calculate', label: 'Totais', onClick: () => setShowTotals(true) },
+                    { icon: 'calculate', label: 'Resumo', onClick: () => nav.push(`/groups/${groupId}/summary`, { haptic: false }) },
                     { icon: 'drive_file_move', label: 'Exportar', onClick: handleExport },
                 ]}
             />
@@ -99,15 +99,6 @@ export function GroupOverviewBar({ groupId }: GroupOverviewBarProps) {
 
             <BalancesSheet isOpen={showBalances} onClose={() => setShowBalances(false)} groupId={groupId} />
 
-            {user?.id && (
-                <TotalsSheet
-                    isOpen={showTotals}
-                    onClose={() => setShowTotals(false)}
-                    expenses={expenses}
-                    parties={ledger.parties}
-                    currentUserId={user.id}
-                />
-            )}
         </>
     );
 }

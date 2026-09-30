@@ -1,5 +1,9 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
+/* Ecrãs baixos (iPhone SE, browser com barras): para os ecrãs que têm de caber
+   sem scroll. Ordem importa: `tiny:` vem depois e ganha a `short:`. */
+@custom-variant short (@media (max-height: 700px));
+@custom-variant tiny (@media (max-height: 600px));
 
 /* ============================================================================
    DESIGN TOKENS  —  fonte de verdade única
@@ -734,6 +738,62 @@ body {
 }
 .dark .auth-card input:focus {
   border-color: var(--primary-400);
+}
+
+/* Ecrãs baixos: campos e botões dos formulários de acesso um pouco mais
+   baixos, para caberem sem scroll (ver `short:` no AuthShell). */
+@media (max-height: 700px) {
+  .auth-card input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+  .auth-card .h-13 { height: 3rem; }
+  .auth-card .auth-field input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* Boas-vindas: os "momentos" da app entram um a um e assentam na sua
+   inclinação (`--tilt`, definida por cartão). */
+@keyframes landingMoment {
+  from { opacity: 0; transform: translateY(16px) rotate(0deg) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)) scale(1); }
+}
+.landing-moment {
+  transform: rotate(var(--tilt, 0deg));
+  animation: landingMoment 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-moment { animation: none; }
+}
+
+/* Campo com prefixo (ex.: "@" da revtag): a moldura é que é o campo, o input
+   lá dentro fica transparente e sem borda. */
+.auth-card .auth-field {
+  background-color: #ffffff;
+  border-color: var(--slate-500);
+}
+.auth-card .auth-field:focus-within { border-color: var(--primary-600); }
+.dark .auth-card .auth-field { background-color: var(--slate-950); }
+.dark .auth-card .auth-field:focus-within { border-color: var(--primary-400); }
+.auth-card .auth-field.is-error { border-color: var(--danger-solid); }
+.auth-card .auth-field input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+  background-color: transparent;
+  border: 0;
+}
+
+/* Logótipos das apps de pagamento (<PaymentLogo>): versão para fundo claro
+   (marca escura em branco) e a negativa no escuro, no preto do Revolut. */
+.payment-logo {
+  background-color: #ffffff;
+  color: #191c1f;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+}
+.dark .payment-logo {
+  background-color: #191c1f;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
 }
 
 /* Links de texto dos ecrãs de acesso: azul dentro do cartão, branco (e
