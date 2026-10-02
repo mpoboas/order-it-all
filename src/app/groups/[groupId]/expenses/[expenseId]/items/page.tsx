@@ -10,6 +10,7 @@ import { expensesApi, placeholdersApi, splitsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { useExpense, useParties, usePlaceholders, useSplit } from '@/lib/db/hooks';
 import { assertOnline, isConflictError, optimisticDelete, optimisticEdit, mutationErrorMessage } from '@/lib/db/mutations';
+import { notifyEvent } from '@/lib/notify';
 import { navStart } from '@/lib/navProgress';
 import type { Party, Split, SplitItem } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -716,6 +717,7 @@ export default function SplitItemsPage() {
                 commit: () => splitsApi.delete(splitId),
             });
             showToast('Despesa eliminada', 'success');
+            notifyEvent('expense.deleted', updatedExpense.id);
             navStart();
             router.push(`/groups/${groupId}/expenses`);
         } catch (err) {

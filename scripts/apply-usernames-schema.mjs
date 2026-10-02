@@ -22,6 +22,8 @@ import PocketBase from 'pocketbase';
 // `NODE_ENV=production node scripts/<script>.mjs` (lê só `.env`) — confirma o
 // URL que aparece logo no início antes de passar `--apply`.
 nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production');
+// As dicas "a seguir, corre…" repetem o NODE_ENV — senão o passo seguinte ia para o dev.
+const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'NODE_ENV=production ' : '';
 
 const APPLY = process.argv.includes('--apply');
 const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL;
@@ -33,7 +35,10 @@ if (!PB_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
   process.exit(1);
 }
 
-const UNIQUE_INDEX = 'CREATE UNIQUE INDEX idx_users_username ON users (username)';
+// Parcial, como o do email no PocketBase: uma conta acabada de criar ainda não
+// tem username ("") até ao ecrã do nome — um índice sobre todos os valores só
+// deixava existir UMA conta assim, e o registo seguinte falhava.
+const UNIQUE_INDEX = "CREATE UNIQUE INDEX idx_users_username ON users (username) WHERE username != ''";
 
 async function main() {
   const pb = new PocketBase(PB_URL);
@@ -51,22 +56,35 @@ async function main() {
       });
       console.log('  ✓ campo criado.');
     }
-    console.log('\nA seguir: node scripts/backfill-usernames.mjs --apply, depois corre este script outra vez para o índice único.');
+    console.log(`\nA seguir: ${ENV_PREFIX}node scripts/backfill-usernames.mjs --apply, depois corre este script outra vez para o índice único.`);
     return;
   }
   console.log('✓ Campo `username` já existe.');
 
-  const hasIndex = (users.indexes ?? []).some((i) => i.includes('idx_users_username'));
-  if (hasIndex) {
+  const current = (users.indexes ?? []).find((i) => i.includes('idx_users_username'));
+  if (current === UNIQUE_INDEX) {
     console.log('✓ Índice único já existe — nada a fazer.');
+    return;
+  }
+  if (current) {
+    // Versão antiga, sem o `WHERE`: bloqueava o 2.º registo seguido.
+    console.log('~ Trocar o índice único antigo pelo parcial (ignora usernames vazios).');
+    if (APPLY) {
+      await pb.collections.update(users.id, {
+        indexes: (users.indexes ?? []).map((i) => (i === current ? UNIQUE_INDEX : i)),
+      });
+      console.log('  ✓ índice trocado.');
+    } else {
+      console.log('\nDry-run — nada escrito. Corre com --apply para gravar a sério.');
+    }
     return;
   }
 
   const empty = await pb.collection('users').getList(1, 1, { filter: 'username = ""' });
   if (empty.totalItems > 0) {
     console.log(`✗ Ainda há ${empty.totalItems} utilizador(es) sem username — corre o backfill primeiro:`);
-    console.log('  node scripts/backfill-usernames.mjs --dry-run   (revê)');
-    console.log('  node scripts/backfill-usernames.mjs --apply');
+    console.log(`  ${ENV_PREFIX}node scripts/backfill-usernames.mjs --dry-run   (revê)`);
+    console.log(`  ${ENV_PREFIX}node scripts/backfill-usernames.mjs --apply`);
     return;
   }
 

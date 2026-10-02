@@ -299,7 +299,9 @@ export default function OnboardingPage() {
     }, []);
 
     return (
-        <div className="min-h-dvh bg-app flex flex-col safe-screen">
+        // Altura fixa ao ecrã (não `min-h`): o carrossel ficava da altura do slide
+        // mais alto e empurrava os botões para fora em ecrãs baixos.
+        <div className="h-dvh bg-app flex flex-col safe-screen">
             <header className="flex items-center justify-between px-6 py-2 shrink-0">
                 <div className="flex items-center gap-2">
                     <img src="/favicon.ico" alt="" className="w-8 h-8 rounded-lg" />
@@ -316,7 +318,7 @@ export default function OnboardingPage() {
 
             <div
                 ref={trackRef}
-                className="flex-1 flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar"
+                className="flex-1 min-h-0 flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar"
             >
                 <div className="w-full flex-none snap-center flex flex-col items-center justify-center px-6 gap-6 short:gap-4 tiny:gap-3">
                     <div className="w-full max-w-sm">
@@ -375,10 +377,14 @@ export default function OnboardingPage() {
                                 title="Pedido concluído"
                                 body="O teu pedido em Casa de férias está pronto a levantar."
                             />
-                            <NotificationPreview
-                                title="Nova despesa"
-                                body="Foste adicionado a Jantar do grupo. Deves 12,50 € ao Miguel."
-                            />
+                            {/* Em ecrãs baixos (iPhone SE 1.ª geração) só cabe uma — no
+                                iPhone ainda vêm os 3 passos de instalar por baixo. */}
+                            <div className="tiny:hidden">
+                                <NotificationPreview
+                                    title="Nova despesa"
+                                    body="Foste adicionado a Jantar do grupo. Deves 12,50 € ao Miguel."
+                                />
+                            </div>
                         </div>
                     </div>
                 )}

@@ -16,7 +16,7 @@ function StepNumber({ children }: { children: ReactNode }) {
  *  Principal" só aparece depois de a expandir. */
 export function IosInstallSteps() {
     return (
-        <div className="w-full rounded-2xl bg-primary-50 dark:bg-primary-950 p-4 space-y-3">
+        <div className="w-full rounded-2xl bg-primary-50 dark:bg-primary-950 p-4 space-y-3 tiny:p-3 tiny:space-y-2">
             <div className="flex items-center gap-3">
                 <StepNumber>1</StepNumber>
                 <p className="text-sm font-medium text-primary-700 dark:text-primary-200 flex items-center gap-1.5 flex-wrap">
