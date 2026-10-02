@@ -29,11 +29,14 @@ migrate(
       app.save(users);
     }
 
-    const own = 'user = @request.auth.id';
+    // `@request.auth.id != ""` em TODAS: sem sessão, `@request.auth.id` é vazio e
+    // `user = @request.auth.id` deixava ver as linhas com `user` vazio (havia 21
+    // dessas, órfãs, em produção, legíveis sem login).
+    const own = '@request.auth.id != "" && user = @request.auth.id';
     const rules = {
       listRule: own,
       viewRule: own,
-      createRule: `@request.auth.id != "" && ${own}`,
+      createRule: own,
       // Não se passa uma subscrição para outra conta.
       updateRule: `${own} && @request.body.user:isset = false`,
       deleteRule: own,

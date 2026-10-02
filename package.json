@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "migrate:order-participants": "python3 scripts/migrate_order_participants.py"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

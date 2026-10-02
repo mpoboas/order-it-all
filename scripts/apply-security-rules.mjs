@@ -94,12 +94,15 @@ const RULES = {
 
 // `push_subscriptions` — só as próprias linhas (em sintonia com
 // pb/migrations/8_push_and_onboarding.js). Estava com leitura pública.
+// Sempre com `@request.auth.id != ""`: sem sessão, `user = @request.auth.id`
+// casava com as linhas de `user` vazio (órfãs) e deixava-as ler sem login.
+const OWN = '@request.auth.id != "" && user = @request.auth.id';
 RULES.push_subscriptions = {
-  listRule: 'user = @request.auth.id',
-  viewRule: 'user = @request.auth.id',
-  createRule: '@request.auth.id != "" && user = @request.auth.id',
-  updateRule: 'user = @request.auth.id && @request.body.user:isset = false',
-  deleteRule: 'user = @request.auth.id',
+  listRule: OWN,
+  viewRule: OWN,
+  createRule: OWN,
+  updateRule: `${OWN} && @request.body.user:isset = false`,
+  deleteRule: OWN,
 };
 
 // --- Códigos: mesmo gerador de src/lib/pocketbase.ts ----------------------

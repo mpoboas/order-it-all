@@ -62,6 +62,12 @@ async function main() {
     process.exit(1);
   }
   console.log(`PocketBase: ${PB_URL}`);
+  // Só para a BD de dev: APAGA despesas para as recriar. Em produção, a
+  // migração 1 já cria `created`/`updated` como autodate — nada a corrigir.
+  if (!/pb-orderit-dev\./.test(PB_URL)) {
+    console.error(`Recusado: ${PB_URL} não é a BD de dev.`);
+    process.exit(1);
+  }
   console.log(APPLY ? '⚠️  MODO REAL' : '🔍 DRY-RUN (usa --apply para gravar)');
 
   const pb = new PocketBase(PB_URL);

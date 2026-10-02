@@ -24,7 +24,10 @@ import PocketBase from 'pocketbase';
 
 // `dev: true` — também carrega `.env.development.local`/`.env.development`
 // (onde vive o URL da BD de teste); sem isto só lia `.env.local`/`.env` (produção).
-nextEnv.loadEnvConfig(process.cwd(), true);
+// Por omissão, a BD de dev (`.env.development.local`). Para produção:
+// `NODE_ENV=production node scripts/<script>.mjs` (lê só `.env`) — confirma o
+// URL que aparece logo no início antes de passar `--apply`.
+nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production');
 
 const APPLY = process.argv.includes('--apply');
 
