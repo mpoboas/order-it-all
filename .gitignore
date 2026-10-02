@@ -47,3 +47,8 @@ docs/
 
 # Playwright MCP (logs/screenshots de sessões de teste)
 .playwright-mcp/
+
+# Testes E2E (Playwright): captura de notificações e relatórios
+/.e2e/
+/test-results/
+/playwright-report/

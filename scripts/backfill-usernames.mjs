@@ -23,6 +23,8 @@ import PocketBase from 'pocketbase';
 // `NODE_ENV=production node scripts/<script>.mjs` (lê só `.env`) — confirma o
 // URL que aparece logo no início antes de passar `--apply`.
 nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production');
+// As dicas "a seguir, corre…" repetem o NODE_ENV — senão o passo seguinte ia para o dev.
+const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'NODE_ENV=production ' : '';
 
 const APPLY = process.argv.includes('--apply');
 const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL;
@@ -88,7 +90,7 @@ async function main() {
     await pb.collection('users').update(p.id, { username: p.username });
   }
   console.log(`\n✓ ${plan.length} username(s) atribuído(s).`);
-  console.log('A seguir: node scripts/apply-usernames-schema.mjs --apply (acrescenta o índice único).');
+  console.log(`A seguir: ${ENV_PREFIX}node scripts/apply-usernames-schema.mjs --apply (acrescenta o índice único).`);
 }
 
 main().catch((err) => {

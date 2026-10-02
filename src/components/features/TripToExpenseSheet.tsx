@@ -19,6 +19,7 @@ import {
 } from '@/lib/orderParticipants';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
+import { notifyEvent } from '@/lib/notify';
 import { fromCents } from '@/lib/ledger/money';
 import { itemizedLedger } from '@/lib/ledger/shares';
 import { useToast } from '@/context/ToastContext';
@@ -241,6 +242,7 @@ export function TripToExpenseSheet({
                 created_by: user!.id,
             });
             await db.expenses.put(expense);
+            notifyEvent('expense.created', expense.id);
             onCreated(expense.id);
         } catch (error) {
             console.error('Error generating expense from trip:', error);

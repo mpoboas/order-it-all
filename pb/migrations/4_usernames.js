@@ -31,7 +31,8 @@ migrate(
     app.save(users);
     // O índice único só é acrescentado depois do backfill (ver nota acima) —
     // corre `node scripts/apply-usernames-schema.mjs --apply` outra vez
-    // depois do backfill para o adicionar.
+    // depois do backfill para o adicionar. É PARCIAL (`WHERE username != ''`):
+    // contas acabadas de criar ainda não têm username até ao ecrã do nome.
   },
   (app) => {
     try {

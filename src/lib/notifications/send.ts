@@ -1,3 +1,5 @@
+import { appendFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 import webPush from 'web-push';
 import type PocketBase from 'pocketbase';
 import type { OutgoingNotification } from './build';
@@ -73,6 +75,19 @@ function validOrigin(value: string | undefined | null): string | null {
   }
 }
 
+/**
+ * Testes E2E (`e2e/`, só em dev): se a pasta `.e2e/` existir, cada aviso que
+ * ia ser enviado fica também escrito em `.e2e/notifications.jsonl` — o teste
+ * confirma quem recebeu o quê sem precisar de telemóveis com push.
+ */
+function captureForE2E(notifications: OutgoingNotification[]): void {
+  if (process.env.NODE_ENV === 'production' || notifications.length === 0) return;
+  const dir = path.join(process.cwd(), '.e2e');
+  if (!existsSync(dir)) return;
+  const at = new Date().toISOString();
+  appendFileSync(path.join(dir, 'notifications.jsonl'), notifications.map((n) => JSON.stringify({ at, ...n }) + '\n').join(''));
+}
+
 export interface SendResult {
   sent: number;
   failed: number;
@@ -92,6 +107,7 @@ export async function sendNotifications(
   fallbackOrigin?: string | null,
 ): Promise<SendResult> {
   const result: SendResult = { sent: 0, failed: 0, removed: 0 };
+  captureForE2E(notifications);
   if (notifications.length === 0 || !configure()) return result;
 
   const userIds = [...new Set(notifications.map((n) => n.userId))];

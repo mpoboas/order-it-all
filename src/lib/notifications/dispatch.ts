@@ -246,8 +246,18 @@ async function claimEvent(pb: PocketBase, key: string): Promise<boolean> {
   }
 }
 
-/** Junta o aviso à rajada em curso (se houver uma recente) e grava o estado. */
-async function withBatch(pb: PocketBase, key: string, apply: (prev: BatchState | null) => BatchState): Promise<BatchState> {
+/**
+ * Junta o aviso à rajada em curso (se houver uma recente) e grava o estado.
+ * Dois avisos da mesma rajada ao mesmo tempo (duas despesas lançadas no mesmo
+ * segundo) leem ambos "sem rajada" e tentam criar a mesma `key` única: quem
+ * perde volta a ler e junta-se à do outro.
+ */
+async function withBatch(
+  pb: PocketBase,
+  key: string,
+  apply: (prev: BatchState | null) => BatchState,
+  attempt = 0,
+): Promise<BatchState> {
   let row: LogRow | null = null;
   try {
     row = await pb.collection('notification_log').getFirstListItem<LogRow>(pb.filter('key = {:key}', { key }));
@@ -260,8 +270,25 @@ async function withBatch(pb: PocketBase, key: string, apply: (prev: BatchState |
     : null;
   const state = apply(prev);
   const fields = { count: state.count, amount_cents: state.amountCents, actors: state.actors, subjects: state.subjects };
-  if (row) await pb.collection('notification_log').update(row.id, fields);
-  else await pb.collection('notification_log').create({ key, ...fields });
+  try {
+    if (row && prev) {
+      // Rajada em curso: a contagem e o valor sobem no servidor (`+`), de forma
+      // atómica — dois avisos no mesmo instante contam os dois. O texto usa os
+      // valores que o servidor devolve, não os lidos antes.
+      const saved = await pb.collection('notification_log').update<LogRow>(row.id, {
+        'count+': state.count - prev.count,
+        'amount_cents+': state.amountCents - prev.amountCents,
+        actors: state.actors,
+        subjects: state.subjects,
+      });
+      return { ...state, count: saved.count, amountCents: saved.amount_cents };
+    }
+    if (row) await pb.collection('notification_log').update(row.id, fields);
+    else await pb.collection('notification_log').create({ key, ...fields });
+  } catch (error) {
+    if (attempt < 2) return withBatch(pb, key, apply, attempt + 1);
+    throw error;
+  }
   return state;
 }
 
@@ -278,8 +305,12 @@ export async function dispatchEvent(
   const notifications: OutgoingNotification[] = [];
   for (const draft of draftsForEvent(event, ctx)) {
     const batch = draft.batch;
+    // Se a rajada não se deixar gravar, o aviso segue sozinho — nunca se perde.
     const state = batch
-      ? await withBatch(pb, batch.key, (prev) => nextBatchState(prev, batch))
+      ? await withBatch(pb, batch.key, (prev) => nextBatchState(prev, batch)).catch((error) => {
+          console.error('Notification batch failed:', error);
+          return nextBatchState(null, batch);
+        })
       : { count: 1, amountCents: 0, actors: [], subjects: [] };
     notifications.push(batchedNotification(draft, state, ctx));
   }

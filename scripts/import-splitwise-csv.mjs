@@ -27,6 +27,8 @@ import PocketBase from 'pocketbase';
 // `NODE_ENV=production node scripts/<script>.mjs` (lê só `.env`) — confirma o
 // URL que aparece logo no início antes de passar `--apply`.
 nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production');
+// As dicas "a seguir, corre…" repetem o NODE_ENV — senão o passo seguinte ia para o dev.
+const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'NODE_ENV=production ' : '';
 
 const APPLY = process.argv.includes('--apply');
 const fileArg = argValue('--file');
@@ -38,7 +40,7 @@ function argValue(flag) {
 }
 
 if (!fileArg || !groupArg) {
-  console.error('Uso: node scripts/import-splitwise-csv.mjs --file <csv> --group <groupId> [--apply]');
+  console.error(`Uso: ${ENV_PREFIX}node scripts/import-splitwise-csv.mjs --file <csv> --group <groupId> [--apply]`);
   process.exit(1);
 }
 
