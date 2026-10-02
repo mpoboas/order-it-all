@@ -1,6 +1,7 @@
 'use server';
 
 import { GoogleGenAI } from '@google/genai';
+import { userIdFromToken } from '@/lib/serverAuth';
 import type {
   ReconciliationMatch,
   ReconciliationExtra,
@@ -149,11 +150,17 @@ async function generateWithModel(
   return response.text ?? '';
 }
 
+// Server actions são endpoints POST públicos (o id da action está no bundle
+// do cliente) — por isso exigem o token de sessão do PocketBase como
+// argumento (`pb.authStore.token`), validado antes de gastar CPU/banda a
+// reencaminhar a imagem para o Gemini.
 export async function reconcileWithGeminiImage(
   imageFile: File,
   tripItems: RawItem[],
-  apiKey: string
+  apiKey: string,
+  authToken: string
 ): Promise<ScanOutcome<ReconciliationResult>> {
+  if (!(await userIdFromToken(authToken))) return { ok: false, failure: { code: 'unauthenticated' } };
   if (!apiKey?.trim()) return { ok: false, failure: { code: 'no_key' } };
   if (!imageFile) return { ok: false, failure: { code: 'no_image' } };
 
@@ -271,8 +278,10 @@ function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
  */
 export async function extractReceiptLineItems(
   imageFile: File,
-  apiKey: string
+  apiKey: string,
+  authToken: string
 ): Promise<ScanOutcome<ReceiptExtractionResult>> {
+  if (!(await userIdFromToken(authToken))) return { ok: false, failure: { code: 'unauthenticated' } };
   if (!apiKey?.trim()) return { ok: false, failure: { code: 'no_key' } };
   if (!imageFile) return { ok: false, failure: { code: 'no_image' } };
 

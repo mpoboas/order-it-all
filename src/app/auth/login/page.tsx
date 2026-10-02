@@ -1,134 +1,105 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import { useToast } from '@/context/ToastContext';
 import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { AuthError, AuthLink, AuthShell } from '@/components/auth/AuthShell';
+import { useRedirectIfLoggedIn } from '@/components/auth/useRedirectIfLoggedIn';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
 import { pb } from '@/lib/pocketbase';
-import { navStart } from '@/lib/navProgress';
+import { buildPostAuthPath } from '@/lib/googleAuth';
+import { authErrorMessage } from '@/lib/authErrors';
+import { safeRedirect, withRedirect } from '@/lib/authRedirect';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const { login } = useUser();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const redirect = searchParams.get('redirect');
-    const { showToast } = useToast();
+    const nav = useAppNavigate();
+    const redirect = safeRedirect(useSearchParams().get('redirect'));
+    const alreadyIn = useRedirectIfLoggedIn(redirect);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
         setLoading(true);
         try {
-            await login(email, password);
-            navStart();
-            const record = pb.authStore.model as { name?: string } | null;
-            if (!record?.name?.trim()) {
-                router.push(
-                    redirect
-                        ? `/auth/profile-setup?redirect=${encodeURIComponent(redirect)}`
-                        : '/auth/profile-setup'
-                );
-            } else if (redirect) {
-                router.push(redirect);
-            } else {
-                router.push('/groups');
-            }
-        } catch (error: any) {
-            console.error(error);
-            showToast('Email ou password incorretos', 'error');
-        } finally {
+            await login(email.trim(), password);
+            const record = pb.authStore.record as { name?: string; onboarded?: boolean } | null;
+            // `replace`: voltar atrás depois de entrar não deve reabrir o login.
+            nav.replace(buildPostAuthPath(!record?.name?.trim(), redirect, record?.onboarded));
+        } catch (err) {
+            console.error(err);
+            setError(authErrorMessage(err, 'login'));
             setLoading(false);
         }
     };
 
+    if (alreadyIn) return <div className="min-h-dvh bg-app" />;
+
     return (
-        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
-            {/* Decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
+        <AuthShell
+            back
+            title="Entrar"
+            subtitle="Bem-vindo de volta."
+            footer={
+                <>
+                    Ainda não tens conta?{' '}
+                    <AuthLink onClick={() => nav.replace(withRedirect('/auth/register', redirect))}>
+                        Criar conta
+                    </AuthLink>
+                </>
+            }
+        >
+            <GoogleSignInButton redirect={redirect} />
+            <div className="my-5 short:my-3">
+                <AuthDivider />
             </div>
 
-            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 animate-fade-in-up">
-                <div className="text-center mb-8">
-                    <div
-                        onClick={() => router.push('/')}
-                        className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 cursor-pointer hover:scale-105 transition-transform shadow-lg"
-                    >
-                        <img
-                            src="/favicon.ico"
-                            alt="Order It All"
-                            className="w-12 h-12 drop-shadow-md"
-                        />
+            {error && <AuthError>{error}</AuthError>}
+
+            <form className="space-y-4 short:space-y-3" onSubmit={handleSubmit}>
+                <Input
+                    label="Email"
+                    id="email"
+                    name="email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="teu@email.com"
+                />
+                <div>
+                    <PasswordInput
+                        label="Password"
+                        id="password"
+                        name="password"
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <div className="mt-2 text-right text-sm">
+                        <AuthLink onClick={() => nav.push('/auth/forgot-password')}>
+                            Esqueceste-te da password?
+                        </AuthLink>
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                        Entrar na conta
-                    </h2>
-                    <p className="text-white/80 text-sm">
-                        Ou{' '}
-                        <button
-                            onClick={() => router.push(redirect ? `/auth/register?redirect=${encodeURIComponent(redirect)}` : '/auth/register')}
-                            className="font-bold text-white underline focus:outline-none"
-                        >
-                            criar uma nova conta
-                        </button>
-                    </p>
                 </div>
 
-                <div className="space-y-5">
-                    <GoogleSignInButton redirect={redirect} />
-                    <AuthDivider />
-                </div>
-
-                <form className="space-y-5 mt-5" onSubmit={handleSubmit}>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-1">
-                            Email
-                        </label>
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
-                            placeholder="teu@email.com"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-1">
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            required
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            className="appearance-none block w-full px-4 py-3 bg-white/80 border border-white/30 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white transition shadow-sm backdrop-blur-sm"
-                            placeholder="••••••••"
-                        />
-                    </div>
-
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`w-full flex justify-center py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${loading ? ' btn-loading btn-loading--dark' : ''}`}
-                        >
-                            Entrar
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <Button type="submit" size="lg" block loading={loading} className="mt-2 short:mt-1">
+                    Entrar
+                </Button>
+            </form>
+        </AuthShell>
     );
 }

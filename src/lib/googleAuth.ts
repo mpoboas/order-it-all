@@ -1,5 +1,6 @@
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { safeRedirect, withRedirect } from '@/lib/authRedirect';
 import { getAppOAuthRedirectUrl as getSharedOAuthRedirectUrl } from '@/lib/googleOAuthShared';
 import {
   getInAppBrowserMessage,
@@ -193,14 +194,14 @@ export async function urlToAvatarFile(url: string): Promise<File | null> {
 
 export function buildPostAuthPath(
   needsSetup: boolean,
-  redirectPath: string | null
+  redirectPath: string | null,
+  onboarded?: boolean
 ): string {
-  if (needsSetup) {
-    return redirectPath
-      ? `/auth/profile-setup?redirect=${encodeURIComponent(redirectPath)}`
-      : '/auth/profile-setup';
-  }
-  return redirectPath || '/groups';
+  if (needsSetup) return withRedirect('/auth/profile-setup', redirectPath);
+  // Conta antiga (de antes do onboarding existir), ainda não vista — mostra
+  // o carrossel uma vez, preservando o `redirect` (ex.: link de convite).
+  if (!onboarded) return withRedirect('/onboarding', redirectPath);
+  return safeRedirect(redirectPath) || '/groups';
 }
 
 /** Request higher-res Google avatar when URL uses a small size suffix. */

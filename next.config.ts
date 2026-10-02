@@ -1,7 +1,19 @@
 import type { NextConfig } from "next";
 
+// ID do build, partilhado com o service worker (`SW_URL` leva-o no URL): cada
+// deploy instala um SW novo que pré-guarda os estáticos desse build — ver
+// `public/sw.js` e `src/app/sw-manifest.json/route.ts`.
+// Gerado UMA vez por processo (o config é avaliado várias vezes, e os workers
+// do build herdam o `process.env`) — senão cada avaliação dava um id diferente.
+if (!process.env.BUILD_ID) process.env.BUILD_ID = Date.now().toString(36);
+const buildId = process.env.BUILD_ID;
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  generateBuildId: () => buildId,
+  env: {
+    NEXT_PUBLIC_BUILD_ID: buildId,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

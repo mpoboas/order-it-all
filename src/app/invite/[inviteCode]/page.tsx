@@ -1,21 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { groupsApi } from '@/lib/pocketbase';
-import type { Group } from '@/lib/types';
-import { navStart } from '@/lib/navProgress';
+import type { InvitePreview } from '@/lib/types';
+import { getGroupAvatarUrl, guessGroupEmoji } from '@/lib/groupAvatars';
+import { groupHomeHref } from '@/lib/navHierarchy';
+import { withRedirect } from '@/lib/authRedirect';
+import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { AuthBackdrop, AuthShell } from '@/components/auth/AuthShell';
+import { Button } from '@/components/ui/Button';
+
+const LOAD_FAILED = 'load-failed';
 
 export default function InvitePage() {
     const params = useParams();
     const inviteCode = params.inviteCode as string;
-    const router = useRouter();
+    const nav = useAppNavigate();
     const { user, isLoggedIn } = useUser();
     const { showToast } = useToast();
 
-    const [group, setGroup] = useState<Group | null>(null);
+    const [group, setGroup] = useState<InvitePreview | null>(null);
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState('');
@@ -23,7 +30,7 @@ export default function InvitePage() {
     useEffect(() => {
         const loadGroup = async () => {
             try {
-                const groupData = await groupsApi.getByInviteCode(inviteCode);
+                const groupData = await groupsApi.previewInvite(inviteCode);
                 if (groupData) {
                     setGroup(groupData);
                 } else {
@@ -31,7 +38,7 @@ export default function InvitePage() {
                 }
             } catch (err) {
                 console.error(err);
-                setError('Erro ao carregar convite.');
+                setError(LOAD_FAILED);
             } finally {
                 setLoading(false);
             }
@@ -40,133 +47,121 @@ export default function InvitePage() {
         if (inviteCode) {
             loadGroup();
         }
-    }, [inviteCode]);
+        // `isLoggedIn` nas deps: a pré-visualização só sabe se "já és membro"
+        // quando o pedido leva sessão.
+    }, [inviteCode, isLoggedIn]);
 
-    const isMember = user && group && group.members.includes(user.id);
+    const isMember = !!user && !!group?.isMember;
 
     const searchParams = useSearchParams();
     const shouldAutoJoin = searchParams.get('autoJoin') === 'true';
 
-    // Auto-join / Auto-redirect effect
+    // Com sessão: já membro → vai direto para o grupo; veio de entrar/criar
+    // conta (`autoJoin`) → junta-se sem pedir outro toque. `replace` nos dois:
+    // voltar atrás a partir do grupo não deve reabrir o convite.
     useEffect(() => {
         if (!loading && group && isLoggedIn) {
             if (isMember) {
-                // Already a member, just go there
-                router.push(`/groups/${group.id}/trips`);
+                nav.replace(groupHomeHref(group.groupId), { haptic: false });
             } else if (shouldAutoJoin && !joining) {
-                // Not a member, logged in, not currently joining, and HAS flag -> Auto Join
                 handleJoin();
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `nav`/`handleJoin` mudam a cada render
     }, [loading, group, isLoggedIn, isMember, joining, shouldAutoJoin]);
+
+    // Sem sessão: depois de entrar/criar conta volta aqui com `autoJoin`
+    // (codificado — ver `authRedirect.ts`).
+    const returnHere = `/invite/${inviteCode}?autoJoin=true`;
 
     const handleJoin = async () => {
         if (!isLoggedIn) {
-            // Redirect to register preserving this location, with autoJoin flag
-            const redirectUrl = encodeURIComponent(`/invite/${inviteCode}?autoJoin=true`);
-            router.push(`/auth/register?redirect=${redirectUrl}`);
+            nav.push(withRedirect('/auth/register', returnHere));
             return;
         }
-
         if (!group) return;
 
         setJoining(true);
         try {
-            await groupsApi.addMember(group.id, user!.id);
+            const groupId = await groupsApi.joinByInvite(inviteCode);
             showToast(`Bem-vindo ao grupo ${group.name}!`, 'success');
-            navStart();
-            router.push(`/groups/${group.id}/trips`);
+            nav.replace(groupHomeHref(groupId), { haptic: false });
         } catch (err) {
             console.error(err);
             showToast('Erro ao entrar no grupo.', 'error');
-            setJoining(false); // Only reset on error, otherwise we are navigating away
+            setJoining(false); // só no erro — no sucesso já está a sair daqui
         }
     };
 
-    if (loading) {
+    if (loading || (group && isMember)) {
         return (
-            <div className="min-h-screen gradient-mesh flex items-center justify-center safe-screen">
-                {/* Use a white spinner or custom one since we are on colored bg */}
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-            </div >
+            <AuthBackdrop className="items-center justify-center">
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+            </AuthBackdrop>
         );
     }
 
     if (error || !group) {
+        const loadFailed = error === LOAD_FAILED;
         return (
-            <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 text-center safe-screen">
-                <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-6 shadow-lg border border-white/30 text-4xl">
-                    😰
-                </div>
-                <h1 className="text-2xl font-bold text-white mb-2">Ups!</h1>
-                <p className="text-white/80 mb-8 max-w-xs mx-auto">{error || 'Convite não encontrado.'}</p>
-                <button
-                    onClick={() => router.push('/')}
-                    className="px-6 py-3 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl text-white font-bold hover:bg-white/30 transition"
-                >
-                    Voltar ao início
-                </button>
-            </div>
+            <AuthShell
+                icon={loadFailed ? 'cloud_off' : 'link_off'}
+                title={loadFailed ? 'Não deu para abrir o convite' : 'Convite inválido'}
+                subtitle={
+                    loadFailed
+                        ? 'Verifica a ligação à internet e tenta outra vez.'
+                        : 'Este link já não é válido. Pede um novo a quem te convidou.'
+                }
+            >
+                <Button size="lg" block onClick={() => nav.replace(isLoggedIn ? '/groups' : '/')}>
+                    {isLoggedIn ? 'Ir para os meus grupos' : 'Voltar ao início'}
+                </Button>
+            </AuthShell>
         );
     }
 
-
+    const avatarUrl = getGroupAvatarUrl(group.groupId, group.avatar);
 
     return (
-        <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 relative overflow-hidden safe-screen">
-            {/* Decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-300/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="w-full max-w-md bg-white/20 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl relative z-10 text-center animate-fade-in-up">
-                <div className="w-24 h-24 mx-auto mb-6 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-inner text-4xl overflow-hidden border border-white/30">
-                    {group.avatar && group.avatar.length > 2 ? (
-                        <img
-                            src={`https://pb-orderit.povoas.top/api/files/groups/${group.id}/${group.avatar}`}
-                            alt={group.name}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <span>{group.avatar || '👥'}</span>
-                    )}
+        <AuthBackdrop>
+            <main className="flex-1 flex flex-col justify-center px-4 py-8">
+                <div className="w-full max-w-sm mx-auto text-center auth-card px-6 py-8 animate-fade-in-up">
+                    <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-surface-sunken border border-hairline flex items-center justify-center text-4xl overflow-hidden">
+                        {avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- ficheiro do PocketBase
+                            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <span>{guessGroupEmoji(group.avatar)}</span>
+                        )}
+                    </div>
+                    <p className="text-sm font-medium text-ink-soft">
+                        {group.creatorName ? `${group.creatorName} convidou-te para` : 'Foste convidado para'}
+                    </p>
+                    <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink text-balance">{group.name}</h1>
+                    <p className="mt-3 text-base text-ink-soft text-pretty">
+                        Aqui combinam as compras e acertam as contas do grupo.
+                    </p>
                 </div>
+            </main>
 
-                <h1 className="text-2xl font-bold text-white mb-2">
-                    {group.name}
-                </h1>
-
-                <p className="text-white/80 mb-8">
-                    {group.expand?.creator?.name
-                        ? `${group.expand.creator.name} convidou-te para entrar neste grupo.`
-                        : 'Foste convidado para entrar neste grupo.'}
-                </p>
-
-                {isMember ? (
-                    <div className="space-y-3">
-                        <div className="bg-green-500/20 text-white border border-green-500/30 px-4 py-3 rounded-xl text-sm font-medium mb-4 backdrop-blur-sm">
-                            Já és membro deste grupo!
-                        </div>
-                        <button
-                            onClick={() => router.push(`/groups/${group.id}/trips`)}
-                            className="w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition"
-                        >
-                            Ver Grupo
-                        </button>
-                    </div>
+            <div className="w-full max-w-sm mx-auto px-4 pb-4 space-y-3 on-brand">
+                {isLoggedIn ? (
+                    <Button variant="inverse" size="lg" block loading={joining} onClick={handleJoin}>
+                        Entrar no grupo
+                    </Button>
                 ) : (
-                    <div className="space-y-4">
-                        <button
-                            onClick={handleJoin}
-                            disabled={joining}
-                            className={`w-full py-3.5 px-4 bg-white text-primary-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:bg-primary-50 transform active:scale-[0.98] transition disabled:cursor-not-allowed${joining ? ' btn-loading btn-loading--dark' : ''}`}
-                        >
-                            {isLoggedIn ? 'Entrar no Grupo' : 'Aceitar convite'}
-                        </button>
-                    </div>
+                    <>
+                        <Button variant="inverse" size="lg" block onClick={handleJoin}>
+                            Criar conta e entrar
+                        </Button>
+                        <Button size="lg" variant="ghost" block onClick={() => nav.push(withRedirect('/auth/login', returnHere))}>
+                            Já tenho conta
+                        </Button>
+                    </>
                 )}
             </div>
-        </div>
+        </AuthBackdrop>
     );
 }

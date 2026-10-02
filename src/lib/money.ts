@@ -20,6 +20,21 @@ export function formatEUR(amount: number): string {
   return EUR.format(Number.isFinite(amount) ? amount : 0);
 }
 
+/**
+ * `1234.5` → `{ number: "1234,50", symbol: "€" }` — o mesmo que `formatEUR`,
+ * mas com o símbolo à parte, para o `<Money>` o desenhar mais pequeno.
+ */
+export function formatEURParts(amount: number): { number: string; symbol: string } {
+  const parts = EUR.formatToParts(Number.isFinite(amount) ? amount : 0);
+  const symbol = parts.find((p) => p.type === 'currency')?.value ?? '€';
+  const number = parts
+    .filter((p) => p.type !== 'currency')
+    .map((p) => p.value)
+    .join('')
+    .trim();
+  return { number, symbol };
+}
+
 /** `1234.5` → `"1234,50"` — sem símbolo, para valores editáveis num campo de texto. */
 export function formatPriceInput(amount: number): string {
   return Number.isFinite(amount) && amount !== 0 ? DECIMAL.format(amount) : '';

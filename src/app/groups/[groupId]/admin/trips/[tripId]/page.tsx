@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { notifyEvent } from '@/lib/notify';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
@@ -253,7 +254,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             return;
         }
         if (!online) {
-            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
+            showToast('Sem ligação. Precisas de rede para criar um pedido.', 'error');
             return;
         }
         setNewOrderSession('expanded');
@@ -337,7 +338,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
             });
             showToast(
                 siblingsLeft <= 0
-                    ? 'Produto eliminado — pedido vazio removido'
+                    ? 'Produto eliminado. O pedido ficou vazio e foi removido.'
                     : 'Produto eliminado',
                 'success',
             );
@@ -521,17 +522,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 commit: () => tripsApi.update(tripId, { status: 'closed' }),
             });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
-
-            // Notify Users
-            await fetch('/api/notify', {
-                method: 'POST',
-                body: JSON.stringify({
-                    groupId: trip.group_id,
-                    title: '🏁 Viagem Concluída',
-                    message: `As compras de "${trip.name}" foram terminadas. Abre para ver quanto ficou a tua parte!`,
-                    url: `/groups/${trip.group_id}/trips/${trip.id}`
-                })
-            }).catch(console.error);
+            notifyEvent('trip.status', trip.id);
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
@@ -554,17 +545,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 commit: () => tripsApi.update(tripId, { status: 'in_progress' }),
             });
             showToast('Viagem fechada a novos pedidos', 'success');
-
-            // Notify Users
-            await fetch('/api/notify', {
-                method: 'POST',
-                body: JSON.stringify({
-                    groupId: trip.group_id,
-                    title: '🛒 Vamos às compras!',
-                    message: `A viagem "${trip.name}" já não aceita mais novos pedidos.`,
-                    url: `/groups/${trip.group_id}/trips/${trip.id}`
-                })
-            }).catch(console.error);
+            notifyEvent('trip.status', trip.id);
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
@@ -620,7 +601,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                     stackAboveMinimized={hasMinimizedDock}
                 />
             )}
-            <Header title={trip.name} subtitle="Admin" showBack />
+            <Header title="Viagem" subtitle={trip.name} showBack />
 
             <main className="container mx-auto px-4 py-8 max-w-2xl">
                 <div className="grid grid-cols-3 gap-3 mb-8">

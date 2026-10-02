@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { extractReceiptLineItems } from '@/app/actions/ai';
+import { pb } from '@/lib/pocketbase';
 import type { SplitItem, User } from '@/lib/types';
 import {
   formatCurrency,
@@ -175,7 +176,7 @@ export function SplitInvoiceScanSheet({
     setScanStep('processing');
 
     try {
-      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey);
+      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey, pb.authStore.token);
 
       if (!outcome.ok) {
         if (outcome.failure.code === 'quota_daily') {
@@ -255,10 +256,10 @@ export function SplitInvoiceScanSheet({
 
   const sheetSubtitle =
     scanStep === 'upload'
-      ? 'Fotografa ou carrega o talão — o Gemini lê os itens'
+      ? 'Fotografa ou carrega o talão e o Gemini lê os itens'
       : scanStep === 'processing'
         ? 'A identificar itens e preços'
-        : 'Ninguém fica associado — atribuis a seguir';
+        : 'Ninguém fica associado. Atribuis a seguir.';
 
   const footer =
     scanStep === 'review' ? (
@@ -281,7 +282,7 @@ export function SplitInvoiceScanSheet({
         className="btn-primary w-full py-3.5"
         disabled={scanBlocked}
       >
-        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido. Volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -291,7 +292,7 @@ export function SplitInvoiceScanSheet({
       onClose={handleClose}
       title={sheetTitle}
       subtitle={sheetSubtitle}
-      size="large"
+      size="full"
       footer={footer}
       footerKey={scanStep}
       minimizedAboveBottomNav
@@ -448,7 +449,7 @@ export function SplitInvoiceScanSheet({
                   type="button"
                   onClick={handleCapture}
                   variant="secondary"
-                  className="w-full rounded-xl font-bold"
+                  block
                 >
                   <span className="inline-block w-3 h-3 rounded-full bg-danger mr-2" />
                   Capturar
@@ -477,7 +478,7 @@ export function SplitInvoiceScanSheet({
 
           {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-ink-faint font-medium">
-              Limite diário do Gemini atingido — volta amanhã.
+              Chegaste ao limite diário do Gemini. Volta amanhã.
             </p>
           )}
         </div>

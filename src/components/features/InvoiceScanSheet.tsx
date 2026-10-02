@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { reconcileWithGeminiImage } from '@/app/actions/ai';
-import { ordersApi, itemsApi } from '@/lib/pocketbase';
+import { ordersApi, itemsApi, pb } from '@/lib/pocketbase';
 import { buildOrderCreatePayload } from '@/lib/orderParticipants';
 import type { User } from '@/lib/types';
 import { db } from '@/lib/db/schema';
@@ -222,7 +222,8 @@ export function InvoiceScanSheet({
       const outcome = await reconcileWithGeminiImage(
         invoiceFile,
         tripItems,
-        geminiApiKey
+        geminiApiKey,
+        pb.authStore.token
       );
 
       if (!outcome.ok) {
@@ -373,7 +374,7 @@ export function InvoiceScanSheet({
 
   const sheetSubtitle =
     scanStep === 'upload'
-      ? 'Fotografa ou carrega o talão — o Gemini cruza com a lista'
+      ? 'Fotografa ou carrega o talão e o Gemini compara-o com a lista'
       : scanStep === 'processing'
         ? 'A identificar produtos e preços'
         : 'Confirma antes de aplicar';
@@ -398,7 +399,7 @@ export function InvoiceScanSheet({
         className="btn-primary w-full py-3.5"
         disabled={scanBlocked}
       >
-        {scanBlocked ? 'Limite diário atingido — volta amanhã' : 'Analisar fatura'}
+        {scanBlocked ? 'Limite diário atingido. Volta amanhã' : 'Analisar fatura'}
       </Button>
     ) : undefined;
 
@@ -408,7 +409,7 @@ export function InvoiceScanSheet({
       onClose={handleClose}
       title={sheetTitle}
       subtitle={sheetSubtitle}
-      size="large"
+      size="full"
       footer={footer}
       footerKey={scanStep}
       minimizedAboveBottomNav
@@ -663,7 +664,7 @@ export function InvoiceScanSheet({
                   type="button"
                   onClick={handleCapture}
                   variant="secondary"
-                  className="w-full rounded-xl font-bold"
+                  block
                 >
                   <span className="inline-block w-3 h-3 rounded-full bg-danger mr-2" />
                   Capturar
@@ -692,7 +693,7 @@ export function InvoiceScanSheet({
 
           {hasApiKey && scanBlocked && (
             <p className="text-center text-[10px] text-[var(--text-muted)] font-medium">
-              Limite diário do Gemini atingido — volta amanhã.
+              Chegaste ao limite diário do Gemini. Volta amanhã.
             </p>
           )}
         </div>

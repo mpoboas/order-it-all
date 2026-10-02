@@ -104,20 +104,25 @@ export function SplitParticipantItemsView({
                   (frozen || readOnly) && 'opacity-60 cursor-not-allowed'
                 )}
                 aria-pressed={checked}
+                aria-label={
+                  isCustomMode
+                    ? `Ajustar a tua parte em ${item.name || 'item sem nome'}`
+                    : `Participei em ${item.name || 'item sem nome'}${frozen ? ' (bloqueado)' : ''}`
+                }
                 title={
                   readOnly
                     ? 'Divisão fechada'
                     : isCustomMode
                       ? 'Ajustar a tua parte'
                       : frozen
-                        ? 'Item bloqueado — quem participa está fixo'
+                        ? 'Este item está bloqueado: quem participa não pode mudar.'
                         : checked
                           ? 'Remover deste item'
                           : 'Marcar que participaste'
                 }
               >
                 {checked && (
-                  <Icon name="check" className="text-lg" strokeWidth={3} />
+                  <Icon name="check" className="text-lg" strokeWidth={3} aria-hidden="true" />
                 )}
               </button>
 
@@ -135,7 +140,7 @@ export function SplitParticipantItemsView({
                             'text-[16px] text-ink-faint shrink-0',
                             shakeIdx === idx && 'lock-shake'
                           )}
-                          title="Bloqueado — quem participa está fixo"
+                          title="Bloqueado: quem participa não pode mudar"
                         />
                       )}
                     </div>

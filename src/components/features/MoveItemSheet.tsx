@@ -297,7 +297,7 @@ export function MoveItemSheet({
       onClose={handleClose}
       title={sheetTitle}
       subtitle={item ? item.name : undefined}
-      size={step === 'new-participants' || step === 'existing' ? 'large' : 'medium'}
+      size="full"
       footerKey={step}
       onBack={showBack ? handleBack : undefined}
       minimizable
@@ -330,7 +330,7 @@ export function MoveItemSheet({
                     <p className="text-xs text-ink-faint mt-0.5">
                       {otherOrders.length > 0
                         ? `${otherOrders.length} pedido${otherOrders.length === 1 ? '' : 's'} nesta viagem`
-                        : 'Nenhum outro pedido — cria um novo'}
+                        : 'Não há outros pedidos. Cria um novo'}
                     </p>
                   </div>
                 </button>

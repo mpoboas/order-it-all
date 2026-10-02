@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { copyText } from '@/lib/clipboard';
 import QRCode from 'react-qr-code';
 import { Sheet } from '@/components/ui/Sheet';
 import { splitsApi } from '@/lib/pocketbase';
@@ -64,7 +65,7 @@ export function SplitShareSheet({
 
   const handleToggle = async () => {
     if (splitClosed) {
-      showToast('Divisão fechada — reabre para ativar o link', 'error');
+      showToast('A divisão está fechada. Reabre-a para ativar o link.', 'error');
       return;
     }
     setLoading(true);
@@ -86,12 +87,8 @@ export function SplitShareSheet({
 
   const handleCopy = async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast('Link copiado!', 'success');
-    } catch {
-      showToast('Não foi possível copiar', 'error');
-    }
+    if (await copyText(shareUrl)) showToast('Link copiado!', 'success');
+    else showToast('Não foi possível copiar', 'error');
   };
 
   const handleShare = async () => {
@@ -100,7 +97,7 @@ export function SplitShareSheet({
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: `Divisão — ${split.name}`,
+          title: `Divisão: ${split.name}`,
           text: message,
         });
         return;
@@ -108,10 +105,9 @@ export function SplitShareSheet({
         if ((error as Error).name === 'AbortError') return;
       }
     }
-    try {
-      await navigator.clipboard.writeText(message);
-      showToast('Mensagem copiada — cola no WhatsApp ou Instagram', 'success');
-    } catch {
+    if (await copyText(message)) {
+      showToast('Mensagem copiada. Cola-a no WhatsApp ou onde quiseres.', 'success');
+    } else {
       showToast('Não foi possível partilhar', 'error');
     }
   };
@@ -210,7 +206,7 @@ export function SplitShareSheet({
                 type="button"
                 onClick={() => void handleShare()}
                 disabled={!shareUrl || !shareActive}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
                 <Icon name="share" className="text-[18px]" />
                 Partilhar

@@ -9,7 +9,7 @@ import {
   needsProfileSetup,
   saveOAuthProfileHints,
 } from '@/lib/googleAuth';
-import { LoadingSpinner } from '@/components/layout/LoadingScreen';
+import { AuthBackdrop, AuthLogo } from '@/components/auth/AuthShell';
 import { navStart } from '@/lib/navProgress';
 
 export default function OAuthCallbackPage() {
@@ -43,7 +43,11 @@ export default function OAuthCallbackPage() {
           record as { name?: string },
           meta
         );
-        const path = buildPostAuthPath(setup, redirectPath ?? null);
+        const path = buildPostAuthPath(
+          setup,
+          redirectPath ?? null,
+          (record as { onboarded?: boolean }).onboarded
+        );
 
         if (setup) {
           showToast('Completa o teu perfil para continuar', 'info');
@@ -63,9 +67,12 @@ export default function OAuthCallbackPage() {
   }, [searchParams, router, showToast]);
 
   return (
-    <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4 safe-screen">
-      <LoadingSpinner size="lg" />
-      <p className="mt-4 text-white/90 text-sm">A concluir login com Google...</p>
-    </div>
+    <AuthBackdrop>
+      <div className="flex-1 flex flex-col items-center justify-center p-4 on-brand">
+        <AuthLogo className="mb-6" />
+        <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+        <p className="mt-4 text-sm text-ink-soft">A entrar com o Google…</p>
+      </div>
+    </AuthBackdrop>
   );
 }

@@ -43,8 +43,12 @@ import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
+import { notificationPromptStage, type NotificationPromptStage } from '@/lib/notificationPromptState';
+import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
 
 export default function GroupTripDetailPage() {
@@ -53,7 +57,7 @@ export default function GroupTripDetailPage() {
     const tripId = params.tripId as string;
     const router = useSmartRouter();
     const { user, isLoggedIn } = useUser();
-    const { isAdmin, currentGroup } = useGroup();
+    const { currentGroup } = useGroup();
     const { showToast } = useToast();
     const confirmAction = useConfirm();
     const { startTimer } = useEditTimer();
@@ -71,6 +75,10 @@ export default function GroupTripDetailPage() {
     const [initialFormItems, setInitialFormItems] = useState<ItemFormData[]>([]);
     const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
     const [ordersTab, setOrdersTab] = useState<'mine' | 'participating' | 'others'>('mine');
+    const [notificationPrompt, setNotificationPrompt] = useState<{
+        stage: NotificationPromptStage;
+        item: { name: string; quantity: number } | null;
+    } | null>(null);
 
     const groupMembers: User[] = currentGroup?.expand?.members ?? [];
     const currentUserId = user?.id || '';
@@ -148,7 +156,7 @@ export default function GroupTripDetailPage() {
             return;
         }
         if (!online) {
-            showToast('Sem ligação — precisas de rede para criar um pedido.', 'error');
+            showToast('Sem ligação. Precisas de rede para criar um pedido.', 'error');
             return;
         }
         setEditingOrderId(null);
@@ -234,6 +242,16 @@ export default function GroupTripDetailPage() {
                 // Persiste já a resposta do servidor (ids reais) — sem esperar o eco.
                 await db.orders.put(order);
                 if (createdItems.length) await db.items.bulkPut(createdItems);
+                markInstallValueMoment();
+                // Fazer um pedido já é o momento de valor (por isso o `true`).
+                const stage = notificationPromptStage(true);
+                if (stage) {
+                    const first = data.items[0];
+                    setNotificationPrompt({
+                        stage,
+                        item: first ? { name: first.name, quantity: first.quantity } : null,
+                    });
+                }
             }
             setEditingOrderId(null);
             setOrderSheetSession('closed');
@@ -360,7 +378,7 @@ export default function GroupTripDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack groupId={groupId} />
+                <Header showBack />
                 <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
             </div>
         );
@@ -369,7 +387,7 @@ export default function GroupTripDetailPage() {
     if (!trip) {
         return (
             <div className="min-h-screen bg-app">
-                <Header showBack groupId={groupId} />
+                <Header showBack />
                 <div className="text-center py-20">
                     <div className="text-6xl mb-4">😕</div>
                     <h2 className="text-xl font-bold mb-4">Viagem não encontrada</h2>
@@ -386,8 +404,8 @@ export default function GroupTripDetailPage() {
         (participantsSheetSession === 'minimized' && participantsSheetDraftActive);
 
     return (
-        <div className={cn('min-h-screen bg-app', isAdmin && 'has-bottom-nav')}>
-            <Header showBack title={trip.name} subtitle={trip.description || 'Sem descrição'} groupId={groupId} />
+        <div className="min-h-screen bg-app has-bottom-nav">
+            <Header showBack title="Viagem" subtitle={trip.name} />
 
             {trip.status !== 'open' && (
                 <div className={cn(
@@ -492,22 +510,42 @@ export default function GroupTripDetailPage() {
 
                 {/* Orders */}
                 {orders.length === 0 && otherOrders.length === 0 ? (
+                    /* Onboarding: o primeiro pedido é o "aha moment" desta app — diz
+                       exatamente o que fazer, com um botão a sério (não só a
+                       apontar para o FAB, que se pode passar ao lado). */
                     <div className="text-center py-16 animate-fade-in-up">
                         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 dark:from-primary-900/40 dark:to-primary-900/40 flex items-center justify-center">
-                            <span className="text-4xl">📝</span>
+                            <Icon name="shopping_cart" className="text-4xl text-primary-500" />
                         </div>
                         <h4 className="text-lg font-semibold text-ink mb-2">Ainda sem pedidos</h4>
-                        <p className="text-ink-soft mb-4">Toca no + para fazer o primeiro!</p>
+                        <p className="text-ink-soft mb-4">Faz o teu primeiro pedido para esta viagem.</p>
+                        <Button onClick={openNewOrder}>
+                            <Icon name="add" className="text-xl" />
+                            Fazer Pedido
+                        </Button>
                     </div>
                 ) : displayedOrders.length === 0 ? (
+                    /* Bug apanhado pelo utilizador: o CTA acima só cobria a viagem
+                       inteira vazia — se já há pedidos de outros (participas nalgum,
+                       ou "others"), caías aqui sem botão nenhum mesmo sem teres feito
+                       o teu próprio pedido ainda. O separador "mine" é sempre uma
+                       oportunidade de ação; os outros dois são só informativos. */
                     <div className="text-center py-12 animate-fade-in-up">
-                        <p className="text-ink-soft text-sm">
-                            {ordersTab === 'mine'
-                                ? 'Ainda não criaste pedidos nesta viagem.'
-                                : ordersTab === 'participating'
+                        {ordersTab === 'mine' ? (
+                            <>
+                                <p className="text-ink-soft text-sm mb-4">Ainda não fizeste o teu pedido nesta viagem.</p>
+                                <Button size="sm" onClick={openNewOrder}>
+                                    <Icon name="add" className="text-lg" />
+                                    Fazer Pedido
+                                </Button>
+                            </>
+                        ) : (
+                            <p className="text-ink-soft text-sm">
+                                {ordersTab === 'participating'
                                     ? 'Não estás incluído em pedidos de outros membros.'
                                     : 'Ainda não há pedidos de outros membros.'}
-                        </p>
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -582,7 +620,7 @@ export default function GroupTripDetailPage() {
 
                                                 {canEdit && (
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className={cn(
+                                                        <span data-decorative className={cn(
                                                             'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide',
                                                             isWarning ? 'bg-danger-bg text-danger-fg animate-pulse' : 'bg-warning-bg text-warning-fg'
                                                         )}>
@@ -692,7 +730,7 @@ export default function GroupTripDetailPage() {
                             'fab !bg-none !bg-primary-600 hover:!bg-primary-700 text-white !shadow-[0_8px_30px_-5px_rgba(37,99,235,0.6)] fixed right-6 !z-[56] transition duration-300',
                             !online && 'opacity-50'
                         )}
-                        style={{ bottom: getFabBottom(isAdmin, hasMinimizedDock) }}
+                        style={{ bottom: getFabBottom(true, hasMinimizedDock) }}
                         aria-label="Novo pedido"
                     >
                         <Icon name="add" className="text-3xl" />
@@ -720,7 +758,6 @@ export default function GroupTripDetailPage() {
                 onMinimize={() => setOrderSheetSession('minimized')}
                 onExpand={() => setOrderSheetSession('expanded')}
                 onDiscard={() => setOrderSheetSession('closed')}
-                minimizedAboveBottomNav={isAdmin}
                 onDraftActiveChange={setOrderSheetDraftActive}
             />
 
@@ -743,9 +780,16 @@ export default function GroupTripDetailPage() {
                     setParticipantsSheetOrderId(null);
                     setParticipantsSheetSession('closed');
                 }}
-                minimizedAboveBottomNav={isAdmin}
                 onDraftActiveChange={setParticipantsSheetDraftActive}
             />
+
+            {notificationPrompt && (
+                <NotificationInstallPrompt
+                    stage={notificationPrompt.stage}
+                    orderItem={notificationPrompt.item}
+                    onClose={() => setNotificationPrompt(null)}
+                />
+            )}
         </div >
     );
 }

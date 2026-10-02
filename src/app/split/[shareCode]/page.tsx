@@ -8,8 +8,10 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import {
   clearStoredParticipant,
-  findSuggestedParticipant,
+  findMyPublicPartyId,
   getStoredParticipant,
+  partyNameById,
+  publicPartyResolver,
   setStoredParticipant,
   type PublicSplitPayload,
 } from '@/lib/splitShare';
@@ -167,7 +169,7 @@ export default function PublicSplitPage() {
   useRefreshHandler(load);
 
   const suggested = split
-    ? findSuggestedParticipant(split.participants, user)
+    ? findMyPublicPartyId(split.participants, split.parties, user)
     : null;
 
   useEffect(() => {
@@ -259,7 +261,7 @@ export default function PublicSplitPage() {
     }
     const item = split.items[itemIndex];
     if (!include && item?.locked) {
-      showToast('Este item está bloqueado — não podes remover-te', 'error');
+      showToast('Este item está bloqueado. Não te podes remover.', 'error');
       return;
     }
     setTogglingIdx(itemIndex);
@@ -298,7 +300,7 @@ export default function PublicSplitPage() {
       ) {
         showToast('Esta divisão está fechada', 'error');
       } else if (message.includes('bloqueado') || message.includes('locked')) {
-        showToast('Este item está bloqueado — não podes remover-te', 'error');
+        showToast('Este item está bloqueado. Não te podes remover.', 'error');
       } else {
         showToast('Erro ao guardar', 'error');
       }
@@ -330,7 +332,7 @@ export default function PublicSplitPage() {
       ) {
         showToast('Esta divisão está fechada', 'error');
       } else if (message.includes('bloqueado') || message.includes('locked')) {
-        showToast('Este item está bloqueado — não podes remover-te', 'error');
+        showToast('Este item está bloqueado. Não te podes remover.', 'error');
       } else {
         showToast('Erro ao guardar', 'error');
       }
@@ -414,7 +416,7 @@ export default function PublicSplitPage() {
                   onClick={() => setSelectedName(suggested)}
                   className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                 >
-                  {suggested}
+                  {partyNameById(suggested, split.parties)}
                 </button>
               </p>
             </div>
@@ -427,23 +429,23 @@ export default function PublicSplitPage() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {split.participants.map((name) => (
-                <li key={name}>
+              {split.participants.map((id) => (
+                <li key={id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedName(name)}
+                    onClick={() => setSelectedName(id)}
                     className={cn(
                       'w-full flex items-center gap-3 p-4 rounded-xl border transition text-left',
-                      selectedName === name
+                      selectedName === id
                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-2 ring-primary-500/30'
                         : 'border-hairline bg-surface hover:border-primary-300'
                     )}
                   >
-                    <Avatar name={name} size="md" />
+                    <Avatar name={partyNameById(id, split.parties)} size="md" />
                     <span className="font-medium text-ink">
-                      {name}
+                      {partyNameById(id, split.parties)}
                     </span>
-                    {selectedName === name && (
+                    {selectedName === id && (
                       <Icon name="check" className="text-lg text-primary-600 ml-auto shrink-0" />
                     )}
                   </button>
@@ -472,7 +474,7 @@ export default function PublicSplitPage() {
       <header className="bg-gradient-to-r from-primary-600 to-primary-600 px-4 py-5 safe-top">
         <h1 className="text-lg font-bold text-white break-words">{split.name}</h1>
         <p className="text-sm text-white/90 mt-1">
-          A marcar como: <strong>{selectedName}</strong>
+          A marcar como: <strong>{partyNameById(selectedName ?? '', split.parties)}</strong>
         </p>
         {split && !canMembersEditSplit(split) && (
           <p className="text-xs text-amber-200 mt-2 font-medium">
@@ -524,7 +526,7 @@ export default function PublicSplitPage() {
           }
           allParticipants={split.participants}
           myName={selectedName}
-          group={null}
+          resolver={publicPartyResolver(split.parties)}
           readOnly={!canMembersEditSplit(split)}
           allowedModes={getAllowedMemberModes(split)}
           onConfirm={(item) => void handleConfirmAllocation(item)}

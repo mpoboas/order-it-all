@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useWebHaptics } from 'web-haptics/react';
 import { cn } from '@/lib/utils';
 import { sheetSpring, sheetEase } from '@/lib/motion';
 import { Icon, type IconName } from '@/components/ui/Icon';
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonLink } from '@/components/ui/Button';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import type { ConfirmTone } from '@/context/ConfirmContext';
 
 interface ConfirmDialogProps {
@@ -17,6 +19,9 @@ interface ConfirmDialogProps {
   confirmLabel: string;
   cancelLabel: string;
   tone: ConfirmTone;
+  icon?: IconName;
+  content?: ReactNode;
+  confirmHref?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -43,6 +48,9 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   tone,
+  icon,
+  content,
+  confirmHref,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -52,25 +60,11 @@ export function ConfirmDialog({
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onCancel]);
+  // Escape cancela — via a pilha partilhada, para não fechar também a sheet
+  // que estiver por baixo.
+  useEscapeToClose(open, onCancel);
 
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   const backdropTransition = reduceMotion ? { duration: 0.01 } : sheetEase;
   const panelTransition = reduceMotion ? { duration: 0.01 } : sheetSpring;
@@ -99,7 +93,7 @@ export function ConfirmDialog({
           />
 
           <motion.div
-            className="relative w-full max-w-sm flex flex-col bg-surface rounded-t-[28px] sm:rounded-[24px] shadow-2xl pointer-events-auto p-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6"
+            className="relative w-full max-w-sm flex flex-col bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl pointer-events-auto p-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:pb-6"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
@@ -111,8 +105,8 @@ export function ConfirmDialog({
           >
             <div className="w-10 h-1 bg-hairline-strong rounded-full mx-auto mb-5 sm:hidden" />
 
-            <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center mb-4', t.iconBg, t.iconFg)}>
-              <Icon name={t.icon} className="text-2xl" />
+            <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center mb-4', t.iconBg, t.iconFg)}>
+              <Icon name={icon ?? t.icon} className="text-2xl" />
             </div>
 
             <h2 id="confirm-dialog-title" className="text-lg font-bold text-ink leading-snug">
@@ -123,6 +117,7 @@ export function ConfirmDialog({
                 {description}
               </p>
             )}
+            {content && <div className="mt-4">{content}</div>}
 
             {/* Empilhados a toda a largura — lado a lado com rótulos específicos
                 ("Remover privilégios", "Continuar a editar") meio-a-meio
@@ -130,9 +125,23 @@ export function ConfirmDialog({
                 cima (o que vieste fazer); Cancelar em baixo — mais perto do
                 polegar, e é onde o foco inicial pousa por omissão. */}
             <div className="flex flex-col gap-2 mt-6">
-              <Button variant={tone === 'danger' ? 'danger' : 'primary'} block onClick={handleConfirm}>
-                {confirmLabel}
-              </Button>
+              {confirmHref ? (
+                // Link de verdade (não `location.href` por JS): o toque vai
+                // direto para o link, e o iOS abre a app por universal link.
+                <ButtonLink
+                  block
+                  href={confirmHref}
+                  target={/^https?:/.test(confirmHref) ? '_blank' : undefined}
+                  rel="noopener noreferrer"
+                  onClick={onConfirm}
+                >
+                  {confirmLabel}
+                </ButtonLink>
+              ) : (
+                <Button variant={tone === 'danger' ? 'danger' : 'primary'} block onClick={handleConfirm}>
+                  {confirmLabel}
+                </Button>
+              )}
               {/* Foco inicial na opção segura (Cancelar), nunca na perigosa —
                   convenção de diálogos destrutivos. */}
               <Button variant="ghost" block onClick={handleCancel} autoFocus>

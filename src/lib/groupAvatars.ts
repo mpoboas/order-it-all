@@ -1,3 +1,5 @@
+import type { Group } from '@/lib/types';
+
 export const GROUP_EMOJIS = [
   '👥',
   '🏠',
@@ -33,3 +35,12 @@ export function guessGroupEmoji(avatar?: string): string {
   }
   return '👥';
 }
+
+/** Fundo do hero do grupo (`HeroHeader`) — foto real quando o grupo tem uma
+ *  (só possível se algum dia existir upload de capa; hoje o avatar é sempre
+ *  um emoji), gradiente estável por nome como fallback. */
+export function getGroupHeroBackground(group: Pick<Group, 'id' | 'name' | 'avatar'>): { kind: 'image'; url: string } | { kind: 'gradient'; seed: string } {
+  const url = getGroupAvatarUrl(group.id, group.avatar);
+  return url ? { kind: 'image', url } : { kind: 'gradient', seed: group.name };
+}
+

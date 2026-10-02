@@ -1,8 +1,6 @@
-import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { computeParticipantAmount, getActiveParticipants } from '@/lib/splitItemAllocation';
-import type { Group, Split, SplitItem, User } from '@/lib/types';
-
-// Split used in calculateSplitTotals
+import type { PartyResolver } from '@/lib/parties';
+import type { Split, SplitItem, User } from '@/lib/types';
 
 const STORAGE_PREFIX = 'split_guest_participant_';
 const PARTICIPANTS_EXPANDED_KEY = 'split_participants_expanded';
@@ -66,133 +64,6 @@ export function setStoredParticipantsExpanded(expanded: boolean): void {
   } catch {
     /* ignore */
   }
-}
-
-function normalizeName(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-export function participantDisplayName(user: Pick<User, 'name' | 'email'>): string {
-  return (user.name || user.email || '').trim();
-}
-
-export function collectGroupMembers(
-  group: Pick<Group, 'expand'> | null | undefined
-): User[] {
-  if (!group?.expand) return [];
-
-  const people: User[] = [];
-  if (group.expand.creator) people.push(group.expand.creator);
-  if (group.expand.admins) people.push(...group.expand.admins);
-  if (group.expand.members) people.push(...group.expand.members);
-
-  const seenIds = new Set<string>();
-  const members: User[] = [];
-
-  for (const member of people) {
-    if (!member?.id || seenIds.has(member.id)) continue;
-    seenIds.add(member.id);
-    members.push(member);
-  }
-
-  return members;
-}
-
-export function collectGroupParticipantNames(
-  group: Pick<Group, 'expand'> | null | undefined
-): string[] {
-  const seenNames = new Set<string>();
-  const names: string[] = [];
-
-  for (const member of collectGroupMembers(group)) {
-    const label = participantDisplayName(member);
-    if (!label) continue;
-
-    const key = normalizeName(label);
-    if (seenNames.has(key)) continue;
-    seenNames.add(key);
-    names.push(label);
-  }
-
-  return names;
-}
-
-function memberNameCandidates(
-  user: Pick<User, 'name' | 'email'>
-): string[] {
-  const candidates = [user.name, user.email].filter(Boolean) as string[];
-  const emailLocal = user.email?.split('@')[0];
-  if (emailLocal) candidates.push(emailLocal);
-  return candidates;
-}
-
-export function resolveGroupMemberForParticipant(
-  participantName: string,
-  group: Pick<Group, 'expand'> | null | undefined
-): User | null {
-  const key = normalizeName(participantName);
-  if (!key) return null;
-
-  for (const member of collectGroupMembers(group)) {
-    for (const candidate of memberNameCandidates(member)) {
-      if (normalizeName(candidate) === key) return member;
-    }
-    if (normalizeName(participantDisplayName(member)) === key) return member;
-  }
-
-  return null;
-}
-
-export function getParticipantAvatarUrl(
-  participantName: string,
-  group: Pick<Group, 'expand'> | null | undefined
-): string | undefined {
-  const member = resolveGroupMemberForParticipant(participantName, group);
-  if (!member) return undefined;
-  return getUserAvatarUrl(member.id, member.avatar);
-}
-
-export function isGroupMemberInParticipants(
-  member: User,
-  participants: string[],
-  group: Pick<Group, 'expand'> | null | undefined
-): boolean {
-  const label = participantDisplayName(member);
-  if (!label) return false;
-
-  return participants.some(
-    (participant) =>
-      normalizeName(participant) === normalizeName(label) ||
-      resolveGroupMemberForParticipant(participant, group)?.id === member.id
-  );
-}
-
-export function listGroupMembersNotInParticipants(
-  group: Pick<Group, 'expand'> | null | undefined,
-  participants: string[]
-): User[] {
-  return collectGroupMembers(group).filter(
-    (member) => !isGroupMemberInParticipants(member, participants, group)
-  );
-}
-
-export function findSuggestedParticipant(
-  participants: string[],
-  user: Pick<User, 'name' | 'email'> | null | undefined
-): string | null {
-  if (!user || participants.length === 0) return null;
-
-  const candidates = [user.name, user.email].filter(Boolean) as string[];
-  const emailLocal = user.email?.split('@')[0];
-  if (emailLocal) candidates.push(emailLocal);
-
-  for (const candidate of candidates) {
-    const norm = normalizeName(candidate);
-    const match = participants.find((p) => normalizeName(p) === norm);
-    if (match) return match;
-  }
-
-  return null;
 }
 
 export type ToggleItemParticipantResult =
@@ -295,6 +166,13 @@ export function calculateParticipantTotal(
   }, 0);
 }
 
+/** Nome de uma parte (membro ou placeholder) — é tudo o que um visitante
+ *  anónimo do link precisa para ver quem é quem (nunca email/avatar). */
+export interface PublicParty {
+  id: string;
+  name: string;
+}
+
 export type PublicSplitPayload = Pick<
   Split,
   | 'id'
@@ -305,9 +183,17 @@ export type PublicSplitPayload = Pick<
   | 'participants'
   | 'items'
   | 'allowed_modes'
->;
+> & {
+  /** `participants`/`item.participants`/`allocations` são ids de parte —
+   *  resolve-os para nome através daqui (ver `src/lib/parties.ts` no lado
+   *  autenticado, e `partyNameById` abaixo para o lado público). */
+  parties: PublicParty[];
+};
 
-export function toPublicSplitPayload(split: Split): PublicSplitPayload {
+export function toPublicSplitPayload(
+  split: Split,
+  parties: PublicParty[]
+): PublicSplitPayload {
   return {
     id: split.id,
     name: split.name,
@@ -316,6 +202,7 @@ export function toPublicSplitPayload(split: Split): PublicSplitPayload {
     status: split.status,
     participants: split.participants,
     allowed_modes: split.allowed_modes ?? [],
+    parties,
     items: split.items.map((item) => ({
       name: item.name,
       price: item.price,
@@ -325,4 +212,62 @@ export function toPublicSplitPayload(split: Split): PublicSplitPayload {
       allocations: item.allocations ? { ...item.allocations } : undefined,
     })),
   };
+}
+
+/** Nome de uma parte a partir da lista `parties` do payload público — usa-se
+ *  no `/split/[shareCode]` (não autenticado, sem acesso a `parties.ts`/Dexie). */
+export function partyNameById(id: string, parties: PublicParty[]): string {
+  return parties.find((p) => p.id === id)?.name ?? 'Alguém';
+}
+
+/** `PartyResolver` (ver `src/lib/parties.ts`) para o lado público — nunca há
+ *  avatar real aqui (o visitante anónimo só recebe nomes, nunca ficheiros de
+ *  avatar de outras pessoas). */
+export function publicPartyResolver(parties: PublicParty[]): PartyResolver {
+  return {
+    label: (id) => partyNameById(id, parties),
+    avatarUrl: () => undefined,
+  };
+}
+
+/**
+ * Versão do `findMyPartyId` (`src/lib/parties.ts`) para o payload público —
+ * aqui não há `kind`/`claimedBy` (o visitante anónimo só recebe id+nome), por
+ * isso não tenta a via do placeholder já reclamado, só o id direto e a
+ * correspondência de nome (ajuda um utilizador com conta a encontrar-se na
+ * lista antes de o organizador o adicionar como membro de verdade).
+ */
+export function findMyPublicPartyId(
+  participantIds: string[],
+  parties: PublicParty[],
+  user: Pick<User, 'id' | 'name' | 'email'> | null | undefined
+): string | null {
+  if (!user) return null;
+  if (participantIds.includes(user.id)) return user.id;
+
+  const candidates = [user.name, user.email]
+    .filter((v): v is string => Boolean(v))
+    .map((v) => v.trim().toLowerCase());
+  const emailLocal = user.email?.split('@')[0]?.trim().toLowerCase();
+  if (emailLocal) candidates.push(emailLocal);
+
+  for (const id of participantIds) {
+    const name = parties.find((p) => p.id === id)?.name;
+    if (name && candidates.includes(name.trim().toLowerCase())) return id;
+  }
+  return null;
+}
+
+/**
+ * Regra de produto do link público: quem entra pelo link só escolhe o que
+ * consumiu (entrar/sair de itens, repartir a sua parte) — nunca adiciona ou
+ * apaga itens nem muda nomes/preços, para o total da despesa não mudar sem um
+ * membro (que é obrigado a reatribuir quem pagou). A rota verifica isto antes
+ * de gravar, como segunda linha de defesa contra um bug na lógica de repartição.
+ */
+export function onlyParticipationChanged(before: SplitItem[], after: SplitItem[]): boolean {
+  if (before.length !== after.length) return false;
+  return before.every(
+    (item, i) => item.name === after[i].name && Math.round(item.price * 100) === Math.round(after[i].price * 100),
+  );
 }

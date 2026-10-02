@@ -1,112 +1,80 @@
 import { NextResponse } from 'next/server';
-import webPush from 'web-push';
-import PocketBase from 'pocketbase';
+import { getAdminPb } from '@/lib/pbAdmin';
+import { PB_ID_RE, requireUserId, unauthorized } from '@/lib/serverAuth';
+import { sendNotifications } from '@/lib/notifications/send';
+import { notificationAvatarUrl } from '@/lib/notifications/avatar';
 
-// Init Backend PB Client
-// Note: In production you MUST set POCKETBASE_ADMIN_EMAIL/PASSWORD env vars
-const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top');
-
-// Configure Web Push
-const vapidKeys = {
-  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  privateKey: process.env.VAPID_PRIVATE_KEY!,
-};
-
-if (vapidKeys.publicKey && vapidKeys.privateKey) {
-  webPush.setVapidDetails(
-    'mailto:admin@orderitall.com',
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+/** Só caminhos da própria app — nunca um link externo numa notificação. */
+function safeAppPath(url: unknown): string {
+  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\')
+    ? url
+    : '/groups';
 }
 
+/**
+ * Mensagem escrita pela própria pessoa, que não corresponde a uma alteração de
+ * dados (hoje, só o "Lembrar" de uma dívida — `sendDirectMessage`). Os avisos
+ * de alterações (despesas, viagens, amizades…) vão por
+ * `/api/notifications/event`. Exige sessão; os destinatários são filtrados a
+ * quem partilha um grupo ou uma amizade com quem envia — nunca um id qualquer.
+ */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { groupId, title, message, url, targetUserIds } = body;
+    const callerId = await requireUserId(request);
+    if (!callerId) return unauthorized();
 
-    if (!title || !message) {
+    const body = await request.json();
+    const { title, message, url, targetUserIds } = body;
+
+    if (typeof title !== 'string' || typeof message !== 'string' || !title.trim() || !message.trim()) {
       return NextResponse.json({ error: 'Missing title or message' }, { status: 400 });
     }
 
-    // Authenticate as Admin to fetch all tokens (Required)
-    const adminEmail = process.env.POCKETBASE_ADMIN_EMAIL;
-    const adminPass = process.env.POCKETBASE_ADMIN_PASSWORD;
+    const pb = await getAdminPb();
 
-    if (!adminEmail || !adminPass) {
-      console.warn('Admin credentials missing. Cannot fetch subscriptions.');
-      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
-    }
+    // Com quem é que quem chama tem relação?
+    const [groups, friendships] = await Promise.all([
+      pb.collection('groups').getFullList<{ id: string; members: string[] }>({
+        filter: pb.filter('members.id ?= {:uid}', { uid: callerId }),
+        fields: 'id,members',
+      }),
+      pb.collection('friendships').getFullList<{ user_a: string; user_b: string }>({
+        filter: pb.filter('user_a = {:uid} || user_b = {:uid}', { uid: callerId }),
+        fields: 'user_a,user_b',
+      }),
+    ]);
 
-    // Login as admin (Superuser)
-    await pb.collection('_superusers').authWithPassword(adminEmail, adminPass);
-
-    // Determine recipients
-    let recipients: string[] = [];
-
-    if (targetUserIds && Array.isArray(targetUserIds)) {
-      recipients = targetUserIds;
-    } else if (groupId) {
-      // Fetch group members
-      try {
-        const group = await pb.collection('groups').getOne(groupId);
-        // Assuming 'members' field exists or we have to query. 
-        // Based on typical schema, group might have 'members' array relation.
-        recipients = group.members || [];
-      } catch (e) {
-        console.error('Group fetch error', e);
-      }
-    }
+    const allowed = new Set([
+      ...groups.flatMap((g) => g.members),
+      ...friendships.flatMap((f) => [f.user_a, f.user_b]),
+    ]);
+    const recipients = [
+      ...new Set(
+        (Array.isArray(targetUserIds) ? targetUserIds : []).filter(
+          (id: unknown): id is string => typeof id === 'string' && PB_ID_RE.test(id) && allowed.has(id),
+        ),
+      ),
+    ].filter((id) => id !== callerId);
 
     if (recipients.length === 0) {
       return NextResponse.json({ message: 'No recipients found' });
     }
 
-    // Fetch subscriptions for these users
-    // Since PB filter uses individual requests or we need a complex OR query
-    // Optimisation: Fetch all subs where user is in the list
-    // Unfortunately "user IN [...]" isn't direct in PB filters easily for large lists, 
-    // but for small groups typical of this app, we can iterate or use a filter string.
-    
-    // Construct filter: user="id1" || user="id2" ...
-    const filter = recipients.map(id => `user="${id}"`).join(' || ');
-    
-    if (!filter) return NextResponse.json({ message: 'No valid user filters' });
+    const target = safeAppPath(url);
+    const sender = await pb
+      .collection('users')
+      .getOne<{ id: string; name: string; avatar?: string }>(callerId, { fields: 'id,name,avatar' })
+      .catch(() => undefined);
+    const icon = notificationAvatarUrl(sender);
+    const result = await sendNotifications(
+      pb,
+      recipients.map((userId) => ({ userId, title, body: message, url: target, tag: target, icon })),
+      request.headers.get('origin'),
+    );
 
-    const subscriptions = await pb.collection('push_subscriptions').getFullList({
-      filter: filter,
-    });
-
-    console.log(`Sending specific notifications to ${subscriptions.length} devices...`);
-
-    // Send notifications
-    const notifications = subscriptions.map(sub => {
-      const pushConfig = {
-        endpoint: sub.endpoint,
-        keys: sub.keys,
-      };
-      
-      const payload = JSON.stringify({
-        title,
-        body: message,
-        url: url || '/groups',
-        icon: '/android-chrome-192x192.png'
-      });
-
-      return webPush.sendNotification(pushConfig, payload).catch(err => {
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          // Subscription/Endpoint is gone, delete from DB
-          pb.collection('push_subscriptions').delete(sub.id);
-        }
-        console.error('Push send error:', err);
-      });
-    });
-
-    await Promise.all(notifications);
-
-    return NextResponse.json({ success: true, count: notifications.length });
-
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
+    // Detalhe só no log do servidor — não devolver respostas internas do PB.
     console.error('Notification API Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

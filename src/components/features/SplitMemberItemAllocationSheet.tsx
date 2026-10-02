@@ -18,9 +18,9 @@ import {
   roundMoney,
 } from '@/lib/splitItemAllocation';
 import { isItemLocked } from '@/lib/splitItems';
-import type { Group, SplitItem, SplitItemMode } from '@/lib/types';
+import type { SplitItem, SplitItemMode } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
-import { getParticipantAvatarUrl } from '@/lib/splitShare';
+import type { PartyResolver } from '@/lib/parties';
 import { Icon } from '@/components/ui/Icon';
 
 interface SplitMemberItemAllocationSheetProps {
@@ -30,7 +30,7 @@ interface SplitMemberItemAllocationSheetProps {
   item: SplitItem | null;
   allParticipants: string[];
   myName: string;
-  group: Pick<Group, 'expand'> | null | undefined;
+  resolver: PartyResolver;
   onConfirm: (item: SplitItem) => void;
   /** When true, the sheet only shows who divides the item (no editing). */
   readOnly?: boolean;
@@ -62,7 +62,7 @@ export function SplitMemberItemAllocationSheet({
   item,
   allParticipants,
   myName,
-  group,
+  resolver,
   onConfirm,
   readOnly = false,
   allowedModes = MEMBER_ALLOCATION_MODES,
@@ -220,8 +220,8 @@ export function SplitMemberItemAllocationSheet({
     [draftItem]
   );
 
-  const participantAvatar = (name: string) =>
-    getParticipantAvatarUrl(name, group);
+  const participantAvatar = (id: string) => resolver.avatarUrl(id);
+  const participantLabel = (id: string) => resolver.label(id);
 
   const locked = item ? isItemLocked(item) : false;
   const wasParticipating = item?.participants.includes(myName) ?? false;
@@ -338,12 +338,12 @@ export function SplitMemberItemAllocationSheet({
                       )}
                     >
                       <Avatar
-                        name={name}
+                        name={participantLabel(name)}
                         src={participantAvatar(name)}
                         size="sm"
                       />
                       <span className="flex-1 font-medium text-ink min-w-0 truncate">
-                        {name}
+                        {participantLabel(name)}
                         {isMe && (
                           <span className="text-xs font-normal text-ink-faint ml-1">
                             (tu)
@@ -413,7 +413,7 @@ export function SplitMemberItemAllocationSheet({
       >
         <div className="flex items-center gap-3">
           <Avatar
-            name={name}
+            name={participantLabel(name)}
             src={participantAvatar(name)}
             size={isPrimary ? 'md' : 'sm'}
           />
@@ -424,7 +424,7 @@ export function SplitMemberItemAllocationSheet({
                 !isPrimary && 'truncate'
               )}
             >
-              {name}
+              {participantLabel(name)}
               {isMe && !isPrimary && (
                 <span className="text-xs font-normal text-ink-faint ml-1">
                   (tu)
@@ -445,8 +445,8 @@ export function SplitMemberItemAllocationSheet({
                 aria-pressed={isPinned}
                 aria-label={
                   isPinned
-                    ? `Desbloquear valor de ${name}`
-                    : `Bloquear valor de ${name}`
+                    ? `Desbloquear valor de ${participantLabel(name)}`
+                    : `Bloquear valor de ${participantLabel(name)}`
                 }
                 className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
@@ -505,7 +505,7 @@ export function SplitMemberItemAllocationSheet({
       onClose={onClose}
       title={item?.name?.trim() || 'A tua parte'}
       subtitle={item ? formatCurrency(item.price) : undefined}
-      size="medium"
+      size="full"
       minimizedAboveBottomNav={false}
       footer={
         <button
@@ -558,10 +558,10 @@ export function SplitMemberItemAllocationSheet({
           {draftMode === 'equal' ? (
             <>
               <div className="rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-4 flex items-center gap-3">
-                <Avatar name={myName} src={participantAvatar(myName)} size="md" />
+                <Avatar name={participantLabel(myName)} src={participantAvatar(myName)} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-ink">
-                    {myName}
+                    {participantLabel(myName)}
                   </p>
                   {equalParticipants.has(myName) && (
                     <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
@@ -589,7 +589,7 @@ export function SplitMemberItemAllocationSheet({
               </div>
               {locked && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — os participantes não podem ser
+                  Este item está bloqueado. Os participantes não podem ser
                   alterados.
                 </p>
               )}
@@ -614,12 +614,12 @@ export function SplitMemberItemAllocationSheet({
                             )}
                           >
                             <Avatar
-                              name={name}
+                              name={participantLabel(name)}
                               src={participantAvatar(name)}
                               size="sm"
                             />
                             <span className="flex-1 text-sm text-ink truncate">
-                              {name}
+                              {participantLabel(name)}
                             </span>
                             <button
                               type="button"
@@ -654,7 +654,7 @@ export function SplitMemberItemAllocationSheet({
               <ul>{renderValueRow(myName, 'primary')}</ul>
               {locked && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — os valores não podem ser alterados.
+                  Este item está bloqueado. Os valores não podem ser alterados.
                 </p>
               )}
 
@@ -677,10 +677,10 @@ export function SplitMemberItemAllocationSheet({
             // Shares: each person sets their own count.
             <>
               <div className="rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-4 flex items-center gap-3">
-                <Avatar name={myName} src={participantAvatar(myName)} size="md" />
+                <Avatar name={participantLabel(myName)} src={participantAvatar(myName)} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-ink">
-                    {myName}
+                    {participantLabel(myName)}
                   </p>
                   <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
                     A tua parte: {formatCurrency(myShare)}
@@ -706,7 +706,7 @@ export function SplitMemberItemAllocationSheet({
               </div>
               {locked && wasParticipating && (
                 <p className="text-xs text-ink-faint">
-                  Este item já está bloqueado — a tua parte não pode ser alterada.
+                  Este item está bloqueado. A tua parte não pode ser alterada.
                 </p>
               )}
 
@@ -730,13 +730,13 @@ export function SplitMemberItemAllocationSheet({
                             )}
                           >
                             <Avatar
-                              name={name}
+                              name={participantLabel(name)}
                               src={participantAvatar(name)}
                               size="sm"
                             />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-ink truncate">
-                                {name}
+                                {participantLabel(name)}
                               </p>
                               {isActive && (
                                 <p className="text-xs text-ink-faint">
@@ -783,7 +783,7 @@ export function SplitMemberItemAllocationSheet({
             {draftMode === 'shares' && (
               <p className="text-ink-soft">
                 {summary && summary.assigned > 0
-                  ? `${summary.assigned} parte${summary.assigned === 1 ? '' : 's'} no total — o valor é proporcional.`
+                  ? `${summary.assigned} parte${summary.assigned === 1 ? '' : 's'} no total. Cada um paga em proporção.`
                   : 'Indica quantas unidades consumiste (ex.: 2 cervejas).'}
               </p>
             )}

@@ -1,8 +1,20 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Group, Trip, Order, Item, Split, User } from '@/lib/types';
+import type { Group, Trip, Order, Item, Split, User, Expense, Placeholder, Party, ExpenseComment, Friendship } from '@/lib/types';
 import { normalizeSplitRecord } from '@/lib/splitStatus';
+import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
+import { getUserAvatarUrl } from '@/lib/orderParticipants';
+import { compareExpensesRecentFirst } from '@/lib/expenseDisplay';
+import {
+  balanceFor,
+  netByParty,
+  netPairwise,
+  pairwiseDebts,
+  simplifiedToPairwise,
+  simplifyDebts,
+} from '@/lib/ledger/balances';
 import { db } from './schema';
 
 /**
@@ -45,7 +57,10 @@ function useCachedLiveQuery<T>(
 const byCreatedDesc = <T extends { created: string }>(a: T, b: T) =>
   b.created.localeCompare(a.created);
 
-const SINGLE_USER_KEYS = ['creator', 'created_by', 'user'] as const;
+const SINGLE_USER_KEYS = [
+  'creator', 'created_by', 'user', 'updated_by', 'deleted_by', 'claimed_by',
+  'user_a', 'user_b', 'requested_by',
+] as const;
 const ARRAY_USER_KEYS = ['members', 'admins', 'participants'] as const;
 
 type WithExpand = { expand?: Record<string, unknown> };
@@ -89,10 +104,15 @@ export function useGroups(userId: string | undefined): Group[] | undefined {
     if (!userId) return [];
     const [all, users] = await Promise.all([db.groups.toArray(), db.users.toArray()]);
     const byId = usersMap(users);
-    return all
+    const groups = all
       .filter((g) => g.members?.includes(userId))
       .sort(byCreatedDesc)
       .map((g) => overlayUsers(g, byId));
+    // Aquece a cache por-id (`useGroup`) com o que a lista já sabe — sem isto,
+    // entrar num grupo pela lista chama `group:${id}` pela primeira vez e
+    // pisca o esqueleto mesmo com os dados já quentes no Dexie (ver Fase 14).
+    for (const g of groups) liveResultCache.set(`group:${g.id}`, g);
+    return groups;
   }, [userId]);
 }
 
@@ -142,6 +162,20 @@ export function useOrders(tripId: string | undefined): Order[] | undefined {
   }, [tripId]);
 }
 
+/** Todos os produtos pedidos nas viagens de um grupo (Resumo → "O Clássico
+ *  da Lista"). Só nome/quantidade/data — é o que o prémio precisa. */
+export function useGroupOrderItems(groupId: string | undefined): { name: string; quantity: number; created: string }[] | undefined {
+  return useCachedLiveQuery(`group-order-items:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const tripIds = (await db.trips.where('group_id').equals(groupId).toArray()).map((t) => t.id);
+    if (!tripIds.length) return [];
+    const orderIds = (await db.orders.where('trip_id').anyOf(tripIds).toArray()).map((o) => o.id);
+    if (!orderIds.length) return [];
+    const items = await db.items.where('order_id').anyOf(orderIds).toArray();
+    return items.map((it) => ({ name: it.name, quantity: it.quantity, created: it.created }));
+  }, [groupId]);
+}
+
 export function useItems(orderIds: string[]): Item[] | undefined {
   const key = orderIds.join(',');
   return useCachedLiveQuery(`items:${key}`, async () => {
@@ -174,4 +208,432 @@ export function useSplit(splitId: string | undefined): Split | undefined | null 
     ]);
     return s ? overlayUsers(normalizeSplitRecord(s), usersMap(users)) : null;
   }, [splitId]);
+}
+
+// --- Livro-razão de despesas -----------------------------------------------
+//
+// `expenses`/`placeholders` sincronizam globalmente (ver sync.ts) — o Dexie já
+// só contém os grupos a que o utilizador pertence, por isso `useAllExpenses`
+// não precisa de filtrar por grupo.
+
+export function useExpenses(groupId: string | undefined): Expense[] | undefined {
+  return useCachedLiveQuery(`expenses:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const [expenses, users] = await Promise.all([
+      db.expenses.where('group_id').equals(groupId).toArray(),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return expenses
+      .sort(compareExpensesRecentFirst)
+      .map((e) => overlayUsers(e, byId));
+  }, [groupId]);
+}
+
+export function useExpense(expenseId: string | undefined): Expense | undefined | null {
+  return useCachedLiveQuery(`expense:${expenseId ?? ''}`, async () => {
+    if (!expenseId) return null;
+    const [e, users] = await Promise.all([
+      db.expenses.get(expenseId),
+      db.users.toArray(),
+    ]);
+    return e ? overlayUsers(e, usersMap(users)) : null;
+  }, [expenseId]);
+}
+
+/** Todas as despesas de todos os grupos do utilizador — para a home e a
+ *  Atividade global. */
+export function useAllExpenses(): Expense[] | undefined {
+  return useCachedLiveQuery('expenses:all', async () => {
+    const [expenses, users] = await Promise.all([db.expenses.toArray(), db.users.toArray()]);
+    const byId = usersMap(users);
+    return expenses.map((e) => overlayUsers(e, byId));
+  }, []);
+}
+
+export function usePlaceholders(groupId: string | undefined): Placeholder[] | undefined {
+  return useCachedLiveQuery(`placeholders:${groupId ?? ''}`, async () => {
+    if (!groupId) return [];
+    const [placeholders, users] = await Promise.all([
+      db.placeholders.where('group_id').equals(groupId).toArray(),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return placeholders.map((p) => overlayUsers(p, byId));
+  }, [groupId]);
+}
+
+export function useAllPlaceholders(): Placeholder[] | undefined {
+  return useCachedLiveQuery('placeholders:all', async () => db.placeholders.toArray(), []);
+}
+
+function useAllUsers(): User[] | undefined {
+  return useCachedLiveQuery('users:all', async () => db.users.toArray(), []);
+}
+
+/** Partes de um grupo (membros com conta + placeholders), por id — ver
+ *  `src/lib/parties.ts` para a resolução canónica/nomes/avatares. */
+export function useParties(groupId: string | undefined): Map<string, Party> | undefined {
+  const group = useGroup(groupId);
+  const placeholders = usePlaceholders(groupId);
+  return useMemo(() => {
+    if (group === undefined || placeholders === undefined) return undefined;
+    return buildPartyMap(groupMembersFromExpand(group), placeholders);
+  }, [group, placeholders]);
+}
+
+/** Partes para uma despesa direta sem grupo (Fase 8) — só utilizadores reais
+ *  (nunca há placeholders fora de um grupo), a partir de `Expense.participants`. */
+export function usePartiesForUserIds(userIds: string[] | undefined): Map<string, Party> | undefined {
+  const allUsers = useAllUsers();
+  return useMemo(() => {
+    if (!userIds || allUsers === undefined) return undefined;
+    const usersById = usersMap(allUsers);
+    const users = userIds.map((id) => usersById.get(id)).filter((u): u is User => Boolean(u));
+    return buildPartyMap(users, []);
+  }, [userIds, allUsers]);
+}
+
+/** Saldo líquido (cêntimos) do utilizador em cada grupo onde é membro — para
+ *  a frase "No total, deves/devem-te X" da home e o saldo por `GroupCard`. */
+export function useGroupBalances(userId: string | undefined): Map<string, number> | undefined {
+  const groups = useGroups(userId);
+  const allExpenses = useAllExpenses();
+  const allPlaceholders = useAllPlaceholders();
+
+  return useMemo(() => {
+    if (!userId || groups === undefined || allExpenses === undefined || allPlaceholders === undefined) {
+      return undefined;
+    }
+    const expensesByGroup = new Map<string, Expense[]>();
+    for (const e of allExpenses) {
+      if (!e.group_id) continue; // despesa direta (Fase 8) — sem grupo, fora deste saldo
+      const list = expensesByGroup.get(e.group_id) ?? [];
+      list.push(e);
+      expensesByGroup.set(e.group_id, list);
+    }
+    const placeholdersByGroup = new Map<string, Placeholder[]>();
+    for (const p of allPlaceholders) {
+      const list = placeholdersByGroup.get(p.group_id) ?? [];
+      list.push(p);
+      placeholdersByGroup.set(p.group_id, list);
+    }
+
+    const result = new Map<string, number>();
+    for (const group of groups) {
+      const parties = buildPartyMap(
+        groupMembersFromExpand(group),
+        placeholdersByGroup.get(group.id) ?? [],
+      );
+      const net = netByParty(expensesByGroup.get(group.id) ?? [], (id) =>
+        canonicalPartyId(id, parties),
+      );
+      result.set(group.id, net[userId] ?? 0);
+    }
+    return result;
+  }, [userId, groups, allExpenses, allPlaceholders]);
+}
+
+export interface GroupLedger {
+  /** Saldo líquido por id canónico de parte, em cêntimos. */
+  net: Record<string, number>;
+  /** debtor → credor → cêntimos — já simplificado ou não, consoante
+   *  `group.simplify_debts` (default true). */
+  pairwise: Record<string, Record<string, number>>;
+  parties: Map<string, Party>;
+}
+
+/** Saldos de um grupo — usado pela faixa de saldo, o ecrã de Saldos e a
+ *  lista de membros. Respeita `groups.simplify_debts` do próprio grupo. */
+export function useGroupLedger(groupId: string | undefined): GroupLedger | undefined {
+  const group = useGroup(groupId);
+  const expenses = useExpenses(groupId);
+  const parties = useParties(groupId);
+
+  return useMemo(() => {
+    if (group === undefined || expenses === undefined || parties === undefined) return undefined;
+    const resolve = (id: string) => canonicalPartyId(id, parties);
+    const active = expenses.filter((e) => !e.deleted_at);
+    const net = netByParty(active, resolve);
+    const rawPairwise = pairwiseDebts(active, resolve);
+    const simplify = group?.simplify_debts ?? true;
+    const pairwise = simplify ? simplifiedToPairwise(simplifyDebts(net)) : netPairwise(rawPairwise);
+    return { net, pairwise, parties };
+  }, [group, expenses, parties]);
+}
+
+/** Comentários de uma despesa (Fase 5), com o autor sobreposto por
+ *  `db.users` (mesmo padrão de `overlayUsers` dos outros hooks). */
+export function useComments(expenseId: string | undefined): ExpenseComment[] | undefined {
+  return useCachedLiveQuery(`comments:${expenseId ?? ''}`, async () => {
+    if (!expenseId) return [];
+    const [comments, users] = await Promise.all([
+      db.expense_comments.where('expense_id').equals(expenseId).sortBy('created'),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return comments.map((c) => overlayUsers(c, byId));
+  }, [expenseId]);
+}
+
+export interface PersonBalance {
+  /** Id de utilizador (com conta) — só pessoas com conta são somáveis entre
+   *  grupos; placeholders são por natureza locais a um grupo. */
+  userId: string;
+  party: Party;
+  /** Positivo = deve-te (total: grupos partilhados + despesas diretas). */
+  netCents: number;
+  groups: { groupId: string; groupName: string; netCents: number }[];
+  /** Parte de `netCents` vinda de despesas sem grupo (Fase 8) — a UI usa isto
+   *  para mostrar uma linha "Despesas diretas" separada dos grupos. */
+  directNetCents: number;
+}
+
+function partyFromUser(u: User | undefined, fallbackId: string): Party {
+  if (!u) return { id: fallbackId, name: 'Alguém', kind: 'user' };
+  return {
+    id: u.id,
+    name: u.name || u.email || 'Sem nome',
+    avatar: getUserAvatarUrl(u.id, u.avatar),
+    email: u.email,
+    mbwayPhone: u.mbway_phone,
+    revtag: u.revtag,
+    username: u.username,
+    kind: 'user',
+  };
+}
+
+/** Saldo por pessoa, somado a todos os grupos partilhados com o utilizador
+ *  (tab "Pessoas") **e** a despesas diretas sem grupo (Fase 8) — usa
+ *  `useAllExpenses`/`useAllPlaceholders` (já sincronizados globalmente) em
+ *  vez de ir grupo a grupo. Amizades aceites sem despesa nenhuma entram na
+ *  lista com saldo zero ("Contas em dia"), como no Splitwise. */
+export function usePeopleBalances(currentUserId: string | undefined): PersonBalance[] | undefined {
+  const groups = useGroups(currentUserId);
+  const allExpenses = useAllExpenses();
+  const allPlaceholders = useAllPlaceholders();
+  const allUsers = useAllUsers();
+  const friendships = useCachedLiveQuery(`friendships:raw:${currentUserId ?? ''}`, async () => {
+    if (!currentUserId) return [];
+    return [
+      ...(await db.friendships.where('user_a').equals(currentUserId).toArray()),
+      ...(await db.friendships.where('user_b').equals(currentUserId).toArray()),
+    ];
+  }, [currentUserId]);
+
+  return useMemo(() => {
+    if (
+      !currentUserId ||
+      groups === undefined ||
+      allExpenses === undefined ||
+      allPlaceholders === undefined ||
+      allUsers === undefined ||
+      friendships === undefined
+    ) {
+      return undefined;
+    }
+    const usersById = usersMap(allUsers);
+    const byUser = new Map<string, PersonBalance>();
+
+    const ensureEntry = (userId: string): PersonBalance => {
+      let entry = byUser.get(userId);
+      if (!entry) {
+        entry = { userId, party: partyFromUser(usersById.get(userId), userId), netCents: 0, groups: [], directNetCents: 0 };
+        byUser.set(userId, entry);
+      }
+      return entry;
+    };
+
+    // 1. saldos por grupo partilhado (como antes)
+    for (const group of groups) {
+      const parties = buildPartyMap(
+        groupMembersFromExpand(group),
+        allPlaceholders.filter((p) => p.group_id === group.id),
+      );
+      const resolve = (id: string) => canonicalPartyId(id, parties);
+      const groupExpenses = allExpenses.filter((e) => e.group_id === group.id && !e.deleted_at);
+      const net = netByParty(groupExpenses, resolve);
+      const pairwise = netPairwise(pairwiseDebts(groupExpenses, resolve));
+      const { lines } = balanceFor(currentUserId, pairwise, net);
+
+      for (const line of lines) {
+        const party = parties.get(line.party);
+        if (party?.kind !== 'user') continue; // placeholders não se somam entre grupos
+        const entry = ensureEntry(party.id);
+        entry.party = party;
+        entry.netCents += line.amountCents;
+        entry.groups.push({ groupId: group.id, groupName: group.name, netCents: line.amountCents });
+      }
+    }
+
+    // 2. despesas diretas sem grupo — identidade já é o id real (sem placeholders)
+    const directExpenses = allExpenses.filter(
+      (e) => !e.group_id && !e.deleted_at && e.participants?.includes(currentUserId),
+    );
+    if (directExpenses.length) {
+      const identity = (id: string) => id;
+      const net = netByParty(directExpenses, identity);
+      const pairwise = netPairwise(pairwiseDebts(directExpenses, identity));
+      const { lines } = balanceFor(currentUserId, pairwise, net);
+      for (const line of lines) {
+        const entry = ensureEntry(line.party);
+        entry.netCents += line.amountCents;
+        entry.directNetCents += line.amountCents;
+      }
+    }
+
+    // 3. amizades aceites sem despesa nenhuma ainda → entram com saldo zero
+    for (const f of friendships) {
+      if (f.status !== 'accepted') continue;
+      ensureEntry(f.user_a === currentUserId ? f.user_b : f.user_a);
+    }
+
+    return Array.from(byUser.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents));
+  }, [currentUserId, groups, allExpenses, allPlaceholders, allUsers, friendships]);
+}
+
+export interface BalanceOverview {
+  /** Soma das partes positivas de `netCents` de todas as pessoas — a receber no total. */
+  receiveCents: number;
+  /** Soma dos valores absolutos das partes negativas — a pagar no total. */
+  payCents: number;
+  netCents: number;
+}
+
+/** Resumo agregado "a receber vs a pagar" para o topo do Início — soma
+ *  `usePeopleBalances` (já inclui grupos partilhados + despesas diretas). */
+export function useBalanceOverview(userId: string | undefined): BalanceOverview | undefined {
+  const people = usePeopleBalances(userId);
+  return useMemo(() => {
+    if (!people) return undefined;
+    let receiveCents = 0;
+    let payCents = 0;
+    for (const p of people) {
+      if (p.netCents > 0) receiveCents += p.netCents;
+      else payCents += -p.netCents;
+    }
+    return { receiveCents, payCents, netCents: receiveCents - payCents };
+  }, [people]);
+}
+
+/** Amigos aceites / pedidos recebidos / pedidos enviados (Fase 8). */
+export interface FriendshipsView {
+  accepted: Friendship[];
+  incoming: Friendship[];
+  outgoing: Friendship[];
+}
+
+export function useFriendships(userId: string | undefined): FriendshipsView | undefined {
+  const raw = useCachedLiveQuery(`friendships:${userId ?? ''}`, async () => {
+    if (!userId) return [];
+    const [rows, users] = await Promise.all([
+      Promise.all([
+        db.friendships.where('user_a').equals(userId).toArray(),
+        db.friendships.where('user_b').equals(userId).toArray(),
+      ]).then(([a, b]) => [...a, ...b]),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return rows.map((f) => overlayUsers(f, byId));
+  }, [userId]);
+
+  return useMemo(() => {
+    if (!userId || raw === undefined) return undefined;
+    const accepted: Friendship[] = [];
+    const incoming: Friendship[] = [];
+    const outgoing: Friendship[] = [];
+    for (const f of raw) {
+      if (f.status === 'accepted') accepted.push(f);
+      else if (f.requested_by === userId) outgoing.push(f);
+      else incoming.push(f);
+    }
+    return { accepted, incoming, outgoing };
+  }, [userId, raw]);
+}
+
+/** Despesas diretas (sem grupo) entre o utilizador e um amigo — para o
+ *  histórico na página da pessoa (Fase 8). */
+export function useDirectExpenses(userId: string | undefined, friendId: string | undefined): Expense[] | undefined {
+  return useCachedLiveQuery(`directExpenses:${userId ?? ''}:${friendId ?? ''}`, async () => {
+    if (!userId || !friendId) return [];
+    const [expenses, users] = await Promise.all([
+      db.expenses.where('participants').equals(userId).toArray(),
+      db.users.toArray(),
+    ]);
+    const byId = usersMap(users);
+    return expenses
+      .filter((e) => !e.group_id && e.participants?.includes(friendId))
+      .sort(compareExpensesRecentFirst)
+      .map((e) => overlayUsers(e, byId));
+  }, [userId, friendId]);
+}
+
+export interface SharedExpenseEntry {
+  expense: Expense;
+  /** `null` = despesa direta sem grupo. */
+  groupName: string | null;
+}
+
+/** Despesas (de grupo ou diretas) entre dois utilizadores, para a página de
+ *  Amigo.
+ *
+ *  As diretas (sem grupo) filtram-se com segurança pelo índice
+ *  `*participants` — nesse caso é sempre id real, nunca placeholder (ver
+ *  `Expense.participants`). As de grupo NÃO podem usar o mesmo atalho:
+ *  `placeholdersApi.claim` deixa bem claro que "o histórico não é
+ *  reescrito, só se marca `claimed_by`" — uma despesa criada enquanto esta
+ *  pessoa ainda era um placeholder do grupo nunca teve o `participants`
+ *  atualizado depois de reclamar a conta. Por isso, para grupos, resolve-se
+ *  o id canónico a partir de `payers`/`shares` (como a UI de saldos faz),
+ *  mas só nos grupos onde a pessoa pode mesmo aparecer — membro com conta,
+ *  ou dona de um placeholder reclamado nesse grupo (`placeholders.claimed_by`,
+ *  indexado) — em vez de todos os meus grupos. Isto mantém a correção do
+ *  código antigo, só substituindo "todos os grupos × todas as despesas da
+ *  app" por consultas indexadas (`group_id`) restritas aos grupos
+ *  realmente partilhados com esta pessoa. Tudo dentro da função assíncrona
+ *  da query — fora do caminho síncrono de render (Fase 14). */
+export function useSharedExpenses(
+  userId: string | undefined,
+  otherUserId: string | undefined,
+): SharedExpenseEntry[] | undefined {
+  const groups = useGroups(userId);
+
+  return useCachedLiveQuery(`sharedExpenses:${userId ?? ''}:${otherUserId ?? ''}`, async () => {
+    if (!userId || !otherUserId || !groups) return [];
+
+    const claimedElsewhere = await db.placeholders.where('claimed_by').equals(otherUserId).toArray();
+    const claimedGroupIds = new Set(claimedElsewhere.map((p) => p.group_id));
+    const candidateGroups = groups.filter(
+      (g) => g.members.includes(otherUserId) || claimedGroupIds.has(g.id),
+    );
+
+    const [groupEntries, myExpenses, users] = await Promise.all([
+      Promise.all(candidateGroups.map(async (group) => {
+        const [expenses, placeholders] = await Promise.all([
+          db.expenses.where('group_id').equals(group.id).toArray(),
+          db.placeholders.where('group_id').equals(group.id).toArray(),
+        ]);
+        const parties = buildPartyMap(groupMembersFromExpand(group), placeholders);
+        const resolve = (id: string) => canonicalPartyId(id, parties);
+        return expenses
+          .filter((e) => !e.deleted_at)
+          .filter((e) => {
+            const ids = new Set([...e.payers.map((p) => resolve(p.party)), ...e.shares.map((s) => resolve(s.party))]);
+            return ids.has(userId) && ids.has(otherUserId);
+          })
+          .map((expense) => ({ expense, groupName: group.name }));
+      })),
+      db.expenses.where('participants').equals(userId).toArray(),
+      db.users.toArray(),
+    ]);
+
+    const byId = usersMap(users);
+    const directEntries = myExpenses
+      .filter((e) => !e.group_id && !e.deleted_at && e.participants?.includes(otherUserId))
+      .map((expense) => ({ expense, groupName: null as string | null }));
+
+    return [...groupEntries.flat(), ...directEntries]
+      .map((entry) => ({ ...entry, expense: overlayUsers(entry.expense, byId) }))
+      .sort((a, b) => compareExpensesRecentFirst(a.expense, b.expense));
+  }, [userId, otherUserId, groups]);
 }

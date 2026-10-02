@@ -1,5 +1,6 @@
 'use client';
 
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
@@ -9,18 +10,29 @@ import { groupsApi } from '@/lib/pocketbase';
 import type { Group } from '@/lib/types';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
-import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
 import { GROUP_EMOJIS } from '@/lib/groupAvatars';
 import { cn, emojiToImageBlob } from '@/lib/utils';
 import { Sheet } from '@/components/ui/Sheet';
 import { GroupCard } from '@/components/features/GroupCard';
+import { HomeOverview } from '@/components/features/HomeOverview';
+import { HomeTabs } from '@/components/features/HomeTabs';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
+import { GlobalBottomNav } from '@/components/layout/GlobalBottomNav';
+import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { Icon } from '@/components/ui/Icon';
-import { useGroups } from '@/lib/db/hooks';
+import { Button } from '@/components/ui/Button';
+import { useGroups, useGroupBalances } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
+import { notificationPromptStage, type NotificationPromptStage } from '@/lib/notificationPromptState';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
+import { groupHomeHref } from '@/lib/navHierarchy';
+
+/** Quanto tempo um grupo novo fica na lista mesmo com as contas em dia. */
+const RECENT_GROUP_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,6 +51,18 @@ export default function GroupsPage() {
     const groups = groupsQuery ?? [];
     const { hydrating } = useSyncStatus();
     const loading = groupsQuery === undefined || (groups.length === 0 && hydrating);
+    const [notificationPrompt, setNotificationPrompt] = useState<NotificationPromptStage | null>(null);
+    const balances = useGroupBalances(user?.id);
+    const [showSettled, setShowSettled] = useState(false);
+
+    // Um grupo fica na lista enquanto não estiver em dia OU nos primeiros 7
+    // dias depois de criado — um grupo acabado de criar tem saldo zero e ia
+    // logo parar a "Mostrar N grupos em dia", como se já estivesse arrumado.
+    const isRecent = (g: { created: string }) => Date.now() - new Date(g.created).getTime() < RECENT_GROUP_MS;
+    const isSettled = (g: { id: string }) => Math.abs(balances?.get(g.id) ?? 0) < 1;
+    const settledGroups = groups.filter((g) => isSettled(g) && !isRecent(g));
+    const activeGroups = groups.filter((g) => !isSettled(g) || isRecent(g));
+    const visibleGroups = showSettled ? groups : activeGroups;
 
     // Redirect if not logged in
     useEffect(() => {
@@ -46,6 +70,32 @@ export default function GroupsPage() {
             router.push('/');
         }
     }, [isLoggedIn, router]);
+
+    // Utilizadores antigos (de antes do onboarding existir) têm
+    // `onboarded` a false/undefined — mostra-lho da próxima vez que abrirem
+    // a app, não só a quem acabou de criar conta (ver memória
+    // `onboarding-pwa-install`).
+    useEffect(() => {
+        if (isLoggedIn && user && !user.onboarded) {
+            router.push('/onboarding');
+        }
+    }, [isLoggedIn, user, router]);
+
+    // Pedido de ativar notificações, à entrada da app. Pertencer a um grupo já
+    // é razão para querer avisos (despesas, pagamentos, viagens) — cobre quem
+    // só usa despesas e quem entrou por convite; a app instalada conta sempre
+    // (é aí que o iPhone o volta a mostrar, já só para dar a permissão). O
+    // pedido com o item real, logo a seguir a pedir numa viagem, vive em
+    // `trips/[tripId]/page.tsx`. Espera o onboarding e um instante, para não
+    // tapar a app no segundo em que abre.
+    const hasGroups = groups.length > 0;
+    const groupsLoaded = groupsQuery !== undefined;
+    const onboarded = Boolean(user?.onboarded);
+    useEffect(() => {
+        if (!isLoggedIn || !onboarded || !groupsLoaded) return;
+        const timer = window.setTimeout(() => setNotificationPrompt(notificationPromptStage(hasGroups)), 1200);
+        return () => window.clearTimeout(timer);
+    }, [isLoggedIn, onboarded, hasGroups, groupsLoaded]);
 
     // Clear current group when visiting groups list
     useEffect(() => {
@@ -65,6 +115,7 @@ export default function GroupsPage() {
             await onlineCreate(() =>
                 groupsApi.create({ name: newGroupName.trim(), avatar: avatarBlob }),
             );
+            markInstallValueMoment();
             void catchUp();
             setShowCreateModal(false);
             setNewGroupName('');
@@ -79,17 +130,15 @@ export default function GroupsPage() {
 
     const handleSelectGroup = (group: Group) => {
         setCurrentGroup(group);
-        const isGroupAdmin = !!user?.id && group.admins?.includes(user.id);
-        nav.push(`/groups/${group.id}/${isGroupAdmin ? 'admin' : 'trips'}`, { haptic: false });
+        nav.push(groupHomeHref(group.id), { haptic: false });
     };
 
     if (!isLoggedIn) return null;
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)]">
+        <div className="min-h-dvh bg-app has-bottom-nav">
             <Header
-                title="Meus Grupos"
-                subtitle="Escolhe um grupo para começar"
+                title="Order It All!"
                 icon={
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -100,55 +149,65 @@ export default function GroupsPage() {
                 }
             />
 
-            <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Greeting */}
-                <div className="mb-8 animate-fade-in-up">
-                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-1">
-                        Olá, <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">{user?.name || 'amigo'}</span>! 👋
-                    </h2>
-                    <p className="text-[var(--text-secondary)]">Seleciona um grupo ou cria um novo</p>
-                </div>
+            <HomeOverview />
+            <main className="container mx-auto max-w-lg px-2 sm:px-4 pt-5 pb-24">
+                <HomeTabs />
 
                 {/* Loading */}
                 {loading ? (
-                    <EntityCardSkeletonGrid count={3} />
+                    <ListSkeleton rows={3} leading="group" />
                 ) : (
                     <>
-                        {/* Create Group Button */}
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="w-full mb-6 p-4 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-2xl text-info-fg font-semibold hover:bg-info-bg hover:border-primary-400 dark:hover:border-primary-600 transition flex items-center justify-center gap-2 animate-fade-in-up"
-                        >
-                            <Icon name="add" className="text-xl" />
-                            Criar Novo Grupo
-                        </button>
-
                         {groups.length === 0 ? (
-                            /* Empty State */
+                            /* Estado vazio — onboarding: primeira ação acionável, não só texto
+                               (ver plano de onboarding). */
                             <div className="text-center py-20 animate-fade-in-up">
-                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-100 flex items-center justify-center">
+                                <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary-100 dark:bg-primary-950 flex items-center justify-center">
                                     <span className="text-6xl">👥</span>
                                 </div>
-                                <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                                    Sem grupos ainda
+                                <h3 className="text-xl font-semibold text-ink mb-2">
+                                    Cria o teu primeiro grupo
                                 </h3>
-                                <p className="text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
-                                    Cria um grupo para começar a organizar compras e divisões!
+                                <p className="text-ink-soft mb-6 max-w-sm mx-auto">
+                                    Convida amigos ou família e organiza compras e despesas em conjunto.
                                 </p>
+                                <Button onClick={() => setShowCreateModal(true)}>
+                                    <Icon name="add" className="text-xl" />
+                                    Criar Grupo
+                                </Button>
                             </div>
                         ) : (
-                            /* Groups Grid */
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {groups.map((group, index) => (
-                                    <GroupCard
-                                        key={group.id}
-                                        group={group}
-                                        userId={user?.id}
-                                        onSelect={() => handleSelectGroup(group)}
-                                        style={{ animationDelay: `${index * 0.05}s` }}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div className="card divide-y divide-hairline overflow-hidden">
+                                    {visibleGroups.map((group) => (
+                                        <GroupCard
+                                            key={group.id}
+                                            group={group}
+                                            netCents={balances?.get(group.id)}
+                                            onSelect={() => handleSelectGroup(group)}
+                                        />
+                                    ))}
+                                </div>
+
+                                {!showSettled && settledGroups.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettled(true)}
+                                        className="w-full mt-4 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                    >
+                                        Mostrar {settledGroups.length} {settledGroups.length === 1 ? 'grupo em dia' : 'grupos em dia'}
+                                    </button>
+                                )}
+                                {showSettled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettled(false)}
+                                        className="w-full mt-4 py-2.5 rounded-full border border-hairline-strong text-sm font-semibold text-ink-soft hover:bg-surface-sunken transition-colors"
+                                    >
+                                        Ocultar grupos em dia
+                                    </button>
+                                )}
+                            </>
                         )}
                     </>
                 )}
@@ -159,7 +218,7 @@ export default function GroupsPage() {
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                size="medium"
+                size="full"
                 title="Criar Novo Grupo"
                 footer={
                     <div>
@@ -178,8 +237,8 @@ export default function GroupsPage() {
                             )}
                         </button>
                         {!online && (
-                            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
-                                Sem ligação — precisas de rede para criar um grupo.
+                            <p className="mt-2 text-center text-xs text-ink-faint">
+                                Sem ligação. Precisas de rede para criar um grupo.
                             </p>
                         )}
                     </div>
@@ -225,6 +284,12 @@ export default function GroupsPage() {
                     </div>
                 </div>
             </Sheet>
+
+            {notificationPrompt && (
+                <NotificationInstallPrompt stage={notificationPrompt} onClose={() => setNotificationPrompt(null)} />
+            )}
+            <ExpandableFab icon="add" label="Criar Grupo" onClick={() => setShowCreateModal(true)} />
+            <GlobalBottomNav />
         </div>
     );
 }

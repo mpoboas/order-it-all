@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar } from '@/components/ui/Avatar';
-import { getUserAvatarUrl } from '@/lib/orderParticipants';
-import { participantDisplayName } from '@/lib/splitShare';
-import type { User } from '@/lib/types';
+import type { Party } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface SplitParticipantNameInputProps {
   value: string;
   onChange: (value: string) => void;
-  onAdd: (name: string) => void;
-  candidates: User[];
+  /** Escolheu um membro ou um placeholder já existente no grupo. */
+  onSelectExisting: (partyId: string) => void;
+  /** Escreveu um nome que não corresponde a ninguém — o pai cria um placeholder novo. */
+  onAddNew: (name: string) => void;
+  /** Partes do grupo ainda não na divisão (membros + placeholders). */
+  candidates: Party[];
   placeholder?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   className?: string;
@@ -21,7 +23,8 @@ interface SplitParticipantNameInputProps {
 export function SplitParticipantNameInput({
   value,
   onChange,
-  onAdd,
+  onSelectExisting,
+  onAddNew,
   candidates,
   placeholder = 'Introduz um nome...',
   inputRef,
@@ -36,9 +39,9 @@ export function SplitParticipantNameInput({
 
   const matches = useMemo(() => {
     const query = value.trim().toLowerCase();
-    return candidates.filter((member) => {
-      const name = participantDisplayName(member).toLowerCase();
-      const email = (member.email || '').toLowerCase();
+    return candidates.filter((party) => {
+      const name = party.name.toLowerCase();
+      const email = (party.email || '').toLowerCase();
       if (!query) return true;
       return name.includes(query) || email.includes(query);
     });
@@ -80,14 +83,18 @@ export function SplitParticipantNameInput({
     if (!trimmed) return;
 
     const exact = candidates.find(
-      (member) => participantDisplayName(member).toLowerCase() === trimmed.toLowerCase()
+      (party) => party.name.toLowerCase() === trimmed.toLowerCase()
     );
-    onAdd(exact ? participantDisplayName(exact) : trimmed);
+    if (exact) {
+      onSelectExisting(exact.id);
+    } else {
+      onAddNew(trimmed);
+    }
     setOpen(false);
   };
 
-  const selectMember = (member: User) => {
-    onAdd(participantDisplayName(member));
+  const selectCandidate = (party: Party) => {
+    onSelectExisting(party.id);
     setOpen(false);
   };
 
@@ -107,35 +114,28 @@ export function SplitParticipantNameInput({
             }}
             role="listbox"
           >
-            {matches.map((member) => {
-              const name = participantDisplayName(member);
-              return (
-                <li key={member.id} role="option">
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectMember(member)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors flex items-center gap-2.5"
-                  >
-                    <Avatar
-                      name={name}
-                      src={getUserAvatarUrl(member.id, member.avatar)}
-                      size="sm"
-                    />
-                    <span className="min-w-0">
-                      <span className="block font-medium text-[var(--text-primary)] truncate">
-                        {name}
-                      </span>
-                      {member.email && member.name && (
-                        <span className="block text-xs text-[var(--text-muted)] truncate">
-                          {member.email}
-                        </span>
-                      )}
+            {matches.map((party) => (
+              <li key={party.id} role="option">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => selectCandidate(party)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors flex items-center gap-2.5"
+                >
+                  <Avatar name={party.name} src={party.avatar} size="sm" />
+                  <span className="min-w-0">
+                    <span className="block font-medium text-[var(--text-primary)] truncate">
+                      {party.name}
                     </span>
-                  </button>
-                </li>
-              );
-            })}
+                    {party.kind === 'user' && party.email && (
+                      <span className="block text-xs text-[var(--text-muted)] truncate">
+                        {party.email}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>,
           document.body
         )
@@ -167,7 +167,7 @@ export function SplitParticipantNameInput({
               }
             }}
             placeholder={placeholder}
-            className="w-full h-10 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+            className="w-full h-11 px-3 text-base rounded-xl border border-hairline bg-surface-sunken text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={Boolean(showMenu)}
@@ -178,7 +178,7 @@ export function SplitParticipantNameInput({
           onMouseDown={(e) => e.preventDefault()}
           onClick={submit}
           disabled={!value.trim()}
-          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-xl bg-primary-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
+          className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary-600 text-white font-bold text-lg disabled:opacity-40 active:scale-95 transition"
           aria-label="Adicionar participante"
         >
           +

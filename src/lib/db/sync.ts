@@ -1,19 +1,25 @@
 import type { Table } from 'dexie';
 import type { RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import { pb } from '@/lib/pocketbase';
-import type { Group, User } from '@/lib/types';
+import type { Group, User, Expense, Placeholder, ExpenseComment, Friendship } from '@/lib/types';
 import { db, extractUsersFromExpand, metaGet, metaSet } from './schema';
+import { checkConnectivity, isAppOffline, markSynced } from '@/lib/connectivity';
 
 /**
  * Sincronização local-first, com **âmbito por grupo**.
  *
  *  - A lista de `groups` sincroniza globalmente (é pequena e está sempre visível).
+ *  - `expenses` / `placeholders` sincronizam **globalmente** também (todos os
+ *    grupos do utilizador, não só o ativo) — a home e a Atividade precisam dos
+ *    saldos de todos os grupos, e são registos pequenos (ao contrário de
+ *    trips/orders/items).
  *  - `trips` / `orders` / `items` / `splits` sincronizam só para o **grupo ativo**
  *    (o que está aberto), via filtros relacionais do PocketBase — sem cadeias de
  *    `OR` (que rebentavam a 400 em utilizadores com muitos dados) e sem puxar o
  *    grafo inteiro. O Dexie mantém em cache os grupos já visitados.
  *  - Realtime: 1 subscrição filtrada por coleção para o grupo ativo (as
- *    subscrições `*` sem filtro dão 403 em `items`/`orders`).
+ *    subscrições `*` sem filtro dão 403 em `items`/`orders`), mais 1 subscrição
+ *    global por coleção global (`groups`, `expenses`, `placeholders`).
  */
 
 const OVERLAP_MINUTES = 2;
@@ -29,6 +35,26 @@ const GROUP_EXPAND: Record<GroupColl, string> = {
 };
 
 const GROUPS_EXPAND = 'creator,admins,members';
+
+type GlobalColl = 'expenses' | 'placeholders' | 'expense_comments' | 'friendships';
+const GLOBAL_COLLS: GlobalColl[] = ['expenses', 'placeholders', 'expense_comments', 'friendships'];
+
+const GLOBAL_EXPAND: Record<GlobalColl, string> = {
+  expenses: 'created_by,updated_by,deleted_by,participants',
+  placeholders: 'claimed_by,created_by',
+  expense_comments: 'user',
+  friendships: 'user_a,user_b,requested_by',
+};
+
+/** Filtro relacional global por coleção (Fase 8: `expenses`/`expense_comments`
+ *  passam a admitir despesas sem grupo, autorizadas via `participants` em vez
+ *  de `group_id.members`; `friendships` não tem `group_id` nenhum). */
+const GLOBAL_FILTERS: Record<GlobalColl, (userId: string) => string> = {
+  expenses: (id) => `(group_id.members ~ "${id}") || (participants ~ "${id}")`,
+  placeholders: (id) => `group_id.members ~ "${id}"`,
+  expense_comments: (id) => `(group_id.members ~ "${id}") || (participants ~ "${id}")`,
+  friendships: (id) => `user_a = "${id}" || user_b = "${id}"`,
+};
 
 type Syncable = { id: string; updated?: string; expand?: Record<string, unknown> };
 
@@ -46,6 +72,10 @@ function groupScope(coll: GroupColl, gid: string): string {
 }
 
 function groupTable(coll: GroupColl): Table<Syncable, string> {
+  return db[coll] as unknown as Table<Syncable, string>;
+}
+
+function globalTable(coll: GlobalColl): Table<Syncable, string> {
   return db[coll] as unknown as Table<Syncable, string>;
 }
 
@@ -79,17 +109,25 @@ export async function backfillUsersFromCache(): Promise<void> {
       db.trips.toArray(),
       db.orders.toArray(),
       db.splits.toArray(),
+      db.expenses.toArray(),
+      db.placeholders.toArray(),
+      db.expense_comments.toArray(),
+      db.friendships.toArray(),
     ])
   ).flat();
   await putUsers(extractUsersFromExpand(records));
 }
 
 async function referencedUserIds(): Promise<string[]> {
-  const [groups, trips, orders, splits] = await Promise.all([
+  const [groups, trips, orders, splits, expenses, placeholders, comments, friendships] = await Promise.all([
     db.groups.toArray(),
     db.trips.toArray(),
     db.orders.toArray(),
     db.splits.toArray(),
+    db.expenses.toArray(),
+    db.placeholders.toArray(),
+    db.expense_comments.toArray(),
+    db.friendships.toArray(),
   ]);
   const s = new Set<string>();
   for (const g of groups) {
@@ -103,6 +141,22 @@ async function referencedUserIds(): Promise<string[]> {
     o.participants?.forEach((x) => s.add(x));
   }
   for (const sp of splits) if (sp.created_by) s.add(sp.created_by);
+  for (const e of expenses) {
+    if (e.created_by) s.add(e.created_by);
+    if (e.updated_by) s.add(e.updated_by);
+    if (e.deleted_by) s.add(e.deleted_by);
+    e.participants?.forEach((x) => s.add(x));
+  }
+  for (const p of placeholders) {
+    if (p.created_by) s.add(p.created_by);
+    if (p.claimed_by) s.add(p.claimed_by);
+  }
+  for (const c of comments) if (c.user) s.add(c.user);
+  for (const f of friendships) {
+    s.add(f.user_a);
+    s.add(f.user_b);
+    s.add(f.requested_by);
+  }
   return [...s];
 }
 
@@ -126,19 +180,57 @@ async function fetchMissingUsers(): Promise<void> {
 // --- Groups (global) ---------------------------------------------------
 
 export async function hydrateGroups(userId: string): Promise<void> {
-  const groups = await pb.collection('groups').getFullList<Group>({
-    filter: `members ~ "${userId}"`,
-    sort: '-created',
-    expand: GROUPS_EXPAND,
-  });
-  await db.transaction('rw', [db.groups, db.users, db.meta], async () => {
-    await db.groups.clear();
-    await db.groups.bulkPut(groups);
-    await db.users.bulkPut(extractUsersFromExpand(groups));
-    const mark = maxUpdated(groups, null);
-    if (mark) await metaSet('lastSync:groups', mark);
-    await metaSet('session:userId', userId);
-  });
+  const [groups, expenses, placeholders, comments, friendships] = await Promise.all([
+    pb.collection('groups').getFullList<Group>({
+      filter: `members ~ "${userId}"`,
+      sort: '-created',
+      expand: GROUPS_EXPAND,
+    }),
+    pb.collection('expenses').getFullList<Expense>({
+      filter: GLOBAL_FILTERS.expenses(userId),
+      expand: GLOBAL_EXPAND.expenses,
+    }),
+    pb.collection('placeholders').getFullList<Placeholder>({
+      filter: GLOBAL_FILTERS.placeholders(userId),
+      expand: GLOBAL_EXPAND.placeholders,
+    }),
+    pb.collection('expense_comments').getFullList<ExpenseComment>({
+      filter: GLOBAL_FILTERS.expense_comments(userId),
+      expand: GLOBAL_EXPAND.expense_comments,
+    }),
+    pb.collection('friendships').getFullList<Friendship>({
+      filter: GLOBAL_FILTERS.friendships(userId),
+      expand: GLOBAL_EXPAND.friendships,
+    }),
+  ]);
+  await db.transaction(
+    'rw',
+    [db.groups, db.users, db.meta, db.expenses, db.placeholders, db.expense_comments, db.friendships],
+    async () => {
+      await db.groups.clear();
+      await db.groups.bulkPut(groups);
+      await db.expenses.clear();
+      await db.expenses.bulkPut(expenses);
+      await db.placeholders.clear();
+      await db.placeholders.bulkPut(placeholders);
+      await db.expense_comments.clear();
+      await db.expense_comments.bulkPut(comments);
+      await db.friendships.clear();
+      await db.friendships.bulkPut(friendships);
+      await putUsers(extractUsersFromExpand([...groups, ...expenses, ...placeholders, ...comments, ...friendships]));
+      const mark = maxUpdated(groups, null);
+      if (mark) await metaSet('lastSync:groups', mark);
+      const expMark = maxUpdated(expenses, null);
+      if (expMark) await metaSet('lastSync:global:expenses', expMark);
+      const phMark = maxUpdated(placeholders, null);
+      if (phMark) await metaSet('lastSync:global:placeholders', phMark);
+      const cMark = maxUpdated(comments, null);
+      if (cMark) await metaSet('lastSync:global:expense_comments', cMark);
+      const frMark = maxUpdated(friendships, null);
+      if (frMark) await metaSet('lastSync:global:friendships', frMark);
+      await metaSet('session:userId', userId);
+    },
+  );
 }
 
 async function syncGroups(opts: SyncOpts): Promise<void> {
@@ -188,18 +280,70 @@ async function syncGroups(opts: SyncOpts): Promise<void> {
   }
 }
 
+/**
+ * Sync incremental (watermark global, não por grupo — `expenses`/`placeholders`
+ * são pequenos e cobrem TODOS os grupos do utilizador de uma vez).
+ */
+async function syncGlobalCollection(coll: GlobalColl, opts: SyncOpts): Promise<void> {
+  const userId = pb.authStore.model?.id;
+  if (!userId) return;
+  const scope = GLOBAL_FILTERS[coll](userId);
+  const wmKey = `lastSync:global:${coll}`;
+  const lastSync = await metaGet(wmKey);
+  const full = opts.fullGroups || !lastSync;
+  const table = globalTable(coll);
+
+  const changed = await pb.collection(coll).getFullList<Syncable>({
+    filter: full ? scope : `(${scope}) && updated >= "${withOverlap(lastSync)}"`,
+    expand: GLOBAL_EXPAND[coll],
+  });
+  if (changed.length) {
+    await table.bulkPut(changed);
+    await putUsers(extractUsersFromExpand(changed));
+  }
+  const mark = maxUpdated(changed, lastSync);
+  if (mark) await metaSet(wmKey, mark);
+
+  if (opts.reconcileDeletes && (full || lastSync)) {
+    const serverIds = full
+      ? new Set(changed.map((r) => r.id))
+      : new Set(
+          (
+            await pb.collection(coll).getFullList<{ id: string }>({
+              filter: scope,
+              fields: 'id',
+            })
+          ).map((r) => r.id),
+        );
+    const localIds = (await table.toCollection().primaryKeys()) as string[];
+    const stale = localIds.filter((id) => !serverIds.has(id));
+    if (stale.length) await table.bulkDelete(stale);
+  }
+}
+
+async function syncGlobalCollections(opts: SyncOpts): Promise<void> {
+  for (const coll of GLOBAL_COLLS) await syncGlobalCollection(coll, opts);
+}
+
 /** Apaga da cache tudo o que pertence a um grupo (ao sair dele / ser removido). */
 async function dropGroupData(gid: string): Promise<void> {
   const tripIds = (await db.trips.where('group_id').equals(gid).primaryKeys()) as string[];
   const orderIds = tripIds.length
     ? ((await db.orders.where('trip_id').anyOf(tripIds).primaryKeys()) as string[])
     : [];
-  await db.transaction('rw', [db.trips, db.splits, db.orders, db.items], async () => {
-    await db.trips.where('group_id').equals(gid).delete();
-    await db.splits.where('group_id').equals(gid).delete();
-    if (tripIds.length) await db.orders.where('trip_id').anyOf(tripIds).delete();
-    if (orderIds.length) await db.items.where('order_id').anyOf(orderIds).delete();
-  });
+  await db.transaction(
+    'rw',
+    [db.trips, db.splits, db.orders, db.items, db.expenses, db.placeholders, db.expense_comments],
+    async () => {
+      await db.trips.where('group_id').equals(gid).delete();
+      await db.splits.where('group_id').equals(gid).delete();
+      if (tripIds.length) await db.orders.where('trip_id').anyOf(tripIds).delete();
+      if (orderIds.length) await db.items.where('order_id').anyOf(orderIds).delete();
+      await db.expenses.where('group_id').equals(gid).delete();
+      await db.placeholders.where('group_id').equals(gid).delete();
+      await db.expense_comments.where('group_id').equals(gid).delete();
+    },
+  );
   for (const c of GROUP_COLLS) await db.meta.delete(`lastSync:g:${gid}:${c}`);
   groupSynced.delete(gid);
 }
@@ -308,8 +452,17 @@ let queuedOpts: SyncOpts | null = null;
 let queuedPromise: Promise<void> | null = null;
 let resolveQueued: (() => void) | null = null;
 
+/** Um catch-up a correr há mais do que isto está pendurado — deixa de bloquear
+ *  os seguintes (os pedidos têm teto de 20 s, isto é a rede de segurança). */
+const STALE_RUN_MS = 60_000;
+let runningSince = 0;
+
 export function catchUp(opts: SyncOpts = {}): Promise<void> {
+  if (running && Date.now() - runningSince > STALE_RUN_MS) {
+    running = null;
+  }
   if (!running) {
+    runningSince = Date.now();
     runningOpts = opts;
     running = withRetryOnce(() => runCatchUp(opts))
       .catch((err) => console.error('[sync] catchUp falhou', err))
@@ -337,6 +490,7 @@ function drainQueue(): void {
   queuedPromise = null;
   resolveQueued = null;
   runningOpts = opts;
+  runningSince = Date.now();
   running = withRetryOnce(() => runCatchUp(opts))
     .catch((err) => console.error('[sync] catchUp falhou', err))
     .finally(() => {
@@ -347,13 +501,18 @@ function drainQueue(): void {
 }
 
 async function withRetryOnce(fn: () => Promise<void>): Promise<void> {
+  // Offline (incl. lie-fi): nem tentar — os pedidos só falhariam, e o sync
+  // corre outra vez quando a ligação voltar (`online` / `app:online`).
+  if (isAppOffline()) return;
   try {
     await fn();
   } catch (err) {
+    if (isAppOffline()) return;
     console.warn('[sync] catchUp — retry único', err);
     await new Promise((r) => setTimeout(r, 1000));
     await fn();
   }
+  markSynced();
 }
 
 async function runCatchUp(opts: SyncOpts): Promise<void> {
@@ -361,6 +520,7 @@ async function runCatchUp(opts: SyncOpts): Promise<void> {
   if (!pb.authStore.model?.id) return;
 
   await syncGroups(opts);
+  await syncGlobalCollections(opts);
   if (activeGroupId) await syncGroupData(activeGroupId, opts);
 
   // Só vai buscar utilizadores que ainda não conhecemos (novos membros). Os
@@ -377,7 +537,15 @@ async function runCatchUp(opts: SyncOpts): Promise<void> {
  * o realtime.
  */
 export async function fullResync(): Promise<void> {
-  await ensureRealtime();
+  // Gesto explícito do utilizador: não confiar no "offline" que ficou guardado.
+  // Um pedido que falhe ao acordar o telemóvel (rede ainda a subir) põe a app
+  // em modo offline, e o `catchUp` sai logo sem tentar — o pull-to-refresh
+  // não fazia nada até o health check (com backoff até 30 s) acertar. Aqui
+  // pergunta-se já ao PB; se responder, sai do modo offline e segue.
+  if (isAppOffline()) await checkConnectivity();
+  // Realtime em paralelo, não à frente: ligar o SSE pode demorar (ou ficar
+  // pendurado numa rede má) e não pode atrasar os dados que o utilizador pediu.
+  void ensureRealtime().catch(() => {});
   await catchUp({ reconcileDeletes: true, fullGroups: true });
 }
 
@@ -468,6 +636,7 @@ export function resetSyncState(): void {
 
 let connectUnsub: UnsubscribeFunc | null = null;
 let groupsUnsub: UnsubscribeFunc | null = null;
+let globalUnsubs: UnsubscribeFunc[] = [];
 let groupRtUnsubs: UnsubscribeFunc[] = [];
 let connectSeen = 0;
 let realtimeStarting = false;
@@ -489,7 +658,14 @@ const groupsHandler = async (e: RecordSubscription<Group & Syncable>) => {
 };
 
 function makeGroupHandler(coll: GroupColl) {
-  const table = groupTable(coll);
+  return makeTableHandler(coll, groupTable(coll));
+}
+
+function makeGlobalHandler(coll: GlobalColl) {
+  return makeTableHandler(coll, globalTable(coll));
+}
+
+function makeTableHandler(label: string, table: Table<Syncable, string>) {
   return async (e: RecordSubscription<Syncable>) => {
     try {
       if (e.action === 'delete') {
@@ -503,7 +679,7 @@ function makeGroupHandler(coll: GroupColl) {
       await table.put(e.record);
       await putUsers(extractUsersFromExpand([e.record]));
     } catch (err) {
-      console.error(`[sync] realtime ${coll}`, err);
+      console.error(`[sync] realtime ${label}`, err);
     }
   };
 }
@@ -575,19 +751,41 @@ export async function startRealtime(): Promise<void> {
       filter: `members ~ "${userId}"`,
       expand: GROUPS_EXPAND,
     });
+    const globalResults = await Promise.allSettled(
+      GLOBAL_COLLS.map((coll) =>
+        pb.collection(coll).subscribe('*', makeGlobalHandler(coll), {
+          filter: GLOBAL_FILTERS[coll](userId),
+          expand: GLOBAL_EXPAND[coll],
+        }),
+      ),
+    );
+    globalUnsubs = globalResults.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+    const globalFailed = globalResults.filter((r) => r.status === 'rejected').length;
+    if (globalFailed) console.warn(`[sync] ${globalFailed} subscrições globais falharam`);
     if (activeGroupId) await swapGroupRealtime(activeGroupId);
   } catch (err) {
-    console.warn('[sync] startRealtime falhou — retry em 5s', err);
-    setTimeout(() => {
-      void stopRealtime().then(() => startRealtime());
-    }, 5000);
+    const retry = () => void stopRealtime().then(() => startRealtime());
+    if (isAppOffline()) {
+      // Sem rede não vale a pena insistir de 5 em 5 s (bateria, consola cheia):
+      // volta a tentar quando a ligação regressar (browser ou health check).
+      const onBack = () => {
+        window.removeEventListener('online', onBack);
+        window.removeEventListener('app:online', onBack);
+        retry();
+      };
+      window.addEventListener('online', onBack);
+      window.addEventListener('app:online', onBack);
+    } else {
+      console.warn('[sync] startRealtime falhou — retry em 5s', err);
+      setTimeout(retry, 5000);
+    }
   } finally {
     realtimeStarting = false;
   }
 }
 
 export async function stopRealtime(): Promise<void> {
-  for (const u of [...groupRtUnsubs, groupsUnsub, connectUnsub]) {
+  for (const u of [...groupRtUnsubs, ...globalUnsubs, groupsUnsub, connectUnsub]) {
     if (u) {
       try {
         await u();
@@ -597,6 +795,7 @@ export async function stopRealtime(): Promise<void> {
     }
   }
   groupRtUnsubs = [];
+  globalUnsubs = [];
   groupsUnsub = null;
   connectUnsub = null;
   connectSeen = 0;

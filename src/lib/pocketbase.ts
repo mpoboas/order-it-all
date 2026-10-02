@@ -1,13 +1,62 @@
-import PocketBase from 'pocketbase';
-import type { Trip, Order, Item, Split, Group, SplitItemMode } from './types';
+import PocketBase, { ClientResponseError, type SendOptions } from 'pocketbase';
+import { isAppOffline, OfflineError, reportNetworkFailure, reportNetworkSuccess } from './connectivity';
+import type { Trip, Order, Item, Split, Group, InvitePreview, SplitItemMode, Expense, ExpenseKind, ExpenseSplitMode, ExpensePayer, ExpenseShare, PaymentMethod, Placeholder, ExpenseComment, Friendship } from './types';
 
 // PocketBase client singleton
-const pb = new PocketBase('https://pb-orderit.povoas.top/');
+const pb = new PocketBase(
+  process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pb-orderit.povoas.top/'
+);
 
 // Disable auto-cancellation for real-time updates
 pb.autoCancellation(false);
 
+// Rede (Fase 13 · Parte B) — todos os pedidos da app ao PB passam por aqui:
+//  - sem rede, qualquer escrita é recusada JÁ, antes de sair do browser
+//    (`OfflineError` → "Sem ligação…" via `mutationErrorMessage`). Não há fila
+//    de escritas: a app é online, offline é só leitura;
+//  - uma falha de REDE (status 0, não cancelamento) põe a app em modo offline
+//    (lie-fi); qualquer resposta do servidor, mesmo 4xx/5xx, prova que há rede.
+const originalSend = pb.send.bind(pb);
+// Teto por pedido: sem isto, um pedido que fique pendurado (rede a mudar ao
+// acordar o telemóvel, ligação meio-morta) nunca resolvia — e o sync, que só
+// corre um de cada vez, ficava "a correr" para sempre: nem o pull-to-refresh
+// voltava a pedir nada. Quem passa o seu próprio `signal` fica com ele.
+const REQUEST_TIMEOUT_MS = 20_000;
+
+pb.send = (async (path: string, options: SendOptions) => {
+  const method = (options?.method || 'GET').toUpperCase();
+  if (method !== 'GET' && isAppOffline()) throw new OfflineError();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (options && !options.signal) {
+    const ctrl = new AbortController();
+    timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    options = { ...options, signal: ctrl.signal };
+  }
+  try {
+    const result = await originalSend(path, options);
+    reportNetworkSuccess();
+    return result;
+  } catch (err) {
+    if (err instanceof ClientResponseError) {
+      if (err.status === 0 && !err.isAbort) reportNetworkFailure();
+      else if (err.status > 0) reportNetworkSuccess();
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}) as typeof pb.send;
+
 export { pb };
+
+/** Cabeçalhos para as rotas `/api/*` que exigem sessão — o servidor valida o
+ *  token junto do PocketBase (`src/lib/serverAuth.ts`). */
+export function authHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: pb.authStore.token,
+  };
+}
 
 // Trip API
 export const tripsApi = {
@@ -231,7 +280,19 @@ export const usersApi = {
   update: async (id: string, data: any) => {
     return await pb.collection('users').update(id, data);
   },
-  
+
+  /** Envia o email de reposição (link para `/auth/reset-password?token=…` —
+   *  ver `pb/migrations/7_password_reset_email.js`). O PocketBase responde
+   *  sempre 204, exista ou não a conta (não revela que emails estão
+   *  registados). */
+  requestPasswordReset: async (email: string) => {
+    return await pb.collection('users').requestPasswordReset(email);
+  },
+
+  confirmPasswordReset: async (token: string, password: string, passwordConfirm: string) => {
+    return await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm);
+  },
+
   logout: () => {
     pb.authStore.clear();
   }
@@ -333,12 +394,238 @@ export const splitsApi = {
   },
 };
 
-// Helper to generate invite codes
+// Expense API — livro-razão (despesas + pagamentos, ver src/lib/ledger/*)
+export const expensesApi = {
+  /** Para os links antigos de `/groups/[g]/splits/[s]` — encontra a despesa
+   *  ligada a um split (Fase 2 do livro-razão: um split é sempre editor de
+   *  itens de uma despesa itemizada). `null` se nenhuma despesa a referenciar. */
+  getBySplitId: async (splitId: string): Promise<Expense | null> => {
+    try {
+      return await pb.collection('expenses').getFirstListItem<Expense>(`split_id = "${splitId}"`);
+    } catch {
+      return null;
+    }
+  },
+
+  getByGroups: async (groupIds: string[]): Promise<Expense[]> => {
+    if (groupIds.length === 0) return [];
+    const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');
+    return await pb.collection('expenses').getFullList<Expense>({
+      filter,
+      sort: '-date,-created',
+      expand: 'created_by,updated_by,deleted_by,participants',
+    });
+  },
+
+  /** Despesas diretas (sem grupo) entre o utilizador e um amigo — Fase 8. */
+  getDirectBetween: async (userIdA: string, userIdB: string): Promise<Expense[]> => {
+    return await pb.collection('expenses').getFullList<Expense>({
+      filter: `group_id = "" && participants ~ "${userIdA}" && participants ~ "${userIdB}"`,
+      sort: '-date,-created',
+      expand: 'created_by,updated_by,deleted_by,participants',
+    });
+  },
+
+  getById: async (id: string): Promise<Expense> => {
+    return await pb.collection('expenses').getOne<Expense>(id, {
+      expand: 'created_by,updated_by,deleted_by,split_id,trip_id,participants',
+    });
+  },
+
+  create: async (data: {
+    /** Omitido/vazio = despesa direta entre amigos (Fase 8) — ver `participants`. */
+    group_id?: string;
+    kind?: ExpenseKind;
+    description: string;
+    amount: number;
+    date: string;
+    category?: string;
+    notes?: string;
+    split_mode: ExpenseSplitMode;
+    payers: ExpensePayer[];
+    shares: ExpenseShare[];
+    split_id?: string;
+    trip_id?: string;
+    /** Só em pagamentos — como foi pago (Revolut, MB WAY, outro). */
+    method?: PaymentMethod;
+    /** Ids de utilizadores reais entre `payers`+`shares` — obrigatório quando
+     *  não há `group_id` (é o mecanismo de autorização da despesa direta). */
+    participants?: string[];
+    created_by: string;
+  }): Promise<Expense> => {
+    return await pb.collection('expenses').create<Expense>({
+      kind: 'expense',
+      notes: '',
+      ...data,
+      updated_by: data.created_by,
+    });
+  },
+
+  /**
+   * `expectedUpdated` = o `updated` da versão que se abriu para editar. O hook
+   * do servidor (`pb/hooks/handlers.js`) recusa com 409 se, entretanto, outra
+   * pessoa gravou — ver `isConflictError`. Omitir só para escritas que não
+   * partem de uma versão que o utilizador viu (ex.: scripts).
+   */
+  update: async (
+    id: string,
+    data: Partial<Expense>,
+    updatedByUserId: string,
+    opts: { expectedUpdated?: string } = {}
+  ): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      ...data,
+      updated_by: updatedByUserId,
+      ...(opts.expectedUpdated ? { expected_updated: opts.expectedUpdated } : {}),
+    });
+  },
+
+  /** Soft-delete — mantém-se em "Apagadas recentemente" com restauro. */
+  softDelete: async (id: string, deletedByUserId: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      deleted_at: new Date().toISOString(),
+      deleted_by: deletedByUserId,
+    });
+  },
+
+  restore: async (id: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      deleted_at: null,
+      deleted_by: null,
+    });
+  },
+
+  /** Anexa/substitui a foto do recibo (Fase 6). */
+  uploadReceipt: async (id: string, file: Blob, updatedByUserId: string): Promise<Expense> => {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    formData.append('updated_by', updatedByUserId);
+    return await pb.collection('expenses').update<Expense>(id, formData);
+  },
+
+  removeReceipt: async (id: string, updatedByUserId: string): Promise<Expense> => {
+    return await pb.collection('expenses').update<Expense>(id, {
+      receipt: null,
+      updated_by: updatedByUserId,
+    });
+  },
+};
+
+// Placeholder API — membros de grupo sem conta na app
+export const placeholdersApi = {
+  getByGroups: async (groupIds: string[]): Promise<Placeholder[]> => {
+    if (groupIds.length === 0) return [];
+    const filter = groupIds.map((id) => `group_id = "${id}"`).join(' || ');
+    return await pb.collection('placeholders').getFullList<Placeholder>({
+      filter,
+      sort: '-created',
+      expand: 'claimed_by,created_by',
+    });
+  },
+
+  create: async (data: {
+    group_id: string;
+    name: string;
+    created_by: string;
+  }): Promise<Placeholder> => {
+    return await pb.collection('placeholders').create<Placeholder>(data);
+  },
+
+  rename: async (id: string, name: string): Promise<Placeholder> => {
+    return await pb.collection('placeholders').update<Placeholder>(id, { name });
+  },
+
+  /** Associa o placeholder a um utilizador com conta — o histórico não é
+   *  reescrito, só se marca `claimed_by` (ver `src/lib/parties.ts`). */
+  claim: async (id: string, userId: string): Promise<Placeholder> => {
+    return await pb.collection('placeholders').update<Placeholder>(id, {
+      claimed_by: userId,
+    });
+  },
+
+  delete: async (id: string): Promise<boolean> => {
+    await pb.collection('placeholders').delete(id);
+    return true;
+  },
+};
+
+// Friendship API — amizade entre dois utilizadores, independente de grupo (Fase 8)
+export const friendshipsApi = {
+  getForUser: async (userId: string): Promise<Friendship[]> => {
+    return await pb.collection('friendships').getFullList<Friendship>({
+      filter: `user_a = "${userId}" || user_b = "${userId}"`,
+      expand: 'user_a,user_b,requested_by',
+    });
+  },
+
+  /** Pede amizade a `otherUserId`. O par canónico (`user_a < user_b`,
+   *  exigido pela regra de criação) é resolvido aqui. */
+  request: async (currentUserId: string, otherUserId: string): Promise<Friendship> => {
+    const [user_a, user_b] = [currentUserId, otherUserId].sort();
+    return await pb.collection('friendships').create<Friendship>({
+      user_a,
+      user_b,
+      status: 'pending',
+      requested_by: currentUserId,
+    });
+  },
+
+  /** Só quem não pediu pode aceitar (ver regra da coleção). */
+  accept: async (id: string): Promise<Friendship> => {
+    return await pb.collection('friendships').update<Friendship>(id, { status: 'accepted' });
+  },
+
+  /** Cancela um pedido pendente ou desfaz uma amizade aceite — sem histórico. */
+  remove: async (id: string): Promise<boolean> => {
+    await pb.collection('friendships').delete(id);
+    return true;
+  },
+};
+
+// Comentários numa despesa (Fase 5)
+export const commentsApi = {
+  getByExpense: async (expenseId: string): Promise<ExpenseComment[]> => {
+    return await pb.collection('expense_comments').getFullList<ExpenseComment>({
+      filter: `expense_id = "${expenseId}"`,
+      sort: 'created',
+      expand: 'user',
+    });
+  },
+
+  create: async (data: {
+    expense_id: string;
+    /** Omitido/vazio quando a despesa pai é direta (sem grupo) — ver `Expense.group_id`. */
+    group_id?: string;
+    /** Copiado da despesa pai (`Expense.participants`) — necessário para a
+     *  regra de acesso quando a despesa não tem grupo. */
+    participants?: string[];
+    user: string;
+    content: string;
+  }): Promise<ExpenseComment> => {
+    return await pb.collection('expense_comments').create<ExpenseComment>(data);
+  },
+
+  delete: async (id: string): Promise<boolean> => {
+    await pb.collection('expense_comments').delete(id);
+    return true;
+  },
+};
+
+// Códigos de convite/partilha — são credenciais (quem tem o código entra no
+// grupo / mexe na divisão), por isso CSPRNG e não `Math.random`. Rejeição de
+// bytes ≥ 220 (4×55) para não enviesar a distribuição.
+const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+const INVITE_LENGTH = 10;
+
 function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const limit = 256 - (256 % INVITE_CHARS.length);
   let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  while (code.length < INVITE_LENGTH) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(INVITE_LENGTH * 2))) {
+      if (byte < limit && code.length < INVITE_LENGTH) {
+        code += INVITE_CHARS[byte % INVITE_CHARS.length];
+      }
+    }
   }
   return code;
 }
@@ -359,16 +646,28 @@ export const groupsApi = {
     });
   },
 
-  getByInviteCode: async (code: string): Promise<Group | null> => {
-    try {
-      const result = await pb.collection('groups').getFirstListItem<Group>(
-        `invite_code = "${code}" && invite_active = true`,
-        { expand: 'creator' }
-      );
-      return result;
-    } catch {
-      return null;
-    }
+  /** Pré-visualização de um convite. Quem ainda não é membro não tem acesso
+   *  de leitura a `groups`, por isso passa pela rota de servidor, que valida o
+   *  código e devolve só o mínimo para o ecrã de convite. */
+  previewInvite: async (code: string): Promise<InvitePreview | null> => {
+    const res = await fetch(`/api/groups/invite/${encodeURIComponent(code)}`, {
+      headers: pb.authStore.isValid ? authHeaders() : {},
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`invite preview failed: ${res.status}`);
+    return (await res.json()) as InvitePreview;
+  },
+
+  /** Entra no grupo do convite (a rota valida o código e acrescenta o
+   *  utilizador de forma atómica). Devolve o id do grupo. */
+  joinByInvite: async (code: string): Promise<string> => {
+    const res = await fetch(`/api/groups/invite/${encodeURIComponent(code)}`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    const data = (await res.json().catch(() => ({}))) as { groupId?: string; error?: string };
+    if (!res.ok || !data.groupId) throw new Error(data.error || `join failed: ${res.status}`);
+    return data.groupId;
   },
 
   create: async (data: { 
@@ -423,35 +722,26 @@ export const groupsApi = {
     return true;
   },
 
-  addMember: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    if (group.members.includes(userId)) {
-      return group; // Already a member
-    }
-    return await pb.collection('groups').update<Group>(groupId, {
-      members: [...group.members, userId],
+  // `members-`/`admins+`/… são os modificadores atómicos do PocketBase — em
+  // vez de ler o array, alterá-lo e reescrevê-lo inteiro (duas alterações em
+  // simultâneo perdiam uma delas).
+  /** Sair do grupo (o próprio) ou remover um membro — pela rota do servidor,
+   *  que impõe "contas fechadas" (saldo zero, sem pedidos em viagens abertas)
+   *  e as permissões. Um 409 traz `block` (ver `src/lib/memberGuards.ts`). */
+  removeMember: async (groupId: string, userId: string): Promise<void> => {
+    const res = await fetch(`/api/groups/${groupId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
     });
-  },
-
-  removeMember: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    // Cannot remove creator
-    if (group.creator === userId) {
-      throw new Error('Cannot remove the group creator');
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string; block?: unknown };
+      throw Object.assign(new Error(data.error || 'Erro ao remover'), { status: res.status, block: data.block });
     }
-    return await pb.collection('groups').update<Group>(groupId, {
-      members: group.members.filter(id => id !== userId),
-      admins: group.admins.filter(id => id !== userId),
-    });
   },
 
   promoteToAdmin: async (groupId: string, userId: string): Promise<Group> => {
-    const group = await pb.collection('groups').getOne<Group>(groupId);
-    if (group.admins.includes(userId)) {
-      return group; // Already an admin
-    }
     return await pb.collection('groups').update<Group>(groupId, {
-      admins: [...group.admins, userId],
+      'admins+': userId,
     });
   },
 
@@ -462,7 +752,7 @@ export const groupsApi = {
       throw new Error('Cannot demote the group creator');
     }
     return await pb.collection('groups').update<Group>(groupId, {
-      admins: group.admins.filter(id => id !== userId),
+      'admins-': userId,
     });
   },
 
@@ -475,6 +765,12 @@ export const groupsApi = {
   toggleShowAllOrders: async (groupId: string, active: boolean): Promise<Group> => {
     return await pb.collection('groups').update<Group>(groupId, {
       show_all_orders: active,
+    });
+  },
+
+  toggleSimplifyDebts: async (groupId: string, active: boolean): Promise<Group> => {
+    return await pb.collection('groups').update<Group>(groupId, {
+      simplify_debts: active,
     });
   },
 

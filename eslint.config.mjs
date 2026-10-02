@@ -31,15 +31,24 @@ const eslintConfig = defineConfig([
   },
   {
     // Workbench de componentes + mapa de ícones: mostram as cores cruas de
-    // propósito. Páginas de auth: vidro fosco sempre-claro sobre gradiente —
-    // os tokens de tema não se aplicam ali (migração à parte).
+    // propósito. (As páginas de auth já usam os tokens — deixaram de ser
+    // exceção no Passo 1 do redesign de acesso.)
     files: [
       "src/app/dev/ui/**/*.{ts,tsx}",
       "src/components/ui/Icon.tsx",
-      "src/app/auth/**/*.{ts,tsx}",
     ],
     rules: {
       "no-restricted-syntax": "off",
+    },
+  },
+  // Hooks do PocketBase (JSVM/goja, CommonJS): `require()` é a única forma de
+  // partilhar código entre handlers, e `catch (_)` evita depender do suporte a
+  // optional catch binding do goja.
+  {
+    files: ["pb/hooks/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { caughtErrors: "none" }],
     },
   },
   // Override default ignores of eslint-config-next.

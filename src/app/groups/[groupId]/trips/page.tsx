@@ -1,14 +1,18 @@
 'use client';
 
+import { ListSkeleton } from '@/components/ui/ListSkeleton';
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
-import { Header } from '@/components/layout/Header';
-import { EntityCardSkeletonGrid } from '@/components/ui/EntityCardSkeleton';
-import { TripCard } from '@/components/features/TripCard';
+import { HeroHeader } from '@/components/features/HeroHeader';
+import { GroupTabs } from '@/components/features/GroupTabs';
+import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
+import { getGroupHeroBackground } from '@/lib/groupAvatars';
+import { useGroupHeroPeople } from '@/hooks/useGroupHeroPeople';
+import { TripList } from '@/components/features/TripList';
 import { Icon } from '@/components/ui/Icon';
-import { useTrips } from '@/lib/db/hooks';
+import { useTrips, useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { usePrefetchRoutes } from '@/hooks/usePrefetch';
@@ -19,15 +23,21 @@ export default function GroupTripsPage() {
     const groupId = params.groupId as string;
 
     const { isLoggedIn } = useUser();
-    const { currentGroup, isAdmin } = useGroup();
+    const { isAdmin } = useGroup();
     const router = useRouter();
     const nav = useAppNavigate();
 
+    // Direto do Dexie (já aquecido pela lista de grupos), não via
+    // `GroupContext.currentGroup` — esse só atualiza num efeito do layout,
+    // um tick depois deste render (ver Fase 14).
+    const group = useGroupRecord(groupId);
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
     usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
+
+    const heroPeople = useGroupHeroPeople(group);
 
     // Admins manage trips from the admin dashboard — the member trips list is redundant for them.
     useEffect(() => {
@@ -37,54 +47,53 @@ export default function GroupTripsPage() {
     if (!isLoggedIn) return null;
     if (isAdmin) return null;
 
-    return (
-        <div className="min-h-screen bg-[var(--bg-primary)]">
-            <Header
-                title="Viagens"
-                subtitle={currentGroup?.name}
-                showBack
-                groupId={groupId}
-            />
 
-            <main className="container mx-auto px-4 py-6 md:py-8">
-                {/* Título — utilizadores normais não criam viagens, por isso é só o cabeçalho (como em Divisões). */}
-                <div className="mb-6 animate-fade-in-up">
-                    <h2 className="text-2xl font-bold text-[var(--text-primary)]">Viagens</h2>
-                    <p className="text-sm text-[var(--text-secondary)]">Escolhe uma viagem para fazer o teu pedido</p>
-                </div>
+    return (
+        <div className="min-h-dvh bg-app has-bottom-nav">
+            {group && (
+                <HeroHeader
+                    variant="compact"
+                    title={group.name}
+                    background={getGroupHeroBackground(group)}
+                    avatars={heroPeople.avatars}
+                    avatarOverflowCount={heroPeople.overflow}
+                    onBack={() => nav.up()}
+                    topRightAction={{
+                        icon: 'settings',
+                        label: 'Definições do grupo',
+                        onClick: () => nav.push(`/groups/${groupId}/settings`, { haptic: false }),
+                    }}
+                />
+            )}
+            <GroupOverviewBar groupId={groupId} />
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
+
+            <main className="container mx-auto max-w-2xl px-2 sm:px-4 py-4 pb-24">
+                {/* Sem título — já vem do separador ativo ("Viagens") logo acima. */}
+                <p className="mb-3 px-1 text-sm text-ink-soft animate-fade-in-up">Escolhe uma viagem para fazer o teu pedido</p>
 
                 {/* Loading */}
                 {loading ? (
-                    <EntityCardSkeletonGrid count={3} />
+                    <ListSkeleton rows={3} leading="dated" trailing={false} />
                 ) : trips.length === 0 ? (
                     /* Empty State */
                     <div className="text-center py-20 animate-fade-in-up">
-                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/40 dark:to-primary-900/20 flex items-center justify-center">
+                        <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary-50 dark:bg-primary-950 flex items-center justify-center">
                             <span className="text-6xl">🛒</span>
                         </div>
-                        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                        <h3 className="text-xl font-semibold text-ink mb-2">
                             Sem viagens disponíveis
                         </h3>
-                        <p className="text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
-                            {isAdmin
-                                ? 'Cria uma nova viagem na área de admin!'
-                                : 'Volta mais tarde para novas viagens ao supermercado!'
-                            }
+                        <p className="text-ink-soft mb-6 max-w-sm mx-auto">
+                            Volta mais tarde para novas viagens ao supermercado!
                         </p>
                     </div>
                 ) : (
-                    /* Trips Grid */
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {trips.map((trip, index) => (
-                            <TripCard
-                                key={trip.id}
-                                trip={trip}
-                                href={`/groups/${groupId}/trips/${trip.id}`}
-                                onClick={() => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
-                                style={{ animationDelay: `${index * 0.05}s` }}
-                            />
-                        ))}
-                    </div>
+                    <TripList
+                        trips={trips}
+                        hrefFor={(trip) => `/groups/${groupId}/trips/${trip.id}`}
+                        onOpen={(trip) => nav.push(`/groups/${groupId}/trips/${trip.id}`, { haptic: false })}
+                    />
                 )}
             </main>
 
@@ -93,7 +102,7 @@ export default function GroupTripsPage() {
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 md:hidden">
                     <button
                         onClick={() => void catchUp()}
-                        className="px-4 py-2 bg-white/80 backdrop-blur rounded-full shadow-lg text-sm text-[var(--text-secondary)] flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
+                        className="px-4 py-2 bg-surface/80 backdrop-blur rounded-full shadow-lg text-sm text-ink-soft flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity"
                     >
                         <Icon name="refresh" className="text-base" />
                         Atualizar

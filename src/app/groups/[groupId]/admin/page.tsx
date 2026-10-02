@@ -1,10 +1,11 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { tripsApi, groupsApi, ordersApi, itemsApi, splitsApi } from '@/lib/pocketbase';
-import type { Trip, Group } from '@/lib/types';
-import { useTrips } from '@/lib/db/hooks';
+import { useRouter, useParams } from 'next/navigation';
+import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { notifyEvent } from '@/lib/notify';
+import type { Trip } from '@/lib/types';
+import { useExpenses, useParties, useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { db } from '@/lib/db/schema';
 import {
@@ -23,46 +24,41 @@ import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { useGroup } from '@/context/GroupContext';
 import { Sheet } from '@/components/ui/Sheet';
-import { Header } from '@/components/layout/Header';
+import { HeroHeader } from '@/components/features/HeroHeader';
+import { getGroupHeroBackground } from '@/lib/groupAvatars';
+import { useGroupHeroPeople } from '@/hooks/useGroupHeroPeople';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
-import {
-    getSplitParticipantNames,
-    participantIdsToNames,
-    isGroupDisplayLabel,
-    isAggregatedOrderLabel,
-} from '@/lib/orderParticipants';
-import { reconcileItemLock } from '@/lib/splitItems';
 import { useUser } from '@/context/UserContext';
-import { TripCard } from '@/components/features/TripCard';
-import { GroupSettingsTab } from '@/components/features/GroupSettingsTab';
+import { TripList } from '@/components/features/TripList';
+import { GroupTabs } from '@/components/features/GroupTabs';
+import { GroupOverviewBar } from '@/components/features/GroupOverviewBar';
+import { ExpandableFab } from '@/components/features/ExpandableFab';
+import { TripToExpenseSheet } from '@/components/features/TripToExpenseSheet';
+import { GroupSetupChecklist } from '@/components/features/GroupSetupChecklist';
+import { markInstallValueMoment } from '@/lib/installValueMoment';
 
 function AdminDashboardContent() {
     const params = useParams();
     const groupId = params.groupId as string;
-    const { currentGroup, isAdmin, refreshGroup } = useGroup();
+    const { currentGroup, isAdmin } = useGroup();
+    const heroPeople = useGroupHeroPeople(currentGroup);
     const { user } = useUser();
     const online = useOnline();
     const router = useRouter();
     const nav = useAppNavigate();
-    const searchParams = useSearchParams();
     const { showToast } = useToast();
     const confirmAction = useConfirm();
-
-    useEffect(() => {
-        const tab = searchParams.get('tab');
-        if (tab === 'settings' || tab === 'members' || tab === 'trips') {
-            setActiveTab(tab);
-        }
-    }, [searchParams]);
 
     // Data (local-first: cache do Dexie via SyncProvider)
     const tripsQuery = useTrips(groupId);
     const trips = tripsQuery ?? [];
+    const expensesForChecklist = useExpenses(groupId) ?? [];
+    const tripIdsWithExpense = new Set(
+        expensesForChecklist.flatMap((e) => (!e.deleted_at && e.trip_id ? [e.trip_id] : [])),
+    );
     usePrefetchRoutes(trips.map((t) => `/groups/${groupId}/admin/trips/${t.id}`));
     const { groupSyncing } = useSyncStatus();
     const loading = tripsQuery === undefined || (trips.length === 0 && groupSyncing);
@@ -80,11 +76,10 @@ function AdminDashboardContent() {
     const [editTripDescription, setEditTripDescription] = useState('');
     const [editTripStatus, setEditTripStatus] = useState<'open' | 'in_progress' | 'closed'>('open');
 
-    // Gerar divisão a partir de uma viagem (operação de vários segundos).
-    const [splittingTripId, setSplittingTripId] = useState<string | null>(null);
-
-    // Tab State
-    const [activeTab, setActiveTab] = useState<'trips' | 'members' | 'settings'>('trips');
+    // Viagem → Despesa: sheet de pré-visualização, aberto ao fechar uma
+    // viagem ou manualmente numa já fechada.
+    const [tripToExpense, setTripToExpense] = useState<Trip | null>(null);
+    const parties = useParties(groupId) ?? new Map();
 
     useEffect(() => {
         if (!isAdmin) {
@@ -98,7 +93,7 @@ function AdminDashboardContent() {
         setCreating(true);
         try {
             assertOnline();
-            await tripsApi.create({
+            const trip = await tripsApi.create({
                 name: newTripName.trim(),
                 description: newTripDescription.trim(),
                 group_id: groupId,
@@ -106,18 +101,9 @@ function AdminDashboardContent() {
             setNewTripName('');
             setNewTripDescription('');
             setShowCreateModal(false);
+            markInstallValueMoment();
             void catchUp();
-
-            // Notify Users
-            await fetch('/api/notify', {
-                method: 'POST',
-                body: JSON.stringify({
-                    groupId,
-                    title: '🛍️ Está na hora de encomendar!',
-                    message: `${newTripName.trim()} está disponível. Faz os teus pedidos!`,
-                    url: `/groups/${groupId}/trips`
-                })
-            }).catch(console.error);
+            notifyEvent('trip.created', trip.id);
 
         } catch (error) {
             console.error('Error creating trip:', error);
@@ -127,9 +113,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleOpenEditModal = (e: React.MouseEvent, trip: Trip) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleOpenEditModal = (trip: Trip) => {
         setEditTripId(trip.id);
         setEditTripName(trip.name);
         setEditTripDescription(trip.description || '');
@@ -195,9 +179,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleDeleteTrip = async (e: React.MouseEvent, id: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleDeleteTrip = async (id: string) => {
         if (!(await confirmAction({
             title: 'Eliminar esta viagem?',
             description: 'Apaga todos os pedidos e produtos associados. Não pode ser desfeito.',
@@ -216,9 +198,7 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleCloseTrip = async (e: React.MouseEvent, id: string) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleCloseTrip = async (id: string) => {
 
         const canClose = await validateTripClosure(id);
         if (!canClose) return;
@@ -237,183 +217,13 @@ function AdminDashboardContent() {
                 commit: () => tripsApi.close(id),
             });
             showToast('Viagem terminada', 'success');
+            const closedTrip = trips.find((t) => t.id === id);
+            if (closedTrip) setTripToExpense({ ...closedTrip, status: 'closed' });
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Falha ao terminar viagem'), 'error');
         }
     };
 
-    const handleCreateSplitFromTrip = async (e: React.MouseEvent, trip: Trip) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (splittingTripId) return;
-        if (!(await confirmAction({
-            title: 'Gerar uma divisão de contas a partir desta viagem?',
-            confirmLabel: 'Gerar divisão',
-        }))) return;
-
-        setSplittingTripId(trip.id);
-        try {
-            assertOnline();
-
-            // 1. Fetch Orders and Items
-            const orders = await ordersApi.getByTrip(trip.id);
-
-            // 2. Prepare Data Structures
-            // We need a complete set of ALL participants first (Group Members + Ad-hoc names on orders)
-            // This is crucial so that 'Geral' orders can be split among EVERYONE.
-            const allParticipantsSet = new Set<string>();
-            const memberMap = new Map<string, string>(); // ID -> Name
-
-            // 2a. Add all registered group members (creator, admins, members)
-            const groupPeople: { id: string; name: string }[] = [];
-            if (currentGroup?.expand?.creator) groupPeople.push(currentGroup.expand.creator);
-            if (currentGroup?.expand?.admins) groupPeople.push(...currentGroup.expand.admins);
-            if (currentGroup?.expand?.members) groupPeople.push(...currentGroup.expand.members);
-            const seenIds = new Set<string>();
-            for (const m of groupPeople) {
-                if (!m?.id || seenIds.has(m.id)) continue;
-                seenIds.add(m.id);
-                memberMap.set(m.id, m.name);
-                allParticipantsSet.add(m.name);
-            }
-
-            // 2b. Include order participant IDs and legacy single-name orders (not aggregate labels)
-            for (const order of orders) {
-                if (order.participants?.length) {
-                    participantIdsToNames(
-                        order.participants,
-                        memberMap,
-                        order.expand?.participants
-                    ).forEach((name) => allParticipantsSet.add(name));
-                }
-
-                const orderUserId = order.user || order.expand?.user?.id;
-                if (orderUserId && memberMap.has(orderUserId)) {
-                    allParticipantsSet.add(memberMap.get(orderUserId)!);
-                } else if (
-                    order.user_name?.trim() &&
-                    !isGroupDisplayLabel(order.user_name) &&
-                    !isAggregatedOrderLabel(order.user_name)
-                ) {
-                    allParticipantsSet.add(order.user_name.trim());
-                }
-            }
-
-            // Always add creator if missing
-            const creatorName = memberMap.get(user?.id || '') || user?.name || 'Eu';
-            allParticipantsSet.add(creatorName);
-
-            // Convert to array for 'Geral' usage
-            const allParticipantsList = Array.from(allParticipantsSet);
-            const splitItems: any[] = [];
-
-            // 3. Process Orders and Items
-            for (const order of orders) {
-                let displayName = order.user_name;
-                const orderUserId = order.user || order.expand?.user?.id;
-
-                if (orderUserId && memberMap.has(orderUserId)) {
-                    displayName = memberMap.get(orderUserId)!;
-                }
-
-                const items = await itemsApi.getByOrder(order.id);
-                const splitNames = getSplitParticipantNames(order, memberMap, allParticipantsList);
-
-                for (const item of items) {
-                    if (item.found_status === 'found') {
-                        splitItems.push(
-                            reconcileItemLock(
-                                {
-                                    name: item.name,
-                                    price: item.price,
-                                    participants: splitNames,
-                                },
-                                allParticipantsList
-                            )
-                        );
-                    }
-                }
-            }
-
-            // 4. Create Split
-            const split = await splitsApi.create({
-                name: trip.name,
-                description: `Gerado automaticamente a partir da viagem "${trip.name}"`,
-                group_id: groupId,
-                created_by: user!.id,
-                participants: allParticipantsList,
-                items: splitItems,
-            });
-
-            nav.push(`/groups/${groupId}/splits/${split.id}`, { haptic: false });
-
-        } catch (error) {
-            console.error('Error generating split:', error);
-            showToast(mutationErrorMessage(error, 'Erro ao gerar divisão'), 'error');
-        } finally {
-            setSplittingTripId(null);
-        }
-    };
-
-    // Member Management — patch optimista no grupo em cache; `refreshGroup`
-    // confirma com o servidor.
-    const editGroupMembers = async (
-        patch: Partial<Group>,
-        commit: () => Promise<unknown>,
-        errMsg: string,
-    ) => {
-        try {
-            await optimisticEdit({ table: db.groups, id: groupId, patch, commit });
-            refreshGroup();
-        } catch (error) {
-            showToast(mutationErrorMessage(error, errMsg), 'error');
-        }
-    };
-
-    const handleRemoveMember = async (memberId: string) => {
-        if (!(await confirmAction({
-            title: 'Remover este membro do grupo?',
-            tone: 'danger',
-            confirmLabel: 'Remover',
-        }))) return;
-        if (!currentGroup) return;
-        await editGroupMembers(
-            {
-                members: currentGroup.members.filter((id) => id !== memberId),
-                admins: currentGroup.admins.filter((id) => id !== memberId),
-            },
-            () => groupsApi.removeMember(groupId, memberId),
-            'Erro ao remover membro',
-        );
-    };
-
-    const handlePromoteMember = async (memberId: string) => {
-        if (!(await confirmAction({
-            title: 'Promover a administrador?',
-            confirmLabel: 'Promover',
-        }))) return;
-        if (!currentGroup) return;
-        await editGroupMembers(
-            { admins: [...currentGroup.admins, memberId] },
-            () => groupsApi.promoteToAdmin(groupId, memberId),
-            'Erro ao promover',
-        );
-    };
-
-    const handleDemoteMember = async (memberId: string) => {
-        if (!(await confirmAction({
-            title: 'Remover privilégios de administrador?',
-            tone: 'warning',
-            confirmLabel: 'Remover privilégios',
-        }))) return;
-        if (!currentGroup) return;
-        await editGroupMembers(
-            { admins: currentGroup.admins.filter((id) => id !== memberId) },
-            () => groupsApi.demoteFromAdmin(groupId, memberId),
-            'Erro ao despromover',
-        );
-    };
 
     if (loading || !currentGroup) {
         return (
@@ -431,144 +241,74 @@ function AdminDashboardContent() {
 
     return (
         <div className="min-h-screen bg-app has-bottom-nav">
-            <Header title="Admin" subtitle={currentGroup.name} showBack groupId={groupId} />
+            <HeroHeader
+                variant="compact"
+                title={currentGroup.name}
+                background={getGroupHeroBackground(currentGroup)}
+                avatars={heroPeople.avatars}
+                avatarOverflowCount={heroPeople.overflow}
+                onBack={() => nav.up()}
+                topRightAction={{
+                    icon: 'settings',
+                    label: 'Definições do grupo',
+                    onClick: () => nav.push(`/groups/${currentGroup.id}/settings`, { haptic: false }),
+                }}
+            />
+            <GroupOverviewBar groupId={groupId} />
+            <GroupTabs groupId={groupId} isAdmin={isAdmin} />
 
-            <main className="container mx-auto px-4 py-6 max-w-4xl">
-                {/* Tabs */}
-                <div className="flex p-1 mb-6 bg-surface-sunken rounded-xl">
-                    {(['trips', 'members', 'settings'] as const).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={cn(
-                                'flex-1 py-2 text-sm font-semibold rounded-lg transition-colors',
-                                activeTab === tab
-                                    ? 'bg-surface text-primary-600 dark:text-primary-400 shadow-sm'
-                                    : 'text-ink-soft hover:text-ink',
-                            )}
-                        >
-                            {tab === 'trips' ? 'Viagens' : tab === 'members' ? 'Membros' : 'Definições'}
-                        </button>
-                    ))}
-                </div>
-
-                {/* TRIP MANAGEMENT */}
-                {activeTab === 'trips' && (
-                    <div className="animate-fade-in-up">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-ink">Viagens</h2>
-                            <Button size="sm" onClick={() => setShowCreateModal(true)}>
-                                + Nova Viagem
-                            </Button>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {trips.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-ink-faint">
-                                    <Icon name="receipt_long" className="text-4xl block mx-auto mb-2 opacity-60" />
-                                    <p>Nenhuma viagem encontrada.</p>
-                                </div>
-                            ) : (
-                                trips.map(trip => (
-                                    <TripCard
-                                        key={trip.id}
-                                        trip={trip}
-                                        href={`/groups/${groupId}/admin/trips/${trip.id}`}
-                                        onClick={() => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
-                                        isAdmin={true}
-                                        onEdit={handleOpenEditModal}
-                                        onClose={handleCloseTrip}
-                                        onDelete={handleDeleteTrip}
-                                        onSplit={handleCreateSplitFromTrip}
-                                        isSplitting={splittingTripId === trip.id}
-                                    />
-                                ))
-                            )}
-                        </div>
-                    </div>
+            <main className="container mx-auto px-2 sm:px-4 py-4 max-w-2xl pb-24">
+                {/* Onboarding: só para quem criou o grupo de raiz — uma vez na
+                    vida (qualquer grupo), não uma vez por grupo. */}
+                {isCreator && (
+                    <GroupSetupChecklist
+                        memberCount={currentGroup.members.length}
+                        tripCount={trips.length}
+                        expenseCount={expensesForChecklist.length}
+                        onInvite={() => nav.push(`/groups/${groupId}/settings`)}
+                        onCreateTrip={() => setShowCreateModal(true)}
+                        onCreateExpense={() => nav.push(`/groups/${groupId}/expenses`)}
+                    />
                 )}
 
-                {/* MEMBERS MANAGEMENT */}
-                {activeTab === 'members' && (
-                    <div className="animate-fade-in-up space-y-4">
-                        <h2 className="text-xl font-bold text-ink">Membros ({currentGroup.members.length})</h2>
-
-                        <div className="space-y-3">
-                            {currentGroup.expand?.members?.map((member: { id: string; name: string; email?: string; avatar?: string }) => {
-                                const isMemberAdmin = currentGroup.admins.includes(member.id);
-                                const isMemberCreator = currentGroup.creator === member.id;
-
-                                return (
-                                    <div key={member.id} className="card p-3 flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <Avatar name={member.name} src={member.avatar ? `https://pb-orderit.povoas.top/api/files/users/${member.id}/${member.avatar}` : undefined} />
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-ink flex items-center gap-2">
-                                                    <span className="truncate">{member.name}</span>
-                                                    {isMemberCreator && <Badge variant="warning">Dono</Badge>}
-                                                    {isMemberAdmin && !isMemberCreator && <Badge variant="info">Admin</Badge>}
-                                                </p>
-                                                <p className="text-xs text-ink-faint truncate">{member.email}</p>
-                                            </div>
-                                        </div>
-
-                                        {user?.id !== member.id && (
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                {isCreator && (
-                                                    isMemberAdmin ? (
-                                                        <button
-                                                            onClick={() => handleDemoteMember(member.id)}
-                                                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-surface-sunken text-ink-soft hover:text-ink transition-colors"
-                                                            title="Remover privilégios de admin"
-                                                        >
-                                                            <Icon name="keyboard_arrow_down" className="text-sm" /> Admin
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handlePromoteMember(member.id)}
-                                                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
-                                                            title="Promover a admin"
-                                                        >
-                                                            <Icon name="keyboard_arrow_up" className="text-sm" /> Admin
-                                                        </button>
-                                                    )
-                                                )}
-
-                                                {(!isMemberCreator && (isCreator || !isMemberAdmin)) && (
-                                                    <button
-                                                        onClick={() => handleRemoveMember(member.id)}
-                                                        className="p-1.5 rounded-lg text-danger hover:bg-danger-bg transition-colors"
-                                                        title="Remover do grupo"
-                                                    >
-                                                        <Icon name="close" className="text-base" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                {trips.length === 0 ? (
+                    /* Onboarding: sem viagem aberta, ninguém no grupo consegue fazer
+                       pedidos — é o desbloqueio inicial para o admin. */
+                    <div className="py-12 text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-50 dark:bg-primary-950 text-primary-500 flex items-center justify-center">
+                            <Icon name="receipt_long" className="text-3xl" />
                         </div>
+                        <h3 className="font-bold text-ink mb-1">Cria a tua primeira viagem</h3>
+                        <p className="text-sm text-ink-faint mb-4 max-w-xs mx-auto">
+                            Os membros só conseguem fazer pedidos depois de teres uma viagem aberta.
+                        </p>
+                        <Button size="sm" onClick={() => setShowCreateModal(true)}>
+                            + Nova Viagem
+                        </Button>
                     </div>
-                )}
-
-                {/* SETTINGS */}
-                {activeTab === 'settings' && (
-                    <GroupSettingsTab
-                        group={currentGroup}
-                        groupId={groupId}
-                        isCreator={isCreator}
-                        onGroupUpdated={refreshGroup}
+                ) : (
+                    <TripList
+                        trips={trips}
+                        hrefFor={(trip) => `/groups/${groupId}/admin/trips/${trip.id}`}
+                        onOpen={(trip) => nav.push(`/groups/${groupId}/admin/trips/${trip.id}`, { haptic: false })}
+                        tripIdsWithExpense={tripIdsWithExpense}
+                        admin={{
+                            onEdit: handleOpenEditModal,
+                            onFinish: (trip) => void handleCloseTrip(trip.id),
+                            onLaunchExpense: setTripToExpense,
+                            onDelete: (trip) => void handleDeleteTrip(trip.id),
+                        }}
                     />
                 )}
             </main>
 
+            <ExpandableFab icon="add" label="Nova Viagem" onClick={() => setShowCreateModal(true)} />
 
             {/* Create Trip Sheet */}
             <Sheet
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                size="medium"
+                size="full"
                 title="Nova Viagem"
                 footer={
                     <div>
@@ -583,7 +323,7 @@ function AdminDashboardContent() {
                         </Button>
                         {!online && (
                             <p className="mt-2 text-center text-xs text-ink-faint">
-                                Sem ligação — precisas de rede para criar uma viagem.
+                                Sem ligação. Precisas de rede para criar uma viagem.
                             </p>
                         )}
                     </div>
@@ -611,7 +351,7 @@ function AdminDashboardContent() {
             <Sheet
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
-                size="large"
+                size="full"
                 title="Editar Viagem"
                 footer={
                     <Button block size="lg" onClick={() => handleUpdateTrip()}>
@@ -658,6 +398,19 @@ function AdminDashboardContent() {
                     </div>
                 </div>
             </Sheet>
+
+            <TripToExpenseSheet
+                isOpen={!!tripToExpense}
+                onClose={() => setTripToExpense(null)}
+                trip={tripToExpense}
+                groupId={groupId}
+                group={currentGroup}
+                parties={parties}
+                onCreated={(expenseId) => {
+                    setTripToExpense(null);
+                    nav.push(`/groups/${groupId}/expenses/${expenseId}/items`, { haptic: false });
+                }}
+            />
         </div>
     );
 }

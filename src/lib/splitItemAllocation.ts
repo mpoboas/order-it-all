@@ -310,28 +310,6 @@ export function normalizeSplitItem(
   };
 }
 
-export function renameParticipantInItem(
-  item: SplitItem,
-  oldName: string,
-  newName: string,
-): SplitItem {
-  const participants = item.participants.map((name) =>
-    name === oldName ? newName : name,
-  );
-
-  if (!item.allocations) {
-    return { ...item, participants };
-  }
-
-  const allocations = { ...item.allocations };
-  if (allocations[oldName] !== undefined) {
-    allocations[newName] = allocations[oldName];
-    delete allocations[oldName];
-  }
-
-  return { ...item, participants, allocations };
-}
-
 export function removeParticipantFromItem(
   item: SplitItem,
   name: string,

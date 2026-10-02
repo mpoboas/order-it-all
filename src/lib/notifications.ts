@@ -1,88 +1,115 @@
-import { pb } from '@/lib/pocketbase';
+import { registerAppServiceWorker } from '@/lib/serviceWorker';
+import { authHeaders, pb } from '@/lib/pocketbase';
 
 const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 export async function registerServiceWorker() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push notifications not supported');
-    return;
-  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    return registration;
+    // Mesmo URL da casca offline (`SW_URL`) — registar outro script no mesmo
+    // scope substituiria o SW ativo.
+    return await registerAppServiceWorker();
   } catch (error) {
     console.error('Service Worker registration failed:', error);
   }
 }
 
-export async function subscribeToPushNotifications() {
+/** A subscrição foi criada com esta chave VAPID? (Se a chave do servidor
+ *  mudar, as subscrições antigas deixam de receber — é preciso refazê-las.) */
+function sameServerKey(subscription: PushSubscription, key: Uint8Array<ArrayBuffer>): boolean {
+  const current = subscription.options?.applicationServerKey;
+  if (!current) return true; // browser não expõe — assume que sim
+  const a = new Uint8Array(current);
+  return a.length === key.length && a.every((byte, i) => byte === key[i]);
+}
+
+/**
+ * Garante que este dispositivo está subscrito e gravado na conta atual.
+ * Idempotente — corre em cada arranque com a permissão já dada. Devolve
+ * `false` se algo falhou (sem chave VAPID, subscrição recusada, servidor em
+ * baixo), para o ecrã não dizer "ativadas" quando não estão.
+ */
+export async function subscribeToPushNotifications(): Promise<boolean> {
   if (!PUBLIC_VAPID_KEY) {
     console.error('VAPID Public Key missing');
-    return;
-  }
-
-  const registration = await navigator.serviceWorker.ready;
-
-  // Check if already subscribed
-  const existingSubscription = await registration.pushManager.getSubscription();
-  if (existingSubscription) {
-    // Ensure it's synced with DB (optional logic, usually we just assume it's good or update timestamp)
-    await saveSubscriptionToDb(existingSubscription);
-    return;
+    return false;
   }
 
   try {
-    const subscription = await registration.pushManager.subscribe({
+    const registration = await navigator.serviceWorker.ready;
+    const serverKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !sameServerKey(subscription, serverKey)) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+    subscription ??= await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+      applicationServerKey: serverKey,
     });
 
-    await saveSubscriptionToDb(subscription);
-    console.log('Push Subscribed:', subscription);
+    return await saveSubscription(subscription);
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
+    return false;
   }
 }
 
-async function saveSubscriptionToDb(subscription: PushSubscription) {
-  const user = pb.authStore.model;
-  if (!user) return;
+/**
+ * A subscrição do browser pode rodar sozinha (renovação silenciosa, ou o
+ * browser força uma nova) — o `sw.js` apanha isso no `pushsubscriptionchange`
+ * mas não tem ali a chave VAPID (só existe no bundle da app), por isso avisa
+ * as páginas abertas via `postMessage` e é aqui que se re-subscreve a sério.
+ * Ver `PushNotificationManager.tsx` — é quem regista o listener da mensagem.
+ */
+export async function handlePushSubscriptionChange() {
+  await subscribeToPushNotifications();
+}
 
-  const subscriptionJSON = subscription.toJSON();
-  const endpoint = subscription.endpoint;
+/**
+ * Ao terminar sessão: apaga a linha deste dispositivo (precisa da sessão
+ * atual — por isso corre ANTES do `usersApi.logout()`) e cancela a subscrição
+ * no browser. Se o apagar falhar, a linha fica órfã mas não faz mal: quem
+ * entrar a seguir neste dispositivo fica com o endpoint (a rota apaga o de
+ * outras contas) e o `/api/notify` limpa os que devolvem 410/404.
+ */
+export async function unsubscribeFromPushNotifications(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
   try {
-    // Check if this specific endpoint already exists (ignoring user to clear old potentially orphaned ones, or strictly by user)
-    // Actually, one endpoint corresponds to one device+browser profile. It shouldn't change user owner normally, 
-    // but if you log out and log in as someone else on same browser, filtering by endpoint is safer to find if it exists.
-    
-    // However, if multiple users use same device (rare for phone, possible for PC), the endpoint is same.
-    // If we want to support multi-user on same device receiving notifs for their own stuff, we must map endpoint <-> user.
-    // But usually we wipe sub on logout. 
-    
-    // Let's strict filter by USER + ENDPOINT to avoid duplicates for THIS user.
-    const existing = await pb.collection('push_subscriptions').getList(1, 1, {
-      filter: `user="${user.id}" && endpoint="${endpoint}"`,
-    });
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
 
-    if (existing.items.length === 0) {
-      await pb.collection('push_subscriptions').create({
-        user: user.id,
-        endpoint: endpoint,
-        keys: subscriptionJSON.keys,
-      });
-      console.log('New subscription saved to DB');
-    } else {
-        console.log('Subscription already exists in DB, skipping.');
+    if (pb.authStore.isValid) {
+      await fetch('/api/push/subscription', {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      }).catch((err) => console.error('Error removing subscription:', err));
     }
+
+    await subscription.unsubscribe();
   } catch (err) {
-    console.error('Error saving subscription to PB:', err);
+    console.error('Error unsubscribing from push:', err);
   }
+}
+
+async function saveSubscription(subscription: PushSubscription): Promise<boolean> {
+  if (!pb.authStore.isValid) return false;
+  const { endpoint, keys } = subscription.toJSON();
+  const res = await fetch('/api/push/subscription', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ endpoint, keys }),
+  });
+  return res.ok;
 }
 
 // Utility to convert VAPID key
-function urlBase64ToUint8Array(base64String: string) {
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);

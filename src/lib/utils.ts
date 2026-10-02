@@ -33,7 +33,7 @@ export function getRelativeTime(dateString: string): string {
 
 // O `month: 'short'` do Intl em pt-PT devolve numérico ("7/09") — parece uma
 // data truncada. Mês por extenso curto, à mão.
-const MONTHS_PT = [
+export const MONTHS_PT = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
   'jul', 'ago', 'set', 'out', 'nov', 'dez',
 ];
@@ -43,6 +43,14 @@ const MONTHS_PT = [
  * a partir daí ("7 set." este ano, "7 set. 2025" antes). "há 228 dias" não diz
  * nada a ninguém.
  */
+/** Para usar a meio de uma frase ("Adicionado por Ana …"): "há 5 minutos",
+ *  "agora mesmo" ou "a 25 set." — `formatRelativeOrDate` sozinho dava
+ *  "a há 5 minutos". */
+export function relativeOrDatePhrase(dateString: string): string {
+  const when = formatRelativeOrDate(dateString);
+  return /^\d/.test(when) ? `a ${when}` : when.charAt(0).toLowerCase() + when.slice(1);
+}
+
 export function formatRelativeOrDate(dateString: string): string {
   const date = new Date(dateString);
   const diffDays = (Date.now() - date.getTime()) / 86_400_000;
@@ -216,6 +224,16 @@ export function getUserGeminiApiKey(
   const key = user?.geminiApiKey ?? user?.gemini_api_key;
   const trimmed = key?.trim();
   return trimmed || undefined;
+}
+
+/**
+ * Mascara um segredo para mostrar no ecrã — só os últimos 4 caracteres
+ * (`"AIzaSy…XWHq"` → `"•••• XWHq"`), o suficiente para reconhecer qual é
+ * sem o expor num screenshot ou a quem está ao lado.
+ */
+export function maskSecret(secret: string): string {
+  if (!secret) return '';
+  return secret.length <= 4 ? '••••' : `•••• ${secret.slice(-4)}`;
 }
 
 /**

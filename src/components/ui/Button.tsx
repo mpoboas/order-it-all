@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { useWebHaptics } from 'web-haptics/react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning';
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning' | 'inverse';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,11 +15,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children: React.ReactNode;
 }
 
-// Uma cor de ação (primary). Tudo plano — sem gradientes. secondary é a mesma
-// cor em tom baixo; warning/danger são estado, não marca.
+// Uma cor de ação (primary), com volume: leve degradê + sombra azul
+// (`.btn-brand`, globals.css — Fase 18 "alma"). secondary é a mesma cor em tom
+// baixo; warning/danger são estado, não marca. `inverse` é o botão principal
+// SOBRE o azul da marca (auth, convite, faixas `.on-brand`): branco, texto azul.
 const VARIANTS: Record<ButtonVariant, string> = {
     primary:
-        'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-600 shadow-sm',
+        'btn-brand text-white focus-visible:ring-primary-600',
+    inverse:
+        'bg-white text-primary-700 hover:bg-primary-50 shadow-lg shadow-primary-950/25 focus-visible:ring-white focus-visible:ring-offset-primary-600',
     secondary:
         'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900 focus-visible:ring-primary-600',
     danger:
@@ -35,6 +39,12 @@ const SIZES: Record<ButtonSize, string> = {
     md: 'h-11 px-6 text-base gap-2',
     lg: 'h-13 px-8 text-lg gap-2',
 };
+
+const BASE = [
+    'inline-flex items-center justify-center rounded-full font-semibold',
+    'transition duration-200 ease-in-out active:scale-[0.97]',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+];
 
 export function Button({
     variant = 'primary',
@@ -61,15 +71,13 @@ export function Button({
         <button
             type={type}
             className={cn(
-                'inline-flex items-center justify-center rounded-full font-semibold',
-                'transition duration-200 ease-in-out active:scale-[0.97]',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                ...BASE,
                 'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
                 VARIANTS[variant],
                 SIZES[size],
                 block && 'w-full',
                 loading && 'btn-loading',
-                variant === 'ghost' || variant === 'secondary' || variant === 'warning'
+                variant === 'ghost' || variant === 'secondary' || variant === 'warning' || variant === 'inverse'
                     ? 'btn-loading--dark'
                     : null,
                 className,
@@ -81,5 +89,56 @@ export function Button({
         >
             {children}
         </button>
+    );
+}
+
+interface ButtonLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    block?: boolean;
+    disabled?: boolean;
+    children: React.ReactNode;
+}
+
+/**
+ * Link com o aspeto de `Button` — para abrir outra app (Revolut, MB WAY). No
+ * iOS um universal link só abre a app quando vem de um toque DIRETO num
+ * `<a href>`; um `location.href` feito por JS (sobretudo depois de um
+ * `await`) abre o site no browser.
+ */
+export function ButtonLink({
+    variant = 'primary',
+    size = 'md',
+    block = false,
+    disabled = false,
+    className,
+    children,
+    onClick,
+    ...props
+}: ButtonLinkProps) {
+    const { trigger } = useWebHaptics();
+    return (
+        <a
+            className={cn(
+                ...BASE,
+                VARIANTS[variant],
+                SIZES[size],
+                block && 'w-full',
+                disabled && 'opacity-50 pointer-events-none',
+                className,
+            )}
+            aria-disabled={disabled || undefined}
+            onClick={(e) => {
+                if (disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                trigger();
+                onClick?.(e);
+            }}
+            {...props}
+        >
+            {children}
+        </a>
     );
 }

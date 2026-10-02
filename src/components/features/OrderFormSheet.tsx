@@ -370,10 +370,9 @@ export function OrderFormSheet({
 
     const showBackButton = useCreateWizard && (step === 'participants' || step === 'items');
 
-    const sheetSize: SheetSize =
-        step === 'participants' ? 'large' :
-            step === 'items' ? 'large' :
-                'medium';
+    // Ecrã inteiro em todos os passos (Fase 9) — introdução de dados; um
+    // wizard não deve mudar de tamanho a meio do fluxo.
+    const sheetSize: SheetSize = 'full';
 
     const supportsMinimize = useCreateWizard || flow === 'edit';
 
@@ -917,7 +916,7 @@ export function OrderFormSheet({
                         {searchQuery && (
                             <button
                                 onClick={() => searchProducts()}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center"
                             >
                                 <Icon name="arrow_forward" className="text-sm" />
                             </button>

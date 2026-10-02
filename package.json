@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "migrate:order-participants": "python3 scripts/migrate_order_participants.py"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
@@ -17,12 +18,10 @@
     "modern-screenshot": "^4.7.0",
     "motion": "^12.40.0",
     "next": "^16.1.6",
-    "next-view-transitions": "^0.3.5",
     "pocketbase": "^0.26.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.21",
-    "splitwise": "^2.0.0",
     "web-haptics": "^0.0.6",
     "web-push": "^3.6.7"
   },
@@ -34,7 +33,9 @@
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

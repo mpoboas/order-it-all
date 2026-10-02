@@ -3,13 +3,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { pb, usersApi } from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
+import { unsubscribeFromPushNotifications } from '@/lib/notifications';
+import { AppSplash } from '@/components/layout/AppSplash';
 
 interface UserContextType {
     user: any | null;
     isLoggedIn: boolean;
     login: (email: string, pass: string) => Promise<void>;
     register: (email: string, pass: string, passConfirm: string) => Promise<any>;
-    logout: () => void;
+    logout: () => Promise<void>;
     updateProfile: (data: any) => Promise<void>;
 }
 
@@ -27,11 +29,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
         });
 
         // Try to refresh auth if we have a token
+        // Só termina a sessão se o SERVIDOR recusar o token (401/403). Uma falha
+        // de rede, um pedido cancelado ou a app offline (o refresh é um POST,
+        // bloqueado sem rede — ver pocketbase.ts) não dizem nada sobre o token:
+        // antes faziam logout, e abrir a app sem rede deitava fora a sessão
+        // precisamente quando devia mostrar os dados guardados.
         if (pb.authStore.model) {
             usersApi.authRefresh()
-                .catch(() => {
-                    console.warn('Auth token invalid/expired');
-                    usersApi.logout();
+                .catch((err: { status?: number }) => {
+                    if (err?.status === 401 || err?.status === 403) {
+                        console.warn('Auth token invalid/expired');
+                        usersApi.logout();
+                    }
                 });
         }
 
@@ -74,17 +83,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
             console.error('Failed to update profile:', error);
             // Revert on error (fetching fresh state)
             usersApi.authRefresh().then(u => setUser(u.record)).catch(() => { });
+            // Todos os call-sites já esperam isto (try/catch ou .catch()) — sem
+            // isto o erro fica sempre engolido e nenhum deles chega a disparar.
+            throw error;
         }
     }, [user]);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
+        // Apagar a subscrição de push precisa da autenticação atual — corre
+        // antes do `usersApi.logout()` (que limpa o auth). Best-effort: se
+        // falhar, a linha fica órfã mas autocura-se (ver `notifications.ts`).
+        await unsubscribeFromPushNotifications().catch(() => {});
         usersApi.logout();
         router.push('/');
     }, [router]);
 
-    // Prevent hydration mismatch
+    // Prevent hydration mismatch — até ler a sessão, o ecrã de arranque azul
+    // (também é o HTML que o servidor manda: 1.º frame da WPA, ver AppSplash).
     if (!isHydrated) {
-        return null;
+        return <AppSplash />;
     }
 
     return (

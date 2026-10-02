@@ -1,11 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-const fieldBase =
+export const fieldBase =
     'w-full px-4 py-3 rounded-xl border-2 border-hairline bg-surface-sunken text-base text-ink ' +
     'transition-colors placeholder:text-ink-faint ' +
     'focus:outline-none focus:border-primary-500 focus:bg-surface focus:ring-0';
-const fieldError = 'border-danger/60 focus:border-danger';
+export const fieldError = 'border-danger/60 focus:border-danger';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
