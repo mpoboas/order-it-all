@@ -21,20 +21,6 @@ import { PeriodPicker } from '@/components/summary/PeriodPicker';
 import { CategoryBreakdown, PeopleBreakdown, TimelineChart } from '@/components/summary/SummaryCharts';
 
 
-/** Emoji de cada categoria — para o prémio "A Categoria da Casa". */
-const CATEGORY_EMOJI: Record<string, string> = {
-    food: '🍕',
-    groceries: '🛒',
-    transport: '🚗',
-    home: '🏠',
-    utilities: '💡',
-    entertainment: '🎉',
-    health: '💊',
-    travel: '✈️',
-    shopping: '🛍️',
-    pets: '🐾',
-    other: '✨',
-};
 
 const eur = (cents: number) => formatEUR(fromCents(cents));
 
@@ -215,7 +201,7 @@ export default function GroupSummaryPage() {
                                     {a.topCategory && (
                                         <AwardCard
                                             tone="violet"
-                                            emoji={CATEGORY_EMOJI[a.topCategory.id] ?? '✨'}
+                                            emoji={getCategory(a.topCategory.id).emoji}
                                             title="A Categoria da Casa"
                                             winner={getCategory(a.topCategory.id).label}
                                             detail={`${Math.round(a.topCategory.share * 100)}% de tudo o que o grupo gastou`}

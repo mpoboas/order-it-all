@@ -92,6 +92,16 @@ const RULES = {
   },
 };
 
+// `push_subscriptions` — só as próprias linhas (em sintonia com
+// pb/migrations/8_push_and_onboarding.js). Estava com leitura pública.
+RULES.push_subscriptions = {
+  listRule: 'user = @request.auth.id',
+  viewRule: 'user = @request.auth.id',
+  createRule: '@request.auth.id != "" && user = @request.auth.id',
+  updateRule: 'user = @request.auth.id && @request.body.user:isset = false',
+  deleteRule: 'user = @request.auth.id',
+};
+
 // --- Códigos: mesmo gerador de src/lib/pocketbase.ts ----------------------
 const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
 const INVITE_LENGTH = 10;

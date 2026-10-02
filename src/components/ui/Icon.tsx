@@ -8,7 +8,7 @@ import {
     Rows3, SlidersHorizontal, StickyNote, FolderInput, Euro, TriangleAlert, LogOut,
     Maximize2, Minimize2, Moon, Sun, Bell, BellOff, BellRing, Smartphone, Download, SquarePlus,
     Utensils, ShoppingBasket, Car, Home, Zap, Clapperboard, HeartPulse, Plane, PawPrint, MoreHorizontal,
-    Scale, Activity, Send, Settings, UserPlus, AtSign, CloudOff, Search, Info, CreditCard, ArrowDownLeft, ArrowUpRight,
+    Scale, Activity, Send, Settings, ExternalLink, UserPlus, AtSign, CloudOff, Search, Info, CreditCard, ArrowDownLeft, ArrowUpRight,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -113,6 +113,7 @@ const MAP = {
     settings: Settings,
     person_add: UserPlus,
     alternate_email: AtSign,
+    open_in_new: ExternalLink,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof MAP;

@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '@/context/ToastContext';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
-import { markNotificationPromptHandled } from '@/lib/notificationPromptState';
+import {
+    markNotificationPromptDone,
+    snoozeNotificationPrompt,
+    type NotificationPromptStage,
+} from '@/lib/notificationPromptState';
+import { openInSystemBrowser } from '@/lib/oauthBrowser';
+import { formatEUR } from '@/lib/money';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { NotificationPreview } from '@/components/features/NotificationPreview';
@@ -17,51 +23,37 @@ interface OrderItemPreview {
 }
 
 interface NotificationInstallPromptProps {
+    /** Fase por onde começar — decidida por `notificationPromptStage()`. */
+    stage: NotificationPromptStage;
     onClose: () => void;
-    /** Item do pedido que o utilizador acabou de fazer (simplificado a 1,
-     *  mesmo que tenha vários) — só usado na fase de instalar. Sem isto
-     *  mostra-se um exemplo. */
+    /** Item do pedido que o utilizador acabou de fazer — dá contexto ao texto
+     *  quando o pedido aparece logo a seguir a pedir numa viagem. */
     orderItem?: OrderItemPreview | null;
 }
 
-const MOCK_ITEM: OrderItemPreview = { name: 'Leite', quantity: 2 };
-
-type Stage = 'install' | 'permission';
-
 /**
- * Ecrã inteiro (mesmo estilo do onboarding) com até 2 fases, na mesma
- * sessão de overlay:
+ * Ecrã inteiro que leva o utilizador até às notificações ativas, com as fases
+ * que ESTE dispositivo precisar (ver `notificationPromptStage`):
  *
- * 1. **Instalar** — só quando há mesmo instalação por fazer (iOS sem WPA,
- *    ou Android/desktop com `beforeinstallprompt` guardado). No Android a
- *    instalação e a permissão partilham o mesmo armazenamento (ao
- *    contrário do iOS) — por isso, mal instala com sucesso, transita
- *    **na mesma sessão** para a fase 2, sem precisar de reabrir a app.
- *    No iOS não há instalação programática — mostra os 3 passos manuais,
- *    e a permissão só se pede depois, quando ele voltar a entrar já pela
- *    WPA (outro disparo deste mesmo componente, já sem nada para
- *    instalar).
- * 2. **Permissão** — pede `Notification.requestPermission()` a sério.
+ * 1. **Abrir no browser** — dentro do WhatsApp/Instagram/etc. não há
+ *    instalação nem push. Android abre direto no Chrome; iPhone explica.
+ * 2. **Instalar** — iPhone fora da app (passos manuais; a permissão só se pode
+ *    pedir já dentro da app instalada, que tem armazenamento próprio, por isso
+ *    este mesmo ecrã volta a aparecer lá, já na fase 3) ou Android/desktop
+ *    com o `beforeinstallprompt` guardado (mesma origem e armazenamento: passa
+ *    logo à fase 3, na mesma sessão).
+ * 3. **Permissão** — `Notification.requestPermission()` a sério.
  *
- * Dispensar a fase de instalar ("Talvez mais tarde") **não** marca como
- * tratado — a app pode voltar a oferecer mais tarde, quando ele já
- * estiver a usar a WPA. Só dispensar/decidir a fase de permissão é que
- * marca como tratado para sempre (`markNotificationPromptHandled`).
- *
- * Chamado a partir de 2 sítios: mesmo depois de criar um pedido
- * (`trips/[tripId]/page.tsx`, com o item real) e à entrada em `/groups`
- * (apanha quem acabou de instalar e voltou à app, ou quem só criou um
- * grupo/viagem sem alguma vez ter feito um pedido).
+ * "Talvez mais tarde" adia (`snoozeNotificationPrompt`); decidir no pedido do
+ * sistema termina o assunto (`markNotificationPromptDone`).
  */
-export function NotificationInstallPrompt({ onClose, orderItem }: NotificationInstallPromptProps) {
-    const { iosManualInstall, canInstall, promptInstall } = useInstallPrompt();
-    const { requestPermission } = useNotificationPermission();
+export function NotificationInstallPrompt({ stage: initialStage, onClose, orderItem }: NotificationInstallPromptProps) {
+    const { iosManualInstall, canInstall, platform, promptInstall } = useInstallPrompt();
+    const { requestPermission, support } = useNotificationPermission();
     const { showToast } = useToast();
     const [installing, setInstalling] = useState(false);
     const [enabling, setEnabling] = useState(false);
-    const [stage, setStage] = useState<Stage>(
-        iosManualInstall || canInstall ? 'install' : 'permission',
-    );
+    const [stage, setStage] = useState<NotificationPromptStage>(initialStage);
 
     // Portal para o `document.body`: renderizado a partir de sítios como
     // `trips/[tripId]/page.tsx`, onde algum antepassado (transições de
@@ -73,42 +65,23 @@ export function NotificationInstallPrompt({ onClose, orderItem }: NotificationIn
         setMounted(true);
     }, []);
 
-    // Nada para fazer: já instalado (ou sem instalação disponível) e a
-    // permissão já foi decidida — não há fase de instalar nem nada para
-    // pedir. Fecha sem incomodar.
-    useEffect(() => {
-        if (!mounted || stage !== 'permission') return;
-        if (typeof Notification === 'undefined') return;
-        if (Notification.permission !== 'default') {
-            markNotificationPromptHandled();
-            onClose();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mounted, stage]);
-
-    const item = orderItem ?? MOCK_ITEM;
-
-    const handleDismissInstall = () => {
-        // Sem marcar "tratado" — quando ele entrar como WPA instalada, o
-        // gatilho em `/groups` volta a oferecer (já só a fase de permissão,
-        // já não há instalação para propor).
+    const later = () => {
+        snoozeNotificationPrompt();
         onClose();
     };
 
-    const handleDismissPermission = () => {
-        markNotificationPromptHandled();
-        onClose();
-    };
-
-    const handleAndroidInstall = async () => {
+    const handleInstall = async () => {
         setInstalling(true);
         try {
             const outcome = await promptInstall();
-            if (outcome === 'accepted') {
-                // Mesma origem, mesmo armazenamento — a permissão de
-                // notificações é comum ao browser e à WPA no Android, por
-                // isso pede-se já aqui, sem precisar de reabrir nada.
-                setStage('permission');
+            if (outcome !== 'accepted') return;
+            // Android/desktop: mesma origem, mesmo armazenamento — a permissão
+            // pede-se já aqui, sem reabrir nada. Se não houver push (ou já
+            // estiver decidida), acabou.
+            if (support.pushCapable && Notification.permission === 'default') setStage('permission');
+            else {
+                showToast('App instalada', 'success');
+                onClose();
             }
         } finally {
             setInstalling(false);
@@ -118,97 +91,129 @@ export function NotificationInstallPrompt({ onClose, orderItem }: NotificationIn
     const handleEnable = async () => {
         setEnabling(true);
         try {
-            const permission = await requestPermission();
-            if (permission === 'granted') {
-                showToast('Notificações ativadas', 'success');
+            const { permission, subscribed } = await requestPermission();
+            markNotificationPromptDone();
+            if (permission === 'granted' && subscribed) showToast('Notificações ativadas', 'success');
+            else if (permission === 'granted') {
+                showToast('Não foi possível ligar este dispositivo. Tenta outra vez no Perfil.', 'error');
+            } else if (permission === 'denied') {
+                showToast('Notificações bloqueadas. Podes ativá-las no Perfil.', 'info');
             }
         } catch {
-            showToast('Não foi possível ativar notificações', 'error');
+            showToast('Não foi possível ativar as notificações', 'error');
         } finally {
             setEnabling(false);
-            markNotificationPromptHandled();
             onClose();
+        }
+    };
+
+    const openInBrowser = async () => {
+        if (platform === 'android') {
+            openInSystemBrowser(window.location.href);
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(window.location.origin);
+            showToast('Link copiado. Cola-o no Safari.', 'success');
+        } catch {
+            showToast('Não foi possível copiar o link', 'error');
         }
     };
 
     if (!mounted) return null;
 
-    const content =
-        stage === 'install' ? (
-            <div className="fixed inset-0 z-[100] bg-app flex flex-col safe-screen animate-fade-in-up">
-                <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5 overflow-y-auto">
-                    <div className="space-y-2 text-center max-w-sm">
-                        <h1 className="text-2xl font-bold text-ink">Está a par do teu pedido!</h1>
-                        <p className="text-ink-soft">
-                            Para receberes notificações quando o teu pedido estiver completo,
-                            instala a aplicação.
-                        </p>
-                    </div>
+    const context = orderItem
+        ? `Para saberes quando o teu pedido (${orderItem.quantity}x ${orderItem.name}) for comprado`
+        : 'Para saberes quando há uma despesa nova, alguém te paga ou abre uma viagem';
 
-                    <div className="w-full max-w-sm flex items-center gap-3 rounded-2xl bg-surface border border-hairline shadow-sm p-3">
-                        <div className="w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center shrink-0">
-                            <Icon
-                                name="shopping_cart"
-                                className="text-lg text-primary-700 dark:text-primary-200"
-                            />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-ink text-sm truncate">{item.name}</p>
-                            <p className="text-sm text-ink-soft">{item.quantity}x</p>
-                        </div>
-                    </div>
+    let body: ReactNode;
+    let actions: ReactNode;
 
-                    {iosManualInstall && (
-                        <div className="w-full max-w-sm">
-                            <IosInstallSteps />
-                        </div>
-                    )}
-                </div>
-
-                <div className="px-6 pb-2 pt-1 shrink-0 space-y-3">
-                    {canInstall && (
-                        <Button block size="lg" loading={installing} onClick={handleAndroidInstall}>
-                            Instalar aplicação
-                            <Icon name="install_mobile" />
-                        </Button>
-                    )}
-                    <Button block size="lg" variant="ghost" onClick={handleDismissInstall}>
-                        Talvez mais tarde
-                    </Button>
-                </div>
-            </div>
-        ) : (
-            <div className="fixed inset-0 z-[100] bg-app flex flex-col safe-screen animate-fade-in-up">
-                <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5 overflow-y-auto">
-                    <div className="space-y-2 text-center max-w-sm">
-                        <h1 className="text-2xl font-bold text-ink">Nunca percas uma viagem!</h1>
-                        <p className="text-ink-soft">
-                            Ativa as notificações para estares a par dos teus pedidos e divisões.
-                        </p>
-                    </div>
-                    <div className="w-full max-w-sm space-y-2">
-                        <NotificationPreview
-                            title="Pedido concluído"
-                            body="O teu pedido em Casa de férias está pronto a levantar."
-                        />
-                        <NotificationPreview
-                            title="Nova despesa"
-                            body="Foste adicionado a Jantar do grupo. Deves 12,50 € ao Miguel."
-                        />
-                    </div>
-                </div>
-
-                <div className="px-6 pb-2 pt-1 shrink-0 space-y-3">
-                    <Button block size="lg" loading={enabling} onClick={handleEnable}>
-                        Ativar notificações
-                        <Icon name="notifications_active" />
-                    </Button>
-                    <Button block size="lg" variant="ghost" onClick={handleDismissPermission}>
-                        Talvez mais tarde
-                    </Button>
-                </div>
-            </div>
+    if (stage === 'open-in-browser') {
+        body = (
+            <Intro
+                title="Abre no teu browser"
+                text={
+                    platform === 'ios'
+                        ? `${context}, a app tem de estar no ecrã principal, e isso só dá a partir do Safari. Toca em ⋯ e escolhe "Abrir no Safari", ou copia o link.`
+                        : `${context}, abre a app no Chrome e instala-a. Aqui dentro não dá.`
+                }
+            />
         );
+        actions = (
+            <Button block size="lg" onClick={openInBrowser}>
+                {platform === 'android' ? 'Abrir no Chrome' : 'Copiar link'}
+                <Icon name={platform === 'android' ? 'open_in_new' : 'content_copy'} />
+            </Button>
+        );
+    } else if (stage === 'install') {
+        body = (
+            <>
+                <Intro
+                    title="Instala a app"
+                    text={
+                        iosManualInstall
+                            ? `${context}, a app tem de estar no ecrã principal. No iPhone, as notificações só funcionam assim.`
+                            : `${context}, instala a app. Fica no ecrã principal, como as outras.`
+                    }
+                />
+                {iosManualInstall && (
+                    <div className="w-full max-w-sm">
+                        <IosInstallSteps />
+                    </div>
+                )}
+            </>
+        );
+        actions = canInstall ? (
+            <Button block size="lg" loading={installing} onClick={handleInstall}>
+                Instalar aplicação
+                <Icon name="install_mobile" />
+            </Button>
+        ) : null;
+    } else {
+        body = (
+            <>
+                <Intro
+                    title="Não percas nada do grupo"
+                    text={
+                        orderItem
+                            ? `Ativa as notificações ${context.charAt(0).toLowerCase() + context.slice(1)} e para as despesas e pagamentos do grupo.`
+                            : 'Ativa as notificações para saberes quando há uma despesa nova, alguém te paga ou abre uma viagem.'
+                    }
+                />
+                <div className="w-full max-w-sm space-y-2">
+                    <NotificationPreview title="💰 Nova despesa" body={`Miguel adicionou "Jantar de sexta" (${formatEUR(37.5)}).`} />
+                    <NotificationPreview title="🛍️ Está na hora de encomendar!" body="Continente de sábado está disponível. Faz os teus pedidos!" />
+                </div>
+            </>
+        );
+        actions = (
+            <Button block size="lg" loading={enabling} onClick={handleEnable}>
+                Ativar notificações
+                <Icon name="notifications_active" />
+            </Button>
+        );
+    }
 
-    return createPortal(content, document.body);
+    return createPortal(
+        <div className="fixed inset-0 z-[100] bg-app flex flex-col safe-screen animate-fade-in-up">
+            <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5 short:gap-3 overflow-y-auto">{body}</div>
+            <div className="px-6 pb-2 pt-1 shrink-0 space-y-3 short:space-y-2">
+                {actions}
+                <Button block size="lg" variant="ghost" onClick={later}>
+                    Talvez mais tarde
+                </Button>
+            </div>
+        </div>,
+        document.body,
+    );
+}
+
+function Intro({ title, text }: { title: string; text: string }) {
+    return (
+        <div className="space-y-2 text-center max-w-sm">
+            <h1 className="text-2xl short:text-xl font-bold text-ink">{title}</h1>
+            <p className="text-ink-soft short:text-sm">{text}</p>
+        </div>
+    );
 }

@@ -18,7 +18,7 @@ import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
 import { partyLabel, realParticipantIds } from '@/lib/parties';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
-import { notify, notifiableUserIds } from '@/lib/notify';
+import { notifyEvent } from '@/lib/notify';
 import { MBWAY_APP_URL, normalizeRevtag, revolutPaymentUrl, settleUpNote } from '@/lib/paymentLinks';
 import { useGroup as useGroupRecord } from '@/lib/db/hooks';
 import { cn } from '@/lib/utils';
@@ -36,8 +36,6 @@ interface SettleUpSheetProps {
   pairwise?: Record<string, Record<string, number>>;
   currentUserId: string;
   onSaved?: () => void;
-  /** URL do pagamento para a notificação — por omissão a rota de grupo. */
-  notifyUrl?: (expenseId: string) => string;
   /** Editar um pagamento já registado — abre direto no ecrã de confirmação
    *  (quem paga → quem recebe + valor), sem a lista. */
   payment?: Expense;
@@ -104,7 +102,6 @@ export function SettleUpSheet({
   pairwise = NO_PAIRWISE,
   currentUserId,
   onSaved,
-  notifyUrl,
   payment,
 }: SettleUpSheetProps) {
   const { showToast } = useToast();
@@ -209,7 +206,6 @@ export function SettleUpSheet({
     setSubmitting(true);
     try {
       assertOnline();
-      const url = (id: string) => (notifyUrl ? notifyUrl(id) : `/groups/${groupId}/expenses/${id}`);
 
       if (payment) {
         const saved = await expensesApi.update(
@@ -220,12 +216,7 @@ export function SettleUpSheet({
         );
         await db.expenses.put(saved);
         showToast('Pagamento atualizado', 'success');
-        void notify({
-          targetUserIds: notifiableUserIds([payerId, payeeId], parties, currentUserId),
-          title: '✏️ Pagamento editado',
-          message: `${label(currentUserId)} editou um pagamento de ${formatEUR(amount)}.`,
-          url: url(saved.id),
-        });
+        notifyEvent('expense.updated', saved.id);
       } else {
         const created = await expensesApi.create({
           group_id: groupId,
@@ -243,12 +234,7 @@ export function SettleUpSheet({
         });
         await db.expenses.put(created);
         showToast('Pagamento registado', 'success');
-        void notify({
-          targetUserIds: notifiableUserIds([payeeId], parties, currentUserId),
-          title: '💸 Pagamento recebido',
-          message: `${label(payerId)} pagou-te ${formatEUR(amount)}.`,
-          url: url(created.id),
-        });
+        notifyEvent('expense.created', created.id);
       }
 
       onSaved?.();

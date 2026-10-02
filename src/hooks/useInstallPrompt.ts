@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { installPromptStore, promptNativeInstall } from '@/lib/installPrompt';
 import { getOAuthBrowserPlatform, isStandalonePwa, type OAuthBrowserPlatform } from '@/lib/oauthBrowser';
+import { isInAppBrowser } from '@/lib/pushSupport';
 
 // Sem evento nenhum para subscrever — só precisamos do truque do
 // `getServerSnapshot` do `useSyncExternalStore` para separar o valor
@@ -49,7 +50,10 @@ export function useInstallPrompt() {
 
   const isStandalone = useSyncExternalStore<boolean>(noopSubscribe, isStandalonePwa, () => false);
 
-  const iosManualInstall = platform === 'ios' && !isStandalone;
+  /** Dentro do WhatsApp/Instagram/etc.: não se instala nada daqui. */
+  const inAppBrowser = useSyncExternalStore<boolean>(noopSubscribe, isInAppBrowser, () => false);
 
-  return { canInstall, platform, isStandalone, iosManualInstall, promptInstall: promptNativeInstall };
+  const iosManualInstall = platform === 'ios' && !isStandalone && !inAppBrowser;
+
+  return { canInstall, platform, isStandalone, inAppBrowser, iosManualInstall, promptInstall: promptNativeInstall };
 }

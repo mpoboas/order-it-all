@@ -10,7 +10,7 @@ import { friendshipsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
 import { useToast } from '@/context/ToastContext';
-import { notify } from '@/lib/notify';
+import { notifyEvent } from '@/lib/notify';
 import { Header } from '@/components/layout/Header';
 import { HomeOverview } from '@/components/features/HomeOverview';
 import { HomeTabs } from '@/components/features/HomeTabs';
@@ -48,17 +48,12 @@ export default function PeoplePage() {
         ]);
     }, [friendships, user]);
 
-    const handleAccept = async (friendshipId: string, otherUserId: string) => {
+    const handleAccept = async (friendshipId: string) => {
         setRespondingId(friendshipId);
         try {
             const updated = await friendshipsApi.accept(friendshipId);
             await db.friendships.put(updated);
-            void notify({
-                targetUserIds: [otherUserId],
-                title: 'Pedido de amizade aceite',
-                message: `${user?.name || 'Alguém'} aceitou o teu pedido de amizade.`,
-                url: '/people',
-            });
+            notifyEvent('friend.accepted', updated.id);
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Erro ao aceitar'), 'error');
         } finally {
@@ -121,7 +116,7 @@ export default function PeoplePage() {
                                         <button
                                             type="button"
                                             disabled={respondingId === f.id}
-                                            onClick={() => handleAccept(f.id, otherId)}
+                                            onClick={() => handleAccept(f.id)}
                                             aria-label="Aceitar pedido"
                                             className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-primary-600 text-white disabled:opacity-50"
                                         >
@@ -180,7 +175,6 @@ export default function PeoplePage() {
                     isOpen={showAddFriend}
                     onClose={() => setShowAddFriend(false)}
                     currentUserId={user.id}
-                    currentUserName={user.name || 'Alguém'}
                     isAlreadyRelated={(userId) => relatedUserIds.has(userId)}
                     onRequested={() => {}}
                 />

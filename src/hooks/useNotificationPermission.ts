@@ -1,42 +1,59 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { registerServiceWorker, subscribeToPushNotifications } from '@/lib/notifications';
-import { getOAuthBrowserPlatform, isStandalonePwa } from '@/lib/oauthBrowser';
+import { currentPushPermission, getPushSupport, type PushSupport } from '@/lib/pushSupport';
 
 export type PushSupportStatus = NotificationPermission | 'unsupported';
 
+export interface EnableResult {
+  permission: NotificationPermission;
+  /** Permissão dada E subscrição gravada no servidor. */
+  subscribed: boolean;
+}
+
+function noopSubscribe() {
+  return () => {};
+}
+
+const SERVER_SUPPORT: PushSupport = {
+  platform: 'desktop',
+  standalone: false,
+  inAppBrowser: false,
+  pushCapable: false,
+  iosNeedsInstall: false,
+};
+let cachedSupport: PushSupport | null = null;
+/** Estável entre renders (o `useSyncExternalStore` compara por referência). */
+function supportSnapshot(): PushSupport {
+  cachedSupport ??= getPushSupport();
+  return cachedSupport;
+}
+
 /**
- * Estado da permissão de push + o pedido em si, partilhado entre o cartão do
- * Perfil e o soft-ask de `/groups` (Fase 1/2 do plano de notificações — ver
- * memória `notificacoes-push`). Nunca chama `requestPermission()` sozinho —
- * só quando `requestPermission()` deste hook é chamado a partir de um toque.
+ * Estado da permissão de push + o pedido em si, partilhado entre o Perfil e o
+ * `NotificationInstallPrompt`. Nunca chama `requestPermission()` sozinho —
+ * só a partir de um toque (no iPhone, sem gesto, o pedido falha logo).
  */
 export function useNotificationPermission() {
-  const [status, setStatus] = useState<PushSupportStatus>('unsupported');
+  const support = useSyncExternalStore(noopSubscribe, supportSnapshot, () => SERVER_SUPPORT);
+  const initial = useSyncExternalStore<PushSupportStatus>(noopSubscribe, currentPushPermission, () => 'unsupported');
+  const [decided, setDecided] = useState<NotificationPermission | null>(null);
+  const status: PushSupportStatus = decided ?? initial;
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
-      setStatus('unsupported');
-      return;
-    }
-    setStatus(Notification.permission);
-  }, []);
-
-  // No iOS, push só existe instalado no ecrã principal (`display-mode:
-  // standalone`) — pedir a permissão sem isso não faz nada.
-  const iosNeedsInstall =
-    status === 'default' && getOAuthBrowserPlatform() === 'ios' && !isStandalonePwa();
-
-  const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
+  const requestPermission = useCallback(async (): Promise<EnableResult> => {
     const permission = await Notification.requestPermission();
-    setStatus(permission);
-    if (permission === 'granted') {
-      await registerServiceWorker();
-      await subscribeToPushNotifications();
-    }
-    return permission;
+    setDecided(permission);
+    if (permission !== 'granted') return { permission, subscribed: false };
+    await registerServiceWorker();
+    return { permission, subscribed: await subscribeToPushNotifications() };
   }, []);
 
-  return { status, iosNeedsInstall, requestPermission };
+  return {
+    status,
+    support,
+    /** iPhone/iPad no browser: tem de instalar no ecrã principal primeiro. */
+    iosNeedsInstall: support.iosNeedsInstall,
+    requestPermission,
+  };
 }

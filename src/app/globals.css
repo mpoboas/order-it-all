@@ -318,18 +318,24 @@ select,
   user-select: text;
 }
 
-/* Fundo do html/body = a cor da barra de estado do ecrã atual (azul da marca,
-   ou a cor da capa num amigo — ver `StatusBarTint`). Todas as páginas pintam
-   o seu próprio fundo (`bg-app`, `AuthBackdrop`), por isso isto quase nunca se
-   vê — mas é a cor que o iPhone usa na barra de estado quando não encontra um
-   elemento fixo com cor única no topo: durante a transição entre ecrãs (as
-   duas páginas a deslizar) caía no fundo claro da app e a barra piscava a
-   branco. */
+/* Fundo do html/body: o da app. No iPhone, a cor da barra de estado do ecrã
+   atual (azul da marca, ou a cor da capa num amigo — ver `StatusBarTint`):
+   todas as páginas pintam o seu próprio fundo, por isso quase não se vê, mas
+   é a cor que o iOS usa na barra de estado quando não encontra um elemento
+   fixo com cor única no topo (durante a transição entre ecrãs a barra piscava
+   a branco). Só no iPhone: o Chrome do Android pinta a barra de NAVEGAÇÃO
+   (em baixo) com este fundo, e ficava azul dentro da app. */
 html {
+  background-color: var(--app-bg);
+}
+html.is-ios {
   background-color: var(--status-bar-color);
 }
-body {
+html.is-ios body {
   background: var(--status-bar-color);
+}
+body {
+  background: var(--app-bg);
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100dvh;

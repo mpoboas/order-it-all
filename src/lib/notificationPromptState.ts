@@ -1,55 +1,106 @@
 import { pb } from '@/lib/pocketbase';
 import { hasReachedInstallValueMoment } from '@/lib/installValueMoment';
+import { installPromptStore } from '@/lib/installPrompt';
+import { getPushSupport } from '@/lib/pushSupport';
 
 /**
- * Estado do ecrã inteiro que pede para ativar notificações
- * (`NotificationInstallPrompt`) — mostrado uma vez, nunca mais, assim que
- * o utilizador tocar em qualquer botão (ativar ou "Talvez mais tarde").
- * Por utilizador, não por dispositivo/sessão.
+ * Quando e como pedir para ativar notificações (`NotificationInstallPrompt`).
+ * Por utilizador E por dispositivo (localStorage): cada telemóvel tem a sua
+ * própria permissão — e no iPhone a app instalada nem partilha o armazenamento
+ * com o Safari, por isso lá o pedido volta a aparecer, o que é o certo.
+ *
+ * "Talvez mais tarde" adia 3, depois 7, depois 21 dias; à 4.ª recusa não
+ * volta a aparecer — continua disponível no Perfil. Decidir no pedido nativo
+ * do sistema (permitir ou bloquear) termina o assunto para sempre.
  */
-function storageKey(): string | null {
-  const userId = pb.authStore.model?.id;
-  return userId ? `notification-prompt-handled:${userId}` : null;
+
+export type NotificationPromptStage =
+  /** Instalar primeiro (iPhone fora da app, ou Android/desktop com instalação disponível). */
+  | 'install'
+  /** Browser dentro de outra app (WhatsApp, Instagram…): abrir no browser a sério. */
+  | 'open-in-browser'
+  /** Pedir a permissão a sério. */
+  | 'permission';
+
+const SNOOZE_DAYS = [3, 7, 21];
+const DAY_MS = 86_400_000;
+
+interface PromptState {
+  dismissals: number;
+  nextAt: number;
+  done: boolean;
 }
 
-export function markNotificationPromptHandled(): void {
+function storageKey(): string | null {
+  const userId = pb.authStore.model?.id;
+  return userId ? `notif-prompt:${userId}` : null;
+}
+
+function readState(): PromptState | null {
+  const key = storageKey();
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return { dismissals: 0, nextAt: 0, done: false, ...JSON.parse(raw) };
+    // Chave antiga (até set 2026): "tratado" contava como uma recusa.
+    const legacy = localStorage.getItem(`notification-prompt-handled:${pb.authStore.model?.id}`);
+    return { dismissals: legacy === '1' ? 1 : 0, nextAt: 0, done: false };
+  } catch {
+    return { dismissals: 0, nextAt: 0, done: false };
+  }
+}
+
+function writeState(state: PromptState): void {
   const key = storageKey();
   if (!key) return;
   try {
-    localStorage.setItem(key, '1');
+    localStorage.setItem(key, JSON.stringify(state));
   } catch {
-    /* ignore */
+    /* modo privado — o pedido volta a aparecer, não é grave */
   }
 }
 
-function hasHandledNotificationPrompt(): boolean {
-  const key = storageKey();
-  if (!key) return true;
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
+/** "Talvez mais tarde": adia (3, 7, 21 dias); à 4.ª vez, desiste. */
+export function snoozeNotificationPrompt(): void {
+  const state = readState();
+  if (!state) return;
+  const dismissals = state.dismissals + 1;
+  const days = SNOOZE_DAYS[dismissals - 1];
+  writeState({
+    dismissals,
+    nextAt: days ? Date.now() + days * DAY_MS : Infinity,
+    done: !days,
+  });
+}
+
+/** Permissão decidida no pedido do sistema (permitida ou bloqueada). */
+export function markNotificationPromptDone(): void {
+  const state = readState();
+  if (!state) return;
+  writeState({ ...state, done: true });
 }
 
 /**
- * Só decide SE vale a pena montar o `NotificationInstallPrompt" — QUAL fase
- * mostrar (instalar vs. pedir permissão a sério), ou se afinal não há nada
- * para oferecer (já instalado e permissão já decidida), fica a cargo do
- * próprio componente, que sabe a plataforma e o estado de instalação. Não
- * filtra por `Notification.permission` aqui: no Android/desktop a fase de
- * instalar deve aparecer mesmo que a permissão já esteja decidida (ex.:
- * recusada num teste anterior) — instalar continua a ser útil por si só.
+ * Que fase mostrar agora — ou `null` se não há nada a pedir (já decidido,
+ * adiado, sem suporte, ou ainda sem momento de valor).
  *
- * @param requireValueMoment Quando `true` (omissão), só mostra depois de um
- *   momento de valor real (primeiro pedido ou primeiro grupo/viagem —
- *   `hasReachedInstallValueMoment`). Passar `false` nos sítios onde a
- *   própria ação que acabou de acontecer JÁ é esse momento (ex.: mesmo
- *   depois de criar o pedido) — poupa uma leitura redundante.
+ * @param hasValue Já houve um momento de valor que justifique pedir (fez um
+ *   pedido, criou algo, pertence a um grupo…). A app instalada conta sempre
+ *   como valor — instalar é o sinal mais forte que há.
  */
-export function shouldShowNotificationPrompt(requireValueMoment = true): boolean {
-  if (typeof window === 'undefined') return false;
-  if (hasHandledNotificationPrompt()) return false;
-  if (requireValueMoment && !hasReachedInstallValueMoment()) return false;
-  return true;
+export function notificationPromptStage(hasValue: boolean): NotificationPromptStage | null {
+  if (typeof window === 'undefined') return null;
+  const state = readState();
+  if (!state || state.done || Date.now() < state.nextAt) return null;
+
+  const support = getPushSupport();
+  if (!hasValue && !support.standalone && !hasReachedInstallValueMoment()) return null;
+
+  if (support.inAppBrowser) return 'open-in-browser';
+  if (support.iosNeedsInstall) return 'install';
+  if (!support.pushCapable) return null;
+
+  if (Notification.permission !== 'default') return null;
+  const canInstall = installPromptStore.getSnapshot();
+  return canInstall && !support.standalone ? 'install' : 'permission';
 }

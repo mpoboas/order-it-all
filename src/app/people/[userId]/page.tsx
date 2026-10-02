@@ -10,7 +10,7 @@ import { useConfirm } from '@/context/ConfirmContext';
 import { usePeopleBalances, useFriendships, useSharedExpenses } from '@/lib/db/hooks';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
-import { notify } from '@/lib/notify';
+import { sendDirectMessage } from '@/lib/notify';
 import { friendshipsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
@@ -117,9 +117,8 @@ export default function PersonDetailPage() {
             showToast('Já enviaste um lembrete a esta pessoa hoje', 'info');
             return;
         }
-        void notify({
+        void sendDirectMessage({
             targetUserIds: [userId],
-            excludeUserId: user.id,
             title: '🔔 Lembrete de dívida',
             message: `${user.name} lembra-te que deves ${formatEUR(Math.abs(fromCents(person.netCents)))}.`,
             url: '/people',
@@ -277,7 +276,6 @@ export default function PersonDetailPage() {
                     parties={directParties}
                     currentUserId={user.id}
                     onSaved={() => setShowAddExpense(false)}
-                    notifyUrl={(e) => `/expenses/${e.id}`}
                 />
             )}
 
@@ -288,7 +286,6 @@ export default function PersonDetailPage() {
                     parties={directParties}
                     pairwise={directPairwise}
                     currentUserId={user.id}
-                    notifyUrl={(id) => `/expenses/${id}`}
                 />
             )}
 

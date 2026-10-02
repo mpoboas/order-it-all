@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminPb } from '@/lib/pbAdmin';
+import { notifyGroupJoined } from '@/lib/notifications/dispatch';
 import { requireUserId, unauthorized } from '@/lib/serverAuth';
 import type { Group, InvitePreview } from '@/lib/types';
 
@@ -64,6 +65,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     if (!group.members.includes(userId)) {
       const pb = await getAdminPb();
       await pb.collection('groups').update(group.id, { 'members+': userId });
+      // "👋 Ana entrou no grupo" — daqui mesmo: a entrada acontece no servidor.
+      await notifyGroupJoined(pb, group.id, userId);
     }
     return NextResponse.json({ groupId: group.id });
   } catch (error) {

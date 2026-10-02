@@ -44,7 +44,7 @@ import { RemoteImage } from '@/components/ui/RemoteImage';
 import { isSheetActive, hasAnyActiveSheet, type SheetSession } from '@/lib/sheetSession';
 import { getFabBottom } from '@/lib/bottomDock';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
-import { shouldShowNotificationPrompt } from '@/lib/notificationPromptState';
+import { notificationPromptStage, type NotificationPromptStage } from '@/lib/notificationPromptState';
 import { NotificationInstallPrompt } from '@/components/features/NotificationInstallPrompt';
 import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -76,6 +76,7 @@ export default function GroupTripDetailPage() {
     const [initialParticipantIds, setInitialParticipantIds] = useState<string[]>([]);
     const [ordersTab, setOrdersTab] = useState<'mine' | 'participating' | 'others'>('mine');
     const [notificationPrompt, setNotificationPrompt] = useState<{
+        stage: NotificationPromptStage;
         item: { name: string; quantity: number } | null;
     } | null>(null);
 
@@ -242,11 +243,12 @@ export default function GroupTripDetailPage() {
                 await db.orders.put(order);
                 if (createdItems.length) await db.items.bulkPut(createdItems);
                 markInstallValueMoment();
-                // Já é o momento de valor em si — não precisa de reconfirmar
-                // com `hasReachedInstallValueMoment()` (por isso o `false`).
-                if (shouldShowNotificationPrompt(false)) {
+                // Fazer um pedido já é o momento de valor (por isso o `true`).
+                const stage = notificationPromptStage(true);
+                if (stage) {
                     const first = data.items[0];
                     setNotificationPrompt({
+                        stage,
                         item: first ? { name: first.name, quantity: first.quantity } : null,
                     });
                 }
@@ -783,6 +785,7 @@ export default function GroupTripDetailPage() {
 
             {notificationPrompt && (
                 <NotificationInstallPrompt
+                    stage={notificationPrompt.stage}
                     orderItem={notificationPrompt.item}
                     onClose={() => setNotificationPrompt(null)}
                 />

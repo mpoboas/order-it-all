@@ -8,7 +8,7 @@ import { commentsApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { assertOnline, mutationErrorMessage } from '@/lib/db/mutations';
 import { useToast } from '@/context/ToastContext';
-import { notify, notifiableUserIds } from '@/lib/notify';
+import { notifyEvent } from '@/lib/notify';
 import { partyLabel } from '@/lib/parties';
 import { formatRelativeOrDate } from '@/lib/utils';
 import type { Expense, Party } from '@/lib/types';
@@ -19,11 +19,9 @@ interface CommentsBarProps {
     groupId?: string;
     parties: Map<string, Party>;
     currentUserId: string;
-    /** URL da despesa para a notificação — por omissão a rota de grupo. */
-    notifyUrl?: string;
 }
 
-export function CommentsBar({ expense, groupId, parties, currentUserId, notifyUrl }: CommentsBarProps) {
+export function CommentsBar({ expense, groupId, parties, currentUserId }: CommentsBarProps) {
     const comments = useComments(expense.id);
     const { showToast } = useToast();
     const [content, setContent] = useState('');
@@ -45,16 +43,7 @@ export function CommentsBar({ expense, groupId, parties, currentUserId, notifyUr
             await db.expense_comments.put(created);
             setContent('');
 
-            const participantIds = Array.from(
-                new Set([...expense.payers.map((p) => p.party), ...expense.shares.map((s) => s.party)]),
-            );
-            const targets = notifiableUserIds(participantIds, parties, currentUserId);
-            void notify({
-                targetUserIds: targets,
-                title: '💬 Novo comentário',
-                message: `${partyLabel(currentUserId, parties)} comentou em "${expense.description}": ${text.slice(0, 80)}`,
-                url: notifyUrl ?? `/groups/${groupId}/expenses/${expense.id}`,
-            });
+            notifyEvent('comment.created', created.id);
         } catch (error) {
             showToast(mutationErrorMessage(error, 'Erro ao comentar'), 'error');
         } finally {

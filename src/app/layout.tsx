@@ -98,6 +98,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* O ícone do ecrã de arranque (`AppSplash`) tem de pintar no 1.º frame —
+            sem isto via-se um quadrado vazio logo a seguir ao splash do Android. */}
+        <link rel="preload" as="image" href="/icon-maskable-512x512.png" fetchPriority="high" />
         {/* Aplica o tema guardado antes do primeiro paint — sem flash de tema errado.
             O ThemeContext apenas reafirma o que este script ja poe no <html>. */}
         <script

@@ -10,22 +10,24 @@ export interface ExpenseCategory {
   label: string;
   icon: IconName;
   tint: CategoryTint;
+  /** Nas notificações ("🍔 Casa de férias") e nos prémios do Resumo. */
+  emoji: string;
 }
 
 /** Categorias do livro-razão — id gravado em `Expense.category`. A última
  *  ("other") é o valor por omissão quando nada corresponde. */
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  { id: 'food', label: 'Comida e bebidas', icon: 'restaurant', tint: 'warning' },
-  { id: 'groceries', label: 'Mercearia', icon: 'local_grocery_store', tint: 'success' },
-  { id: 'transport', label: 'Transportes', icon: 'directions_car', tint: 'info' },
-  { id: 'home', label: 'Casa e renda', icon: 'home', tint: 'info' },
-  { id: 'utilities', label: 'Contas e serviços', icon: 'bolt', tint: 'warning' },
-  { id: 'entertainment', label: 'Lazer', icon: 'theaters', tint: 'success' },
-  { id: 'health', label: 'Saúde', icon: 'medical_services', tint: 'warning' },
-  { id: 'travel', label: 'Viagens', icon: 'flight', tint: 'info' },
-  { id: 'shopping', label: 'Compras', icon: 'shopping_bag', tint: 'success' },
-  { id: 'pets', label: 'Animais', icon: 'pets', tint: 'warning' },
-  { id: 'other', label: 'Outros', icon: 'more_horiz', tint: 'info' },
+  { id: 'food', label: 'Comida e bebidas', icon: 'restaurant', tint: 'warning', emoji: '🍔' },
+  { id: 'groceries', label: 'Mercearia', icon: 'local_grocery_store', tint: 'success', emoji: '🛒' },
+  { id: 'transport', label: 'Transportes', icon: 'directions_car', tint: 'info', emoji: '🚗' },
+  { id: 'home', label: 'Casa e renda', icon: 'home', tint: 'info', emoji: '🏠' },
+  { id: 'utilities', label: 'Contas e serviços', icon: 'bolt', tint: 'warning', emoji: '💡' },
+  { id: 'entertainment', label: 'Lazer', icon: 'theaters', tint: 'success', emoji: '🎉' },
+  { id: 'health', label: 'Saúde', icon: 'medical_services', tint: 'warning', emoji: '💊' },
+  { id: 'travel', label: 'Viagens', icon: 'flight', tint: 'info', emoji: '✈️' },
+  { id: 'shopping', label: 'Compras', icon: 'shopping_bag', tint: 'success', emoji: '🛍️' },
+  { id: 'pets', label: 'Animais', icon: 'pets', tint: 'warning', emoji: '🐾' },
+  { id: 'other', label: 'Outros', icon: 'more_horiz', tint: 'info', emoji: '💰' },
 ];
 
 const CATEGORY_BY_ID = new Map(EXPENSE_CATEGORIES.map((c) => [c.id, c]));

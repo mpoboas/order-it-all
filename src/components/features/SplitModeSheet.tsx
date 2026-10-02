@@ -82,6 +82,11 @@ export function SplitModeSheet({
     );
   };
 
+  // Um só botão que alterna: "Todos" enquanto faltar alguém, "Ninguém" quando
+  // já estão todos (padrão "Selecionar tudo" das listas do iOS/Android).
+  const allSelected = parties.length > 0 && parties.every((p) => participantIds.includes(p.id));
+  const toggleAll = () => setParticipantIds(allSelected ? [] : parties.map((p) => p.id));
+
   const setInput = (id: string, raw: string) => {
     const parsed = raw === '' ? 0 : Number.parseFloat(raw.replace(',', '.'));
     setInputs((prev) => ({ ...prev, [id]: Number.isFinite(parsed) ? parsed : 0 }));
@@ -149,29 +154,43 @@ export function SplitModeSheet({
             Vais poder atribuir cada item a quem participou depois de guardar.
           </p>
         ) : mode === 'equal' ? (
-          <ul className="divide-y divide-hairline">
-            {parties.map((party) => {
-              const checked = participantIds.includes(party.id);
-              return (
-                <li key={party.id} className="flex items-center gap-3 py-2.5">
-                  <Avatar name={party.name} src={party.avatar} size="sm" />
-                  <span className="flex-1 font-medium text-ink truncate">{party.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleEqualParticipant(party.id)}
-                    className={cn(
-                      'w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-colors',
-                      checked ? 'bg-primary-600 border-primary-600 text-white' : 'border-hairline bg-app',
-                    )}
-                    aria-pressed={checked}
-                    aria-label={`Incluir ${party.name} na divisão`}
-                  >
-                    {checked && <Icon name="check" className="text-lg" strokeWidth={3} aria-hidden="true" />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div>
+            <div className="flex items-center justify-between gap-3 px-1">
+              <span className="text-sm text-ink-soft">
+                {participantIds.length} de {parties.length} {parties.length === 1 ? 'pessoa' : 'pessoas'}
+              </span>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-sm font-semibold text-primary-700 dark:text-primary-300 px-2 py-1.5 -mr-2 rounded-lg hover:bg-surface-sunken transition-colors"
+              >
+                {allSelected ? 'Ninguém' : 'Todos'}
+              </button>
+            </div>
+            <ul className="divide-y divide-hairline">
+              {parties.map((party) => {
+                const checked = participantIds.includes(party.id);
+                return (
+                  <li key={party.id} className="flex items-center gap-3 py-2.5">
+                    <Avatar name={party.name} src={party.avatar} size="sm" />
+                    <span className="flex-1 font-medium text-ink truncate">{party.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleEqualParticipant(party.id)}
+                      className={cn(
+                        'w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-colors',
+                        checked ? 'bg-primary-600 border-primary-600 text-white' : 'border-hairline bg-app',
+                      )}
+                      aria-pressed={checked}
+                      aria-label={`Incluir ${party.name} na divisão`}
+                    >
+                      {checked && <Icon name="check" className="text-lg" strokeWidth={3} aria-hidden="true" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ) : (
           <ul className="divide-y divide-hairline">
             {parties.map((party) => {

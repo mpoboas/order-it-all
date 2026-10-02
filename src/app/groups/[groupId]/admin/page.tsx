@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { tripsApi, ordersApi, itemsApi, authHeaders } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { notifyEvent } from '@/lib/notify';
 import type { Trip } from '@/lib/types';
 import { useExpenses, useParties, useTrips } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
@@ -92,7 +93,7 @@ function AdminDashboardContent() {
         setCreating(true);
         try {
             assertOnline();
-            await tripsApi.create({
+            const trip = await tripsApi.create({
                 name: newTripName.trim(),
                 description: newTripDescription.trim(),
                 group_id: groupId,
@@ -102,20 +103,7 @@ function AdminDashboardContent() {
             setShowCreateModal(false);
             markInstallValueMoment();
             void catchUp();
-
-            // Notify Users (menos quem acabou de criar — já vê a viagem no ecrã)
-            const notifyRes = await fetch('/api/notify', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    groupId,
-                    excludeUserId: user?.id,
-                    title: '🛍️ Está na hora de encomendar!',
-                    message: `${newTripName.trim()} está disponível. Faz os teus pedidos!`,
-                    url: `/groups/${groupId}/trips`
-                })
-            }).catch(console.error);
-            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
+            notifyEvent('trip.created', trip.id);
 
         } catch (error) {
             console.error('Error creating trip:', error);

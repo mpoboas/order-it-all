@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { PaymentLogo, type PaymentApp } from '@/components/ui/PaymentLogo';
 import { EditFieldSheet } from '@/components/features/EditFieldSheet';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
+import type { PushSupport } from '@/lib/pushSupport';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { IosInstallSteps } from '@/components/features/IosInstallSteps';
 import { Sheet } from '@/components/ui/Sheet';
@@ -56,6 +57,17 @@ function SummaryRow({
     );
 }
 
+/** Onde se reativam as notificações depois de bloqueadas — muda por sítio. */
+function blockedNotificationsHelp(support: PushSupport): string {
+    if (support.platform === 'ios') return 'Bloqueadas. Ativa em Definições > Notificações > Order It All.';
+    if (support.platform === 'android') {
+        return support.standalone
+            ? 'Bloqueadas. Ativa em Definições > Apps > Order It All > Notificações.'
+            : 'Bloqueadas. Toca no ícone à esquerda do endereço e permite as notificações.';
+    }
+    return 'Bloqueadas. Clica no ícone à esquerda do endereço e permite as notificações.';
+}
+
 type EditingField = 'name' | 'username' | 'mbway' | 'revolut' | 'gemini' | null;
 
 export default function ProfilePage() {
@@ -65,7 +77,7 @@ export default function ProfilePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [editingField, setEditingField] = useState<EditingField>(null);
-    const { status: notifStatus, iosNeedsInstall, requestPermission } = useNotificationPermission();
+    const { status: notifStatus, iosNeedsInstall, support: pushSupport, requestPermission } = useNotificationPermission();
     const [enablingNotifs, setEnablingNotifs] = useState(false);
     // Instalar a app — sempre à mão no Perfil (padrão das WPAs), além dos
     // pedidos contextuais do onboarding/notificações. Some quando já está
@@ -79,16 +91,18 @@ export default function ProfilePage() {
 
     const handleEnableNotifications = async () => {
         if (iosNeedsInstall) {
-            showToast('Instala a app no ecrã principal: Partilhar → Adicionar ao Ecrã Principal', 'info');
+            setShowIosInstall(true);
             return;
         }
         setEnablingNotifs(true);
         try {
-            const permission = await requestPermission();
-            if (permission === 'granted') {
+            const { permission, subscribed } = await requestPermission();
+            if (permission === 'granted' && subscribed) {
                 showToast('Notificações ativadas', 'success');
+            } else if (permission === 'granted') {
+                showToast('Não foi possível ligar este dispositivo. Tenta outra vez.', 'error');
             } else if (permission === 'denied') {
-                showToast('Permissão recusada. Ativa-a nas definições do navegador.', 'error');
+                showToast(blockedNotificationsHelp(pushSupport), 'error');
             }
         } catch {
             showToast('Não foi possível ativar notificações', 'error');
@@ -242,7 +256,7 @@ export default function ProfilePage() {
                                 }}
                             />
                         )}
-                        {notifStatus !== 'unsupported' && (
+                        {(notifStatus !== 'unsupported' || iosNeedsInstall || pushSupport.inAppBrowser) && (
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <div className={cn(
                                     "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
@@ -267,12 +281,13 @@ export default function ProfilePage() {
                                     <p className="font-semibold text-ink text-sm">Notificações</p>
                                     <p className="text-xs text-ink-faint">
                                         {notifStatus === 'granted' && 'Ativas neste dispositivo'}
-                                        {notifStatus === 'denied' && 'Bloqueadas. Ativa-as nas definições do navegador.'}
-                                        {notifStatus === 'default' && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
-                                        {notifStatus === 'default' && !iosNeedsInstall && 'Recebe um aviso quando há viagens novas'}
+                                        {notifStatus === 'denied' && blockedNotificationsHelp(pushSupport)}
+                                        {pushSupport.inAppBrowser && 'Abre a app no teu browser para ativar'}
+                                        {!pushSupport.inAppBrowser && iosNeedsInstall && 'Instala no ecrã principal para ativar'}
+                                        {notifStatus === 'default' && 'Despesas, pagamentos e viagens do grupo'}
                                     </p>
                                 </div>
-                                {notifStatus === 'default' && (
+                                {(notifStatus === 'default' || (iosNeedsInstall && !pushSupport.inAppBrowser)) && (
                                     <Button
                                         size="sm"
                                         variant={iosNeedsInstall ? 'secondary' : 'primary'}

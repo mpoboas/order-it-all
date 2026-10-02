@@ -25,7 +25,7 @@ import { useGroups, useGroupBalances } from '@/lib/db/hooks';
 import { catchUp } from '@/lib/db/sync';
 import { onlineCreate, mutationErrorMessage } from '@/lib/db/mutations';
 import { markInstallValueMoment } from '@/lib/installValueMoment';
-import { shouldShowNotificationPrompt } from '@/lib/notificationPromptState';
+import { notificationPromptStage, type NotificationPromptStage } from '@/lib/notificationPromptState';
 import { useSyncStatus } from '@/context/SyncProvider';
 import { useOnline } from '@/hooks/useOnline';
 import { useAppNavigate } from '@/hooks/useAppNavigate';
@@ -51,7 +51,7 @@ export default function GroupsPage() {
     const groups = groupsQuery ?? [];
     const { hydrating } = useSyncStatus();
     const loading = groupsQuery === undefined || (groups.length === 0 && hydrating);
-    const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+    const [notificationPrompt, setNotificationPrompt] = useState<NotificationPromptStage | null>(null);
     const balances = useGroupBalances(user?.id);
     const [showSettled, setShowSettled] = useState(false);
 
@@ -81,15 +81,21 @@ export default function GroupsPage() {
         }
     }, [isLoggedIn, user, router]);
 
-    // Pedido de ativar notificações — apanha quem acabou de instalar a WPA
-    // e voltou a entrar na app, ou quem criou o primeiro grupo/viagem sem
-    // alguma vez ter feito um pedido (esse caso, com o item real, dispara
-    // logo em `trips/[tripId]/page.tsx`).
+    // Pedido de ativar notificações, à entrada da app. Pertencer a um grupo já
+    // é razão para querer avisos (despesas, pagamentos, viagens) — cobre quem
+    // só usa despesas e quem entrou por convite; a app instalada conta sempre
+    // (é aí que o iPhone o volta a mostrar, já só para dar a permissão). O
+    // pedido com o item real, logo a seguir a pedir numa viagem, vive em
+    // `trips/[tripId]/page.tsx`. Espera o onboarding e um instante, para não
+    // tapar a app no segundo em que abre.
+    const hasGroups = groups.length > 0;
+    const groupsLoaded = groupsQuery !== undefined;
+    const onboarded = Boolean(user?.onboarded);
     useEffect(() => {
-        if (isLoggedIn && shouldShowNotificationPrompt(true)) {
-            setShowNotificationPrompt(true);
-        }
-    }, [isLoggedIn]);
+        if (!isLoggedIn || !onboarded || !groupsLoaded) return;
+        const timer = window.setTimeout(() => setNotificationPrompt(notificationPromptStage(hasGroups)), 1200);
+        return () => window.clearTimeout(timer);
+    }, [isLoggedIn, onboarded, hasGroups, groupsLoaded]);
 
     // Clear current group when visiting groups list
     useEffect(() => {
@@ -279,8 +285,8 @@ export default function GroupsPage() {
                 </div>
             </Sheet>
 
-            {showNotificationPrompt && (
-                <NotificationInstallPrompt onClose={() => setShowNotificationPrompt(false)} />
+            {notificationPrompt && (
+                <NotificationInstallPrompt stage={notificationPrompt} onClose={() => setNotificationPrompt(null)} />
             )}
             <ExpandableFab icon="add" label="Criar Grupo" onClick={() => setShowCreateModal(true)} />
             <GlobalBottomNav />

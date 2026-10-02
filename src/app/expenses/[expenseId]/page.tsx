@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useUser } from '@/context/UserContext';
@@ -10,9 +10,7 @@ import { useExpense, usePartiesForUserIds } from '@/lib/db/hooks';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
-import { notify, notifiableUserIds } from '@/lib/notify';
-import { partyLabel } from '@/lib/parties';
-import { formatEUR } from '@/lib/money';
+import { notifyEvent } from '@/lib/notify';
 import { CommentsBar } from '@/components/features/CommentsBar';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -48,11 +46,6 @@ export default function DirectExpenseDetailPage() {
     const [deleting, setDeleting] = useState(false);
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
-    const otherUserId = useMemo(
-        () => expense?.participants?.find((id) => id !== user?.id),
-        [expense, user],
-    );
-    const returnUrl = otherUserId ? `/people/${otherUserId}` : '/activity';
 
     const handleReceiptChange = async (file: File | undefined) => {
         if (!file || !expense || !user?.id) return;
@@ -97,17 +90,7 @@ export default function DirectExpenseDetailPage() {
             await db.expenses.put(updated);
             showToast(expense.kind === 'payment' ? 'Pagamento eliminado' : 'Despesa eliminada', 'success');
 
-            if (parties) {
-                const participantIds = Array.from(
-                    new Set([...updated.payers.map((p) => p.party), ...updated.shares.map((s) => s.party)]),
-                );
-                void notify({
-                    targetUserIds: notifiableUserIds(participantIds, parties, user.id),
-                    title: '🗑️ Despesa eliminada',
-                    message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" (${formatEUR(updated.amount)}).`,
-                    url: returnUrl,
-                });
-            }
+            notifyEvent('expense.deleted', updated.id);
 
             nav.up();
         } catch (error) {
@@ -237,7 +220,6 @@ export default function DirectExpenseDetailPage() {
                         expense={expense}
                         parties={parties}
                         currentUserId={user.id}
-                        notifyUrl={`/expenses/${expense.id}`}
                     />
                 )}
             </main>
@@ -246,7 +228,6 @@ export default function DirectExpenseDetailPage() {
                 <SettleUpSheet
                     isOpen={showEdit}
                     onClose={() => setShowEdit(false)}
-                    notifyUrl={(id) => `/expenses/${id}`}
                     parties={parties}
                     currentUserId={user.id}
                     payment={expense}
@@ -261,7 +242,6 @@ export default function DirectExpenseDetailPage() {
                     currentUserId={user.id}
                     expense={expense}
                     onSaved={() => setShowEdit(false)}
-                    notifyUrl={(e) => `/expenses/${e.id}`}
                 />
             )}
         </div>

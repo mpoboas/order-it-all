@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
-import { tripsApi, ordersApi, itemsApi, authHeaders } from '@/lib/pocketbase';
+import { tripsApi, ordersApi, itemsApi } from '@/lib/pocketbase';
+import { notifyEvent } from '@/lib/notify';
 import { useUser } from '@/context/UserContext';
 import { useGroup } from '@/context/GroupContext';
 import type { Trip, Item, Order, User } from '@/lib/types';
@@ -521,20 +522,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 commit: () => tripsApi.update(tripId, { status: 'closed' }),
             });
             showToast('Viagem terminada! Podes agora criar a divisão de contas.', 'success');
-
-            // Notify Users (menos quem terminou a viagem — já vê o resultado)
-            const notifyRes = await fetch('/api/notify', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    groupId: trip.group_id,
-                    excludeUserId: user?.id,
-                    title: '🏁 Viagem Concluída',
-                    message: `As compras de "${trip.name}" foram terminadas. Abre para ver quanto ficou a tua parte!`,
-                    url: `/groups/${trip.group_id}/trips/${trip.id}`
-                })
-            }).catch(console.error);
-            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
+            notifyEvent('trip.status', trip.id);
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');
@@ -557,20 +545,7 @@ export default function AdminTripDetailPage({ params }: { params: Promise<{ trip
                 commit: () => tripsApi.update(tripId, { status: 'in_progress' }),
             });
             showToast('Viagem fechada a novos pedidos', 'success');
-
-            // Notify Users (menos quem fechou a viagem — já vê o resultado)
-            const notifyRes = await fetch('/api/notify', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    groupId: trip.group_id,
-                    excludeUserId: user?.id,
-                    title: '🛒 Vamos às compras!',
-                    message: `A viagem "${trip.name}" já não aceita mais novos pedidos.`,
-                    url: `/groups/${trip.group_id}/trips/${trip.id}`
-                })
-            }).catch(console.error);
-            if (notifyRes?.ok) showToast('Grupo notificado', 'info');
+            notifyEvent('trip.status', trip.id);
 
         } catch (err) {
             showToast(mutationErrorMessage(err, 'Erro ao atualizar viagem'), 'error');

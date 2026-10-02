@@ -1,41 +1,43 @@
-import { canonicalPartyId } from '@/lib/parties';
 import { authHeaders } from '@/lib/pocketbase';
-import type { Party } from '@/lib/types';
+import type { NotificationEventType } from '@/lib/notifications/build';
 
-/** Dispara uma notificação push via `/api/notify` — falha em silêncio (a
- *  mesma política dos outros disparos existentes, ex. viagens). */
-export async function notify(opts: {
+/**
+ * Avisa o servidor de que ESTA pessoa acabou de gravar uma alteração — é ele
+ * que decide a quem notificar e o que dizer (`/api/notifications/event`,
+ * `src/lib/notifications/`). Chamar só depois de a escrita ter sucesso.
+ * Falha em silêncio: um aviso que não sai nunca estraga a ação em si.
+ * `keepalive` deixa o pedido acabar mesmo que a app feche logo a seguir.
+ */
+export function notifyEvent(type: Exclude<NotificationEventType, 'group.joined'>, recordId: string): void {
+  void fetch('/api/notifications/event', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ type, recordId }),
+    keepalive: true,
+  }).catch((error) => console.error('notifyEvent failed', error));
+}
+
+/**
+ * Mensagem escrita pela própria pessoa, que não corresponde a nenhuma
+ * alteração de dados (hoje, só o "Lembrar" de uma dívida). O servidor só
+ * entrega a quem partilha um grupo ou uma amizade com quem envia.
+ */
+export async function sendDirectMessage(opts: {
   targetUserIds: string[];
-  excludeUserId?: string;
   title: string;
   message: string;
   url: string;
-}): Promise<void> {
-  if (opts.targetUserIds.length === 0) return;
+}): Promise<boolean> {
+  if (opts.targetUserIds.length === 0) return false;
   try {
-    await fetch('/api/notify', {
+    const res = await fetch('/api/notify', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(opts),
     });
+    return res.ok;
   } catch (error) {
-    console.error('notify failed', error);
+    console.error('sendDirectMessage failed', error);
+    return false;
   }
-}
-
-/** Ids de utilizadores com conta (não fantasmas) a partir de uma lista de
- *  ids de parte — resolve placeholders reclamados ao utilizador que os
- *  reclamou, ignora os por reclamar (não têm conta para notificar). */
-export function notifiableUserIds(
-  partyIds: string[],
-  parties: Map<string, Party>,
-  excludeUserId?: string,
-): string[] {
-  const ids = new Set<string>();
-  for (const pid of partyIds) {
-    const canonical = canonicalPartyId(pid, parties);
-    const party = parties.get(canonical);
-    if (party?.kind === 'user' && canonical !== excludeUserId) ids.add(canonical);
-  }
-  return Array.from(ids);
 }

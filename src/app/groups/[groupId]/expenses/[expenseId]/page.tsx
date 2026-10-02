@@ -10,9 +10,7 @@ import { useExpense, useParties } from '@/lib/db/hooks';
 import { expensesApi } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { mutationErrorMessage } from '@/lib/db/mutations';
-import { notify, notifiableUserIds } from '@/lib/notify';
-import { partyLabel } from '@/lib/parties';
-import { formatEUR } from '@/lib/money';
+import { notifyEvent } from '@/lib/notify';
 import { CommentsBar } from '@/components/features/CommentsBar';
 import { Header } from '@/components/layout/Header';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -89,17 +87,7 @@ export default function ExpenseDetailPage() {
             await db.expenses.put(updated);
             showToast(expense.kind === 'payment' ? 'Pagamento eliminado' : 'Despesa eliminada', 'success');
 
-            if (parties) {
-                const participantIds = Array.from(
-                    new Set([...updated.payers.map((p) => p.party), ...updated.shares.map((s) => s.party)]),
-                );
-                void notify({
-                    targetUserIds: notifiableUserIds(participantIds, parties, user.id),
-                    title: '🗑️ Despesa eliminada',
-                    message: `${partyLabel(user.id, parties)} eliminou "${updated.description}" (${formatEUR(updated.amount)}).`,
-                    url: `/groups/${groupId}/expenses`,
-                });
-            }
+            notifyEvent('expense.deleted', updated.id);
 
             nav.up();
         } catch (error) {

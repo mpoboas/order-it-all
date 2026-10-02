@@ -44,6 +44,7 @@ const PRECACHE = [
     '/icon-maskable-512x512.png',
     '/apple-touch-icon.png',
     '/favicon.ico',
+    '/notification-badge.png',
     '/favicon.svg',
 ];
 const NAV_TIMEOUT_MS = 3000;
@@ -353,20 +354,40 @@ self.addEventListener('push', function (event) {
         return;
     }
 
-    const data = event.data.json();
-    const { title, body, icon, url, tag } = data;
+    // Formato das notificações do servidor (`src/lib/notifications/send.ts`):
+    // Declarative Web Push (`notification`) + os mesmos campos no topo. Nos
+    // browsers que já mostram o declarativo sozinhos (iOS 18.4+), isto só o
+    // substitui por uma notificação igual (com ícone e vibração).
+    let data = {};
+    try {
+        data = event.data.json();
+    } catch (_) {
+        data = { title: 'Order It All', body: event.data.text() };
+    }
+    const declarative = data.notification || {};
+    const title = data.title || declarative.title || 'Order It All';
+    const body = data.body || declarative.body || '';
+    const icon = data.icon;
+    const url = data.url || declarative.navigate || '/';
+    const tag = data.tag || declarative.tag;
+    // Rajadas: o aviso agrupado substitui o anterior (mesma tag) sem voltar a
+    // tocar/vibrar — só o primeiro da rajada chama a atenção.
+    const quiet = Boolean(data.quiet || declarative.silent);
 
     const options = {
         body,
-        icon: icon || '/android-chrome-192x192.png',
-        badge: '/favicon-48x48.png',
-        vibrate: [100, 50, 100],
-        // Agrupa notificações sobre o mesmo destino (ex.: a mesma viagem) em vez
-        // de as empilhar — a mais recente substitui a anterior. `renotify` faz
-        // o telemóvel voltar a alertar (vibrar) mesmo ao substituir, para a
-        // atualização não passar em silêncio.
+        // Imagem grande (Android): a cara de quem fez a ação. Sem ela, nenhuma
+        // — o ícone da app já aparece ao lado, repeti-lo era redundante.
+        ...(icon ? { icon } : {}),
+        // Ícone pequeno da barra de estado (Android): silhueta branca — o sistema
+        // só lê o alfa, o emoji a cores ficava uma mancha.
+        badge: '/notification-badge.png',
+        vibrate: quiet ? undefined : [100, 50, 100],
+        silent: quiet,
+        // A mesma tag substitui o aviso anterior em vez de empilhar; `renotify`
+        // decide se a substituição volta a alertar (não, numa rajada).
         tag: tag || url || undefined,
-        renotify: Boolean(tag || url),
+        renotify: Boolean(tag || url) && !quiet,
         data: {
             url: url || '/',
         },
@@ -378,23 +399,23 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
 
-    // Handle click - open the specific URL
+    // O URL vem relativo ("/groups/…") e as janelas têm-no absoluto — compara
+    // resolvido. Se a app já estiver aberta (em qualquer ecrã), reaproveita
+    // essa janela e leva-a ao destino, em vez de abrir outra por cima.
+    const data = event.notification.data || {};
+    const target = new URL(data.url || '/', self.location.origin).href;
+
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-            const url = event.notification.data.url;
+            const exact = clientList.find(function (c) { return c.url === target; });
+            if (exact && 'focus' in exact) return exact.focus();
 
-            // If a window is already open with this URL, focus it
-            for (let i = 0; i < clientList.length; i++) {
-                const client = clientList[i];
-                if (client.url === url && 'focus' in client) {
-                    return client.focus();
-                }
+            const sameOrigin = clientList.find(function (c) { return new URL(c.url).origin === self.location.origin; });
+            if (sameOrigin && 'navigate' in sameOrigin) {
+                return sameOrigin.focus().then(function (c) { return (c || sameOrigin).navigate(target); });
             }
 
-            // Otherwise open a new window
-            if (clients.openWindow) {
-                return clients.openWindow(url);
-            }
+            if (clients.openWindow) return clients.openWindow(target);
         })
     );
 });

@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { friendshipsApi, authHeaders } from '@/lib/pocketbase';
 import { db } from '@/lib/db/schema';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
-import { notify } from '@/lib/notify';
+import { notifyEvent } from '@/lib/notify';
 import { useToast } from '@/context/ToastContext';
 import type { User } from '@/lib/types';
 
@@ -17,7 +17,6 @@ interface AddFriendSheetProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserId: string;
-  currentUserName: string;
   /** Já amigo, pedido pendente com esta pessoa, ou o próprio utilizador. */
   isAlreadyRelated: (userId: string) => boolean;
   onRequested: () => void;
@@ -30,7 +29,7 @@ type FoundUser = Pick<User, 'id' | 'name' | 'avatar' | 'username'>;
  *  restrita, não dá para pesquisar do cliente) e envia um pedido de
  *  amizade. Sem convite a quem não tem conta ainda — corte de âmbito
  *  explícito do plano. */
-export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName, isAlreadyRelated, onRequested }: AddFriendSheetProps) {
+export function AddFriendSheet({ isOpen, onClose, currentUserId, isAlreadyRelated, onRequested }: AddFriendSheetProps) {
   const { showToast } = useToast();
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -75,12 +74,7 @@ export function AddFriendSheet({ isOpen, onClose, currentUserId, currentUserName
       const friendship = await friendshipsApi.request(currentUserId, found.id);
       await db.friendships.put(friendship);
       showToast('Pedido de amizade enviado', 'success');
-      void notify({
-        targetUserIds: [found.id],
-        title: 'Pedido de amizade',
-        message: `${currentUserName} quer ser teu amigo.`,
-        url: '/people',
-      });
+      notifyEvent('friend.requested', friendship.id);
       onRequested();
       onClose();
       reset();

@@ -17,7 +17,7 @@ import { guessCategory } from '@/lib/ledger/categories';
 import { computeShares, type ComputableSplitMode } from '@/lib/ledger/shares';
 import { toCents, fromCents } from '@/lib/ledger/money';
 import { partyLabel, realParticipantIds } from '@/lib/parties';
-import { notify, notifiableUserIds } from '@/lib/notify';
+import { notifyEvent } from '@/lib/notify';
 import { formatEUR } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/Icon';
@@ -36,9 +36,6 @@ interface ExpenseFormSheetProps {
   /** Chamado depois de criar/gravar uma despesa itemizada — navega para o
    *  sub-ecrã de itens. */
   onOpenItems?: (expense: Expense) => void;
-  /** URL da despesa gravada, para a notificação — por omissão a rota de
-   *  grupo; despesas diretas passam a sua própria (`/expenses/[id]`). */
-  notifyUrl?: (expense: Expense) => string;
 }
 
 function todayIso(): string {
@@ -54,7 +51,6 @@ export function ExpenseFormSheet({
   expense,
   onSaved,
   onOpenItems,
-  notifyUrl,
 }: ExpenseFormSheetProps) {
   const { showToast } = useToast();
   const confirmAction = useConfirm();
@@ -262,16 +258,7 @@ export function ExpenseFormSheet({
       if (splitMode === 'itemized' && !isEditing) onOpenItems?.(saved);
       onClose();
 
-      const notifyPartyIds = Array.from(
-        new Set([...saved.payers.map((p) => p.party), ...saved.shares.map((s) => s.party)]),
-      );
-      const targets = notifiableUserIds(notifyPartyIds, parties, currentUserId);
-      void notify({
-        targetUserIds: targets,
-        title: isEditing ? '✏️ Despesa editada' : '💰 Nova despesa',
-        message: `${partyLabel(currentUserId, parties)} ${isEditing ? 'editou' : 'adicionou'} "${saved.description}" (${formatEUR(saved.amount)}).`,
-        url: notifyUrl ? notifyUrl(saved) : `/groups/${groupId}/expenses/${saved.id}`,
-      });
+      notifyEvent(isEditing ? 'expense.updated' : 'expense.created', saved.id);
     } catch (error) {
       if (isConflictError(error) && expense) {
         // Traz já a versão atual para o Dexie (o realtime pode vir atrasado),

@@ -68,6 +68,9 @@ export function getOAuthBrowserPlatform(): OAuthBrowserPlatform {
   const ua = navigator.userAgent || '';
   if (/Android/i.test(ua)) return 'android';
   if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+  // O iPad (iPadOS 13+) apresenta-se como um Mac no Safari — distingue-se
+  // pelo ecrã tátil. Comporta-se como iOS: push só instalado no ecrã principal.
+  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return 'ios';
   return 'desktop';
 }
 

@@ -135,7 +135,7 @@ function SplitPreviewCard() {
  *  ambos os casos, "Concluir" fica por baixo para quem não quiser instalar
  *  agora. */
 function InstallStep({ onFinish }: { onFinish: () => void }) {
-    const { canInstall, iosManualInstall, isStandalone, promptInstall } = useInstallPrompt();
+    const { canInstall, iosManualInstall, isStandalone, inAppBrowser, platform, promptInstall } = useInstallPrompt();
     const [installing, setInstalling] = useState(false);
     const [justInstalled, setJustInstalled] = useState(false);
 
@@ -180,7 +180,16 @@ function InstallStep({ onFinish }: { onFinish: () => void }) {
 
             {!isStandalone && iosManualInstall && <IosInstallSteps />}
 
-            {isStandalone || (!canInstall && !iosManualInstall) ? (
+            {/* Aberto dentro do WhatsApp/Instagram/etc.: daqui não se instala. */}
+            {inAppBrowser && (
+                <p className="w-full rounded-2xl bg-primary-50 dark:bg-primary-950 p-4 text-sm font-medium text-primary-700 dark:text-primary-200">
+                    {platform === 'ios'
+                        ? 'Para instalar, abre esta página no Safari: toca em ⋯ e escolhe "Abrir no Safari".'
+                        : 'Para instalar, abre esta página no Chrome: toca em ⋮ e escolhe "Abrir no Chrome".'}
+                </p>
+            )}
+
+            {isStandalone || (!canInstall && !iosManualInstall && !inAppBrowser) ? (
                 <div className="h-13" aria-hidden="true" />
             ) : null}
 
