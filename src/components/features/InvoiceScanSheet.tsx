@@ -19,7 +19,7 @@ import {
   blockInvoiceScanPayload,
   bumpDailyScanPayload,
 } from '@/lib/utils';
-import { invoiceScanFailureMessage } from '@/lib/scanFeedback';
+import { invoiceScanFailureMessage, withScanTimeout } from '@/lib/scanFeedback';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -219,11 +219,8 @@ export function InvoiceScanSheet({
     );
 
     try {
-      const outcome = await reconcileWithGeminiImage(
-        invoiceFile,
-        tripItems,
-        geminiApiKey,
-        pb.authStore.token
+      const outcome = await withScanTimeout(
+        reconcileWithGeminiImage(invoiceFile, tripItems, geminiApiKey, pb.authStore.token)
       );
 
       if (!outcome.ok) {

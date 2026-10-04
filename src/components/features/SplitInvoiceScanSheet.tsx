@@ -11,7 +11,7 @@ import {
   blockInvoiceScanPayload,
   bumpDailyScanPayload,
 } from '@/lib/utils';
-import { invoiceScanFailureMessage } from '@/lib/scanFeedback';
+import { invoiceScanFailureMessage, withScanTimeout } from '@/lib/scanFeedback';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -176,7 +176,9 @@ export function SplitInvoiceScanSheet({
     setScanStep('processing');
 
     try {
-      const outcome = await extractReceiptLineItems(invoiceFile, geminiApiKey, pb.authStore.token);
+      const outcome = await withScanTimeout(
+        extractReceiptLineItems(invoiceFile, geminiApiKey, pb.authStore.token)
+      );
 
       if (!outcome.ok) {
         if (outcome.failure.code === 'quota_daily') {

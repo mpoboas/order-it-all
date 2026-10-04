@@ -42,6 +42,8 @@ export type ScanFailure =
   | { code: 'quota_rate'; retryAfterSeconds: number }
   | { code: 'invalid_key' }
   | { code: 'unreadable' }
+  /** O Gemini não respondeu a tempo (talão muito longo / modelo lento). */
+  | { code: 'timeout' }
   | { code: 'no_key' }
   | { code: 'unauthenticated' }
   | { code: 'no_image' }

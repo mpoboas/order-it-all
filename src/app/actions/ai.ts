@@ -24,6 +24,24 @@ interface RawItem {
 // `gemini-2.5-flash` fica como fallback explícito.
 const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'] as const;
 
+// Sem limite, um talão longo (ou o modelo a entrar em loop a repetir linhas no
+// modo JSON) deixava o pedido pendurado minutos e o cliente preso no
+// "A analisar…". O timeout corta o pedido e o teto de tokens evita respostas
+// sem fim — um talão real cabe à vontade em 8k tokens.
+const GEMINI_TIMEOUT_MS = 45_000;
+const GEMINI_MAX_OUTPUT_TOKENS = 8192;
+
+// Regras comuns às duas prompts para talões fora de PT (sobretudo DE/AT/CH):
+// vírgula decimal, letras de IVA, Pfand e descontos em linhas próprias.
+const RECEIPT_FORMAT_RULES = `
+- The receipt may be in any language (Portuguese, English, Spanish, German, French, Italian, ...). Keep product names as printed; do not translate.
+- Prices may use a decimal comma (e.g. "1,99" or "1,99 EUR"). Always output them as JSON numbers with a dot (1.99), never as strings.
+- Ignore VAT/tax class letters or codes printed next to prices (e.g. "A", "B", "*", "MwSt", "USt", "IVA").
+- Ignore tax summary blocks, "Summe", "Gesamt", "Zwischensumme", "zu zahlen", "Bar", "EC-Karte", "Rückgeld", TSE/signature data and loyalty/bonus lines.
+- Deposit lines ("Pfand") are line items. Subtract a discount ("Rabatt", "Preisvorteil", "Coupon") from the product line it follows instead of outputting it on its own; skip deposit returns ("Leergut", "Pfandrückgabe") and receipt-wide discounts. Never output negative prices.
+- Quantity lines like "2 x 1,99" belong to the product line next to them; do not output them as separate items.
+`;
+
 /** Segundos de espera indicados pelo Gemini num 429 (RPM), se presentes. */
 function retryDelaySeconds(message: string): number | null {
   const m =
@@ -55,10 +73,22 @@ function classifyGeminiError(err: unknown): ScanFailure {
   ) {
     return { code: 'invalid_key' };
   }
-  if (/JSON|Unexpected token|Resposta vazia|SAFETY|blocked/i.test(message)) {
+  if (isTimeoutError(err)) {
+    return { code: 'timeout' };
+  }
+  if (/JSON|Unexpected token|Resposta vazia|MAX_TOKENS|SAFETY|blocked/i.test(message)) {
     return { code: 'unreadable' };
   }
   return { code: 'error' };
+}
+
+function isTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === 'TimeoutError' ||
+      err.name === 'AbortError' ||
+      /aborted|timed? ?out/i.test(err.message))
+  );
 }
 
 function parseGeminiJsonResponse(text: string): ReconciliationResult {
@@ -144,8 +174,15 @@ async function generateWithModel(
     config: {
       responseMimeType: 'application/json',
       temperature: 0.2,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
     },
   });
+
+  // JSON cortado a meio não faz parse — melhor um erro claro do que "JSON".
+  if (response.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    throw new Error('Resposta truncada do Gemini (MAX_TOKENS)');
+  }
 
   return response.text ?? '';
 }
@@ -172,7 +209,7 @@ export async function reconcileWithGeminiImage(
 
   const prompt = `
 Act as a smart accountant for a shopping app.
-I have an image or PDF of a supermarket receipt (Portuguese, English, Spanish, etc.) and a list of requested items from my app.
+I have an image or PDF of a supermarket receipt (any language) and a list of requested items from my app.
 
 Reconcile the receipt with the request list using ONLY what you see in the file.
 
@@ -192,7 +229,7 @@ Rules:
 3. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
 4. Match receipt lines to request items only when the product is clearly the same.
 5. Put unmatched receipt lines in "extras".
-
+${RECEIPT_FORMAT_RULES}
 Return ONLY valid JSON with this exact shape:
 {
   "matches": [
@@ -229,7 +266,9 @@ Use numbers for price, quantity, and unit_price. Skip lines you cannot read conf
         /not found|404|429|503|overload|quota|rate|JSON|Unexpected token/i.test(
           message
         );
-      if (!retryable) {
+      // Depois de um timeout não vale a pena tentar outro modelo: o cliente
+      // ficaria o dobro do tempo à espera.
+      if (!retryable || isTimeoutError(error)) {
         break;
       }
       console.warn(`Gemini model ${modelName} failed:`, message);
@@ -292,7 +331,7 @@ export async function extractReceiptLineItems(
       : 'image/jpeg';
 
   const prompt = `
-Act as a smart accountant reading a supermarket/restaurant receipt (Portuguese, English, Spanish, etc.) from an image or PDF.
+Act as a smart accountant reading a supermarket/restaurant receipt (any language) from an image or PDF.
 
 Extract every purchased line item with its name and price.
 
@@ -301,7 +340,7 @@ Rules:
 2. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
 3. If a line shows a quantity greater than 1 (e.g. "2x Cerveja"), return ONE item with the LINE'S TOTAL price (not the unit price) — do not split it into multiple items and do not report quantity separately.
 4. Skip lines you cannot read confidently.
-
+${RECEIPT_FORMAT_RULES}
 Return ONLY valid JSON with this exact shape:
 {
   "items": [
@@ -335,7 +374,9 @@ Use a number for price.
         /not found|404|429|503|overload|quota|rate|JSON|Unexpected token/i.test(
           message
         );
-      if (!retryable) {
+      // Depois de um timeout não vale a pena tentar outro modelo: o cliente
+      // ficaria o dobro do tempo à espera.
+      if (!retryable || isTimeoutError(error)) {
         break;
       }
       console.warn(`Gemini model ${modelName} failed:`, message);
