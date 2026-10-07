@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:prod": "NEXT_PUBLIC_POCKETBASE_URL=https://pb-orderit.povoas.top POCKETBASE_ADMIN_EMAIL= POCKETBASE_ADMIN_PASSWORD= NOTIFICATIONS_CRON_SECRET= next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

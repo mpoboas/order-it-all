@@ -25,6 +25,7 @@ import { itemizedLedger } from '@/lib/ledger/shares';
 import { useToast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import type { Trip, Group, Item, Order, Party, SplitItem } from '@/lib/types';
+import { ItemName } from '@/components/ui/ItemName';
 
 interface PreviewOrder {
     order: Order;
@@ -305,7 +306,7 @@ export function TripToExpenseSheet({
                             <div className="rounded-2xl border border-hairline bg-surface divide-y divide-hairline">
                                 {o.priced.map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between px-3 py-2">
-                                        <span className="text-sm text-ink">{item.name}</span>
+                                        <span className="block min-w-0 text-sm text-ink"><ItemName name={item.name} /></span>
                                         <span className="text-sm font-semibold text-ink">{formatEUR(item.price)}</span>
                                     </div>
                                 ))}

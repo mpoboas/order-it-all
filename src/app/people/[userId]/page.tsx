@@ -56,6 +56,9 @@ export default function PersonDetailPage() {
     const person = useMemo(() => people?.find((p) => p.userId === userId), [people, userId]);
     const groupsWithBalance = (person?.groups ?? []).filter((g) => Math.abs(g.netCents) >= EPS * 100);
     const hasDirectBalance = Math.abs(person?.directNetCents ?? 0) >= EPS * 100;
+    // Grupos com "Simplificar dívidas" — o valor pode não bater com as despesas
+    // entre os dois (e pode até haver dívida sem despesa partilhada).
+    const simplifiedGroupNames = groupsWithBalance.filter((g) => g.simplified).map((g) => g.groupName);
 
     const friendship = useMemo(() => {
         if (!friendships || !user?.id) return undefined;
@@ -171,6 +174,12 @@ export default function PersonDetailPage() {
                                         size="hero"
                                         align="center"
                                     />
+                                    {simplifiedGroupNames.length > 0 && (
+                                        <p className="mt-2 text-center text-xs text-ink-faint text-balance">
+                                            Com dívidas simplificadas em {simplifiedGroupNames.join(', ')}: pode não
+                                            bater certo com as despesas entre vocês.
+                                        </p>
+                                    )}
                                 </div>
                                 <QuickActions
                                     actions={[
@@ -246,7 +255,12 @@ export default function PersonDetailPage() {
                                 }}
                                 className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-surface-sunken rounded-lg px-1 -mx-1 transition-colors"
                             >
-                                <span className="font-medium text-ink truncate">{g.groupName}</span>
+                                <span className="min-w-0">
+                                    <span className="block font-medium text-ink truncate">{g.groupName}</span>
+                                    {g.simplified && (
+                                        <span className="block text-xs text-ink-faint">Dívidas simplificadas</span>
+                                    )}
+                                </span>
                                 <Balance cents={g.netCents} labels={{ pos: 'deve-te', neg: 'deves' }} />
                             </button>
                         </li>

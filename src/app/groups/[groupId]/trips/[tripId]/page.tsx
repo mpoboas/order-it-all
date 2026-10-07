@@ -50,6 +50,7 @@ import { useUnsavedDraftGuard } from '@/context/UnsavedDraftContext';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
+import { ItemName } from '@/components/ui/ItemName';
 
 export default function GroupTripDetailPage() {
     const params = useParams();
@@ -675,7 +676,7 @@ export default function GroupTripDetailPage() {
                                                                         "font-bold text-ink text-base leading-tight",
                                                                         item.found_status !== 'pending' && "opacity-50"
                                                                     )}>
-                                                                        {item.name}
+                                                                        <ItemName name={item.name} />
                                                                     </h4>
                                                                     <div className="text-right flex flex-col items-end">
                                                                         <span className="font-bold text-ink whitespace-nowrap">

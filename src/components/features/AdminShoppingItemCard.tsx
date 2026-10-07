@@ -7,6 +7,7 @@ import { Money } from '@/components/ui/Money';
 import { ShoppingItemMeta } from '@/components/features/ShoppingItemMeta';
 import type { Item } from '@/lib/types';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { ItemName } from '@/components/ui/ItemName';
 
 const STATUS_CONFIG: Record<
   Item['found_status'],
@@ -72,7 +73,7 @@ export function AdminShoppingItemCard({
 
           <div className="flex-1 min-w-0 cursor-pointer" onClick={onOpenEdit}>
             <p className={cn('font-bold text-sm text-ink truncate leading-tight', dimmed)}>
-              {item.name}
+              <ItemName name={item.name} truncate />
             </p>
           </div>
 
@@ -142,7 +143,7 @@ export function AdminShoppingItemCard({
         <div className="flex-1 min-w-0 flex flex-col justify-center" onClick={onOpenEdit}>
           <div className="flex justify-between items-start gap-2 cursor-pointer mb-1">
             <h4 className={cn('font-bold text-ink text-base leading-tight', dimmed)}>
-              {item.name}
+              <ItemName name={item.name} />
             </h4>
             <div className="text-right flex flex-col items-end">
               <Money

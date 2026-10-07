@@ -26,6 +26,15 @@
         "--no-build"
       ],
       "port": 3110
+    },
+    {
+      "name": "dev-prod-db",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:prod"
+      ],
+      "port": 3000
     }
   ]
 }
