@@ -1,6 +1,6 @@
 'use server';
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, MediaResolution } from '@google/genai';
 import { userIdFromToken } from '@/lib/serverAuth';
 import type {
   ReconciliationMatch,
@@ -30,6 +30,11 @@ const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash'] as const;
 // sem fim — um talão real cabe à vontade em 8k tokens.
 const GEMINI_TIMEOUT_MS = 45_000;
 const GEMINI_MAX_OUTPUT_TOKENS = 8192;
+// O raciocínio ("thinking") conta para o `maxOutputTokens` e domina o tempo de
+// resposta: num talão de 39 linhas o modelo pensava ~2k tokens (23s) para o
+// mesmo resultado que sai em 8–11s com um teto baixo. Teto, não zero, para os
+// casos difíceis (emparelhar com a lista do pedido) ainda poderem raciocinar.
+const GEMINI_THINKING_BUDGET = 1024;
 
 // Regras comuns às duas prompts para talões fora de PT (sobretudo DE/AT/CH):
 // vírgula decimal, letras de IVA, Pfand e descontos em linhas próprias.
@@ -175,6 +180,13 @@ async function generateWithModel(
       responseMimeType: 'application/json',
       temperature: 0.2,
       maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
+      // Recomendação da Google para Gemini 3: HIGH em imagens (letra pequena),
+      // MEDIUM em PDFs — o OCR de documentos satura aí e HIGH só gasta tokens.
+      mediaResolution:
+        mimeType === 'application/pdf'
+          ? MediaResolution.MEDIA_RESOLUTION_MEDIUM
+          : MediaResolution.MEDIA_RESOLUTION_HIGH,
       abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
     },
   });

@@ -16,6 +16,8 @@ export function invoiceScanFailureMessage(failure: ScanFailure): string {
       return 'Não consegui ler a fatura. Tenta uma foto mais nítida, direita e com boa luz.';
     case 'timeout':
       return 'O Gemini demorou demasiado a ler a fatura. Tenta de novo, ou fotografa só a parte com os itens.';
+    case 'too_large':
+      return 'A fatura é demasiado grande. Tira uma foto em vez de carregar o ficheiro, ou usa um PDF mais pequeno.';
     case 'no_key':
       return 'Adiciona a tua chave Gemini para leres faturas.';
     case 'unauthenticated':
