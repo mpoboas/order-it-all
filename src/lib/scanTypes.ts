@@ -44,6 +44,8 @@ export type ScanFailure =
   | { code: 'unreadable' }
   /** O Gemini não respondeu a tempo (talão muito longo / modelo lento). */
   | { code: 'timeout' }
+  /** Ficheiro acima do que o Netlify aceita (validado no cliente). */
+  | { code: 'too_large' }
   | { code: 'no_key' }
   | { code: 'unauthenticated' }
   | { code: 'no_image' }

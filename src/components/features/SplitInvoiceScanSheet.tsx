@@ -12,6 +12,11 @@ import {
   bumpDailyScanPayload,
 } from '@/lib/utils';
 import { invoiceScanFailureMessage, withScanTimeout } from '@/lib/scanFeedback';
+import {
+  MAX_SCAN_UPLOAD_BYTES,
+  RECEIPT_CAMERA_CONSTRAINTS,
+  prepareReceiptImage,
+} from '@/lib/receiptImage';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
@@ -80,9 +85,9 @@ export function SplitInvoiceScanSheet({
     if (scanStep === 'upload' && !invoicePreview && hasApiKey) {
       const startCamera = async () => {
         try {
-          const mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-          });
+          const mediaStream = await navigator.mediaDevices.getUserMedia(
+            RECEIPT_CAMERA_CONSTRAINTS
+          );
           setStream(mediaStream);
           if (videoRef.current) videoRef.current.srcObject = mediaStream;
         } catch (err) {
@@ -123,9 +128,12 @@ export function SplitInvoiceScanSheet({
     context.drawImage(videoRef.current, 0, 0);
 
     canvasRef.current.toBlob(
-      (blob) => {
+      async (blob) => {
         if (!blob) return;
-        const file = new File([blob], 'fatura.jpg', { type: 'image/jpeg' });
+        // A 4K o frame em bruto pode passar o orçamento — mesma preparação da galeria.
+        const file = await prepareReceiptImage(
+          new File([blob], 'fatura.jpg', { type: 'image/jpeg' })
+        );
         setInvoiceFile(file);
         setInvoicePreview(URL.createObjectURL(file));
         stopCamera();
@@ -141,9 +149,10 @@ export function SplitInvoiceScanSheet({
     setInvoicePreview(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    const file = await prepareReceiptImage(picked);
     setInvoiceFile(file);
     setInvoicePreview(URL.createObjectURL(file));
     stopCamera();
@@ -170,6 +179,11 @@ export function SplitInvoiceScanSheet({
     }
     if (scanBlocked) {
       showToast(invoiceScanFailureMessage({ code: 'quota_daily' }), 'error');
+      return;
+    }
+
+    if (invoiceFile.size > MAX_SCAN_UPLOAD_BYTES) {
+      showToast(invoiceScanFailureMessage({ code: 'too_large' }), 'error');
       return;
     }
 
