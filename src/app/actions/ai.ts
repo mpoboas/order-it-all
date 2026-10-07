@@ -2,6 +2,7 @@
 
 import { GoogleGenAI, MediaResolution } from '@google/genai';
 import { userIdFromToken } from '@/lib/serverAuth';
+import { withOriginalName } from '@/lib/itemName';
 import type {
   ReconciliationMatch,
   ReconciliationExtra,
@@ -36,10 +37,21 @@ const GEMINI_MAX_OUTPUT_TOKENS = 8192;
 // casos difíceis (emparelhar com a lista do pedido) ainda poderem raciocinar.
 const GEMINI_THINKING_BUDGET = 1024;
 
+// Talões noutra língua: o nome vem traduzido para PT e o original em campo à
+// parte; o servidor junta-os como "Cebola (ZWIEBEL)" (ver `@/lib/itemName`) —
+// pedir o formato final ao modelo dava parênteses inconsistentes.
+const TRANSLATION_RULES = `
+Item names ("name"):
+- Write "name" in European Portuguese (pt-PT), as the short common name a person in Portugal would use for that product (e.g. "ZWIEBEL" → "Cebola", "PAPRIKA ORANGE" → "Pimento laranja", "PFAND 0,25 EURO" → "Tara 0,25€", "TASCHE" → "Saco").
+- Keep brand and product-line names as they are (e.g. "NESTLE NESQUIK" → "Nesquik", "LAYS S.CREAM&ON." → "Lay's Sour Cream & Onion"); translate only the generic part.
+- If the receipt is not in Portuguese, also set "original_name" to the line name exactly as printed on the receipt. If the receipt is in Portuguese, or the name did not change, omit "original_name".
+- Use normal capitalisation in "name" (e.g. "Cebola", not "CEBOLA").
+`;
+
 // Regras comuns às duas prompts para talões fora de PT (sobretudo DE/AT/CH):
 // vírgula decimal, letras de IVA, Pfand e descontos em linhas próprias.
 const RECEIPT_FORMAT_RULES = `
-- The receipt may be in any language (Portuguese, English, Spanish, German, French, Italian, ...). Keep product names as printed; do not translate.
+- The receipt may be in any language (Portuguese, English, Spanish, German, French, Italian, ...).
 - Prices may use a decimal comma (e.g. "1,99" or "1,99 EUR"). Always output them as JSON numbers with a dot (1.99), never as strings.
 - Ignore VAT/tax class letters or codes printed next to prices (e.g. "A", "B", "*", "MwSt", "USt", "IVA").
 - Ignore tax summary blocks, "Summe", "Gesamt", "Zwischensumme", "zu zahlen", "Bar", "EC-Karte", "Rückgeld", TSE/signature data and loyalty/bonus lines.
@@ -96,6 +108,12 @@ function isTimeoutError(err: unknown): boolean {
   );
 }
 
+/** `original_name` do JSON do Gemini, só se vier como texto. */
+function originalNameOf(raw: object): string | undefined {
+  const value = (raw as { original_name?: unknown }).original_name;
+  return typeof value === 'string' ? value : undefined;
+}
+
 function parseGeminiJsonResponse(text: string): ReconciliationResult {
   let jsonStr = text.trim();
 
@@ -146,7 +164,7 @@ function parseGeminiJsonResponse(text: string): ReconciliationResult {
               ? e.unit_price
               : e.price / quantity;
           return {
-            name: e.name,
+            name: withOriginalName(e.name, originalNameOf(e)),
             price: e.price,
             quantity,
             unit_price,
@@ -239,16 +257,16 @@ Rules:
 1. Read line items, total price per line, quantity, and unit price when visible.
 2. Ignore headers, NIF, dates, payment method, and store address.
 3. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
-4. Match receipt lines to request items only when the product is clearly the same.
+4. Match receipt lines to request items only when the product is clearly the same, even across languages (e.g. receipt "ZWIEBEL" matches the request "Cebola"). "foundName" is the line name as printed.
 5. Put unmatched receipt lines in "extras".
-${RECEIPT_FORMAT_RULES}
+${RECEIPT_FORMAT_RULES}${TRANSLATION_RULES}
 Return ONLY valid JSON with this exact shape:
 {
   "matches": [
     { "itemId": "APP_ITEM_ID", "price": 12.34, "quantity": 2, "foundName": "NAME ON RECEIPT" }
   ],
   "extras": [
-    { "name": "NAME ON RECEIPT", "price": 5.99, "quantity": 1, "unit_price": 5.99 }
+    { "name": "NOME EM PORTUGUÊS", "original_name": "NAME ON RECEIPT", "price": 5.99, "quantity": 1, "unit_price": 5.99 }
   ]
 }
 
@@ -316,7 +334,10 @@ function parseReceiptItemsResponse(text: string): ReceiptExtractionResult {
             i.name.trim().length > 0 &&
             typeof i.price === 'number'
         )
-        .map((i) => ({ name: i.name.trim(), price: i.price }))
+        .map((i) => ({
+          name: withOriginalName(i.name, originalNameOf(i)),
+          price: i.price,
+        }))
     : [];
 
   return { items };
@@ -352,11 +373,11 @@ Rules:
 2. Expand abbreviations (e.g. "P. DE ACUCAR" → "PAO DE ACUCAR").
 3. If a line shows a quantity greater than 1 (e.g. "2x Cerveja"), return ONE item with the LINE'S TOTAL price (not the unit price) — do not split it into multiple items and do not report quantity separately.
 4. Skip lines you cannot read confidently.
-${RECEIPT_FORMAT_RULES}
+${RECEIPT_FORMAT_RULES}${TRANSLATION_RULES}
 Return ONLY valid JSON with this exact shape:
 {
   "items": [
-    { "name": "NAME ON RECEIPT", "price": 12.34 }
+    { "name": "NOME EM PORTUGUÊS", "original_name": "NAME ON RECEIPT", "price": 12.34 }
   ]
 }
 

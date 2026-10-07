@@ -1,12 +1,5 @@
 import type { Expense } from '@/lib/types';
-import {
-  netByParty,
-  netPairwise,
-  pairwiseDebts,
-  simplifiedToPairwise,
-  simplifyDebts,
-  type ResolveParty,
-} from '@/lib/ledger/balances';
+import { groupPairwise, type ResolveParty } from '@/lib/ledger/balances';
 import { fromCents } from '@/lib/ledger/money';
 import { formatEUR } from '@/lib/money';
 import type { OutgoingNotification } from './build';
@@ -35,13 +28,6 @@ export interface LedgerScope {
   partyName: (partyId: string) => string;
 }
 
-function pairwise(expenses: Expense[], resolve: ResolveParty, simplify: boolean) {
-  const active = expenses.filter((e) => !e.deleted_at);
-  return simplify
-    ? simplifiedToPairwise(simplifyDebts(netByParty(active, resolve)))
-    : netPairwise(pairwiseDebts(active, resolve));
-}
-
 function listNames(names: string[]): string {
   return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
 }
@@ -51,8 +37,8 @@ export function staleDebtReminders(scopes: LedgerScope[], now: Date, minAgeDays 
   const out: OutgoingNotification[] = [];
 
   for (const scope of scopes) {
-    const today = pairwise(scope.expenses, scope.resolve, scope.simplify);
-    const before = pairwise(
+    const today = groupPairwise(scope.expenses, scope.resolve, scope.simplify);
+    const before = groupPairwise(
       scope.expenses.filter((e) => new Date(e.created).getTime() <= cutoff),
       scope.resolve,
       scope.simplify,

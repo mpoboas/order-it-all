@@ -7,14 +7,16 @@ import { normalizeSplitRecord } from '@/lib/splitStatus';
 import { buildPartyMap, canonicalPartyId, groupMembersFromExpand } from '@/lib/parties';
 import { getUserAvatarUrl } from '@/lib/orderParticipants';
 import { compareExpensesRecentFirst } from '@/lib/expenseDisplay';
+import { groupPairwise, netByParty } from '@/lib/ledger/balances';
 import {
-  balanceFor,
-  netByParty,
-  netPairwise,
-  pairwiseDebts,
-  simplifiedToPairwise,
-  simplifyDebts,
-} from '@/lib/ledger/balances';
+  balanceOverview,
+  computePeopleBalances,
+  type BalanceOverview,
+  type PeopleBalances,
+  type PersonBalance,
+} from '@/lib/ledger/people';
+
+export type { BalanceOverview, PersonBalance } from '@/lib/ledger/people';
 import { db } from './schema';
 
 /**
@@ -353,11 +355,8 @@ export function useGroupLedger(groupId: string | undefined): GroupLedger | undef
   return useMemo(() => {
     if (group === undefined || expenses === undefined || parties === undefined) return undefined;
     const resolve = (id: string) => canonicalPartyId(id, parties);
-    const active = expenses.filter((e) => !e.deleted_at);
-    const net = netByParty(active, resolve);
-    const rawPairwise = pairwiseDebts(active, resolve);
-    const simplify = group?.simplify_debts ?? true;
-    const pairwise = simplify ? simplifiedToPairwise(simplifyDebts(net)) : netPairwise(rawPairwise);
+    const net = netByParty(expenses, resolve);
+    const pairwise = groupPairwise(expenses, resolve, group?.simplify_debts ?? true);
     return { net, pairwise, parties };
   }, [group, expenses, parties]);
 }
@@ -376,19 +375,6 @@ export function useComments(expenseId: string | undefined): ExpenseComment[] | u
   }, [expenseId]);
 }
 
-export interface PersonBalance {
-  /** Id de utilizador (com conta) — só pessoas com conta são somáveis entre
-   *  grupos; placeholders são por natureza locais a um grupo. */
-  userId: string;
-  party: Party;
-  /** Positivo = deve-te (total: grupos partilhados + despesas diretas). */
-  netCents: number;
-  groups: { groupId: string; groupName: string; netCents: number }[];
-  /** Parte de `netCents` vinda de despesas sem grupo (Fase 8) — a UI usa isto
-   *  para mostrar uma linha "Despesas diretas" separada dos grupos. */
-  directNetCents: number;
-}
-
 function partyFromUser(u: User | undefined, fallbackId: string): Party {
   if (!u) return { id: fallbackId, name: 'Alguém', kind: 'user' };
   return {
@@ -403,12 +389,11 @@ function partyFromUser(u: User | undefined, fallbackId: string): Party {
   };
 }
 
-/** Saldo por pessoa, somado a todos os grupos partilhados com o utilizador
- *  (tab "Pessoas") **e** a despesas diretas sem grupo (Fase 8) — usa
- *  `useAllExpenses`/`useAllPlaceholders` (já sincronizados globalmente) em
- *  vez de ir grupo a grupo. Amizades aceites sem despesa nenhuma entram na
- *  lista com saldo zero ("Contas em dia"), como no Splitwise. */
-export function usePeopleBalances(currentUserId: string | undefined): PersonBalance[] | undefined {
+/** Saldos por pessoa + membros sem conta, de todos os grupos partilhados e
+ *  das despesas diretas — ver `computePeopleBalances` para a regra (respeita a
+ *  simplificação de dívidas de cada grupo, como o ecrã de Saldos). Amizades
+ *  aceites sem despesa nenhuma entram com saldo zero, como no Splitwise. */
+function usePeopleLedger(currentUserId: string | undefined): PeopleBalances | undefined {
   const groups = useGroups(currentUserId);
   const allExpenses = useAllExpenses();
   const allPlaceholders = useAllPlaceholders();
@@ -433,87 +418,42 @@ export function usePeopleBalances(currentUserId: string | undefined): PersonBala
       return undefined;
     }
     const usersById = usersMap(allUsers);
-    const byUser = new Map<string, PersonBalance>();
-
-    const ensureEntry = (userId: string): PersonBalance => {
-      let entry = byUser.get(userId);
-      if (!entry) {
-        entry = { userId, party: partyFromUser(usersById.get(userId), userId), netCents: 0, groups: [], directNetCents: 0 };
-        byUser.set(userId, entry);
-      }
-      return entry;
-    };
-
-    // 1. saldos por grupo partilhado (como antes)
-    for (const group of groups) {
-      const parties = buildPartyMap(
-        groupMembersFromExpand(group),
-        allPlaceholders.filter((p) => p.group_id === group.id),
-      );
-      const resolve = (id: string) => canonicalPartyId(id, parties);
-      const groupExpenses = allExpenses.filter((e) => e.group_id === group.id && !e.deleted_at);
-      const net = netByParty(groupExpenses, resolve);
-      const pairwise = netPairwise(pairwiseDebts(groupExpenses, resolve));
-      const { lines } = balanceFor(currentUserId, pairwise, net);
-
-      for (const line of lines) {
-        const party = parties.get(line.party);
-        if (party?.kind !== 'user') continue; // placeholders não se somam entre grupos
-        const entry = ensureEntry(party.id);
-        entry.party = party;
-        entry.netCents += line.amountCents;
-        entry.groups.push({ groupId: group.id, groupName: group.name, netCents: line.amountCents });
-      }
-    }
-
-    // 2. despesas diretas sem grupo — identidade já é o id real (sem placeholders)
-    const directExpenses = allExpenses.filter(
-      (e) => !e.group_id && !e.deleted_at && e.participants?.includes(currentUserId),
-    );
-    if (directExpenses.length) {
-      const identity = (id: string) => id;
-      const net = netByParty(directExpenses, identity);
-      const pairwise = netPairwise(pairwiseDebts(directExpenses, identity));
-      const { lines } = balanceFor(currentUserId, pairwise, net);
-      for (const line of lines) {
-        const entry = ensureEntry(line.party);
-        entry.netCents += line.amountCents;
-        entry.directNetCents += line.amountCents;
-      }
-    }
-
-    // 3. amizades aceites sem despesa nenhuma ainda → entram com saldo zero
-    for (const f of friendships) {
-      if (f.status !== 'accepted') continue;
-      ensureEntry(f.user_a === currentUserId ? f.user_b : f.user_a);
-    }
-
-    return Array.from(byUser.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents));
+    return computePeopleBalances({
+      currentUserId,
+      groups: groups.map((group) => {
+        const parties = buildPartyMap(
+          groupMembersFromExpand(group),
+          allPlaceholders.filter((p) => p.group_id === group.id),
+        );
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          simplify: group.simplify_debts ?? true,
+          expenses: allExpenses.filter((e) => e.group_id === group.id && !e.deleted_at),
+          parties,
+          resolve: (id: string) => canonicalPartyId(id, parties),
+        };
+      }),
+      directExpenses: allExpenses.filter(
+        (e) => !e.group_id && !e.deleted_at && e.participants?.includes(currentUserId),
+      ),
+      partyForUser: (id) => partyFromUser(usersById.get(id), id),
+      friendIds: friendships
+        .filter((f) => f.status === 'accepted')
+        .map((f) => (f.user_a === currentUserId ? f.user_b : f.user_a)),
+    });
   }, [currentUserId, groups, allExpenses, allPlaceholders, allUsers, friendships]);
 }
 
-export interface BalanceOverview {
-  /** Soma das partes positivas de `netCents` de todas as pessoas — a receber no total. */
-  receiveCents: number;
-  /** Soma dos valores absolutos das partes negativas — a pagar no total. */
-  payCents: number;
-  netCents: number;
+/** Saldo por pessoa (tab "Amigos" e página do amigo). */
+export function usePeopleBalances(currentUserId: string | undefined): PersonBalance[] | undefined {
+  return usePeopleLedger(currentUserId)?.people;
 }
 
-/** Resumo agregado "a receber vs a pagar" para o topo do Início — soma
- *  `usePeopleBalances` (já inclui grupos partilhados + despesas diretas). */
+/** Resumo agregado "a receber vs a pagar" para o topo do Início. */
 export function useBalanceOverview(userId: string | undefined): BalanceOverview | undefined {
-  const people = usePeopleBalances(userId);
-  return useMemo(() => {
-    if (!people) return undefined;
-    let receiveCents = 0;
-    let payCents = 0;
-    for (const p of people) {
-      if (p.netCents > 0) receiveCents += p.netCents;
-      else payCents += -p.netCents;
-    }
-    return { receiveCents, payCents, netCents: receiveCents - payCents };
-  }, [people]);
+  const ledger = usePeopleLedger(userId);
+  return useMemo(() => (ledger ? balanceOverview(ledger) : undefined), [ledger]);
 }
 
 /** Amigos aceites / pedidos recebidos / pedidos enviados (Fase 8). */

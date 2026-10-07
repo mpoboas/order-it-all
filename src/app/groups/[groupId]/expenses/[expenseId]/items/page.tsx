@@ -119,6 +119,7 @@ function EditableInput({ value: initialValue, onSave, className, ...props }: Edi
 import { useGroup } from '@/context/GroupContext';
 import { useEditTimer } from '@/hooks/useEditTimer';
 import { Icon } from '@/components/ui/Icon';
+import { ItemName } from '@/components/ui/ItemName';
 
 export default function SplitItemsPage() {
     const params = useParams();
@@ -1150,7 +1151,7 @@ export default function SplitItemsPage() {
                                     >
                                         <div className="flex items-center gap-2">
                                             <p className={cn('flex-1 min-w-0 truncate font-semibold', item.name ? 'text-ink' : 'text-ink-faint')}>
-                                                {item.name || 'Item sem nome'}
+                                                <ItemName name={item.name} fallback="Item sem nome" truncate />
                                             </p>
                                             {isItemLocked(item) && (
                                                 <Icon name="lock" className="text-sm text-ink-faint shrink-0" aria-label="Participantes fixos" />

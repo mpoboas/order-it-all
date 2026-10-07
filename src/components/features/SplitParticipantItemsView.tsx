@@ -12,6 +12,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { SplitItemShareRow } from '@/components/features/SplitItemShareRow';
 import { Icon } from '@/components/ui/Icon';
+import { ItemName } from '@/components/ui/ItemName';
 
 interface SplitParticipantItemsViewProps {
   items: SplitItem[];
@@ -131,7 +132,7 @@ export function SplitParticipantItemsView({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                       <p className="font-medium text-ink break-words leading-snug">
-                        {item.name || 'Item sem nome'}
+                        <ItemName name={item.name} fallback="Item sem nome" />
                       </p>
                       {locked && (
                         <Icon

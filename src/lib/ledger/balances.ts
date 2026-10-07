@@ -221,3 +221,23 @@ export function balanceFor(
   lines.sort((a, b) => Math.abs(b.amountCents) - Math.abs(a.amountCents));
   return { netCents: net[partyId] ?? 0, lines };
 }
+
+/**
+ * Quem deve a quem num grupo (devedor → credor → cêntimos), já na forma que
+ * se mostra e se acerta: simplificado (min-cash-flow) ou só compensado por par,
+ * consoante `groups.simplify_debts`. ÚNICA fonte desta regra — o ecrã de
+ * Saldos, o separador Amigos e os lembretes têm de concordar; quando cada um
+ * tinha a sua cópia, os Amigos ignoravam a simplificação e mostravam dívidas
+ * cruzadas num grupo já acertado. Despesas diretas (sem grupo) nunca se
+ * simplificam — como no Splitwise, a simplificação é só dentro de um grupo.
+ */
+export function groupPairwise(
+  expenses: Expense[],
+  resolveParty: ResolveParty,
+  simplify: boolean,
+): Record<string, Record<string, number>> {
+  const active = expenses.filter((e) => !e.deleted_at);
+  return simplify
+    ? simplifiedToPairwise(simplifyDebts(netByParty(active, resolveParty)))
+    : netPairwise(pairwiseDebts(active, resolveParty));
+}

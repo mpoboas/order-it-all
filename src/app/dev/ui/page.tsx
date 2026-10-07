@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardFooter, CardHeader } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { ItemName } from '@/components/ui/ItemName';
+import { Money } from '@/components/ui/Money';
 import { useTheme } from '@/context/ThemeContext';
 
 const ICON_SAMPLE: IconName[] = [
@@ -189,6 +191,25 @@ export default function DevUiPage() {
                                 <Badge variant="pending">Por comprar</Badge>
                             </CardFooter>
                         </Card>
+                    </Section>
+
+                    <Section title="ItemName · original do talão como subtítulo">
+                        <div className="max-w-sm rounded-[20px] border border-hairline bg-surface divide-y divide-hairline overflow-hidden">
+                            {[
+                                ['Cebola (ZWIEBEL)', 0.15],
+                                ['Lay\'s Sour Cream & Onion (LAYS S.CREAM&ON.)', 1.99],
+                                ['Coca-Cola Zero 2L (CC Z EW 2L)', 2.29],
+                                ['Nestlé Nesquik', 3.99],
+                                ['', 0],
+                            ].map(([name, price], i) => (
+                                <div key={i} className="px-4 py-3 flex items-center gap-2">
+                                    <p className="flex-1 min-w-0 truncate font-semibold text-ink">
+                                        <ItemName name={name as string} fallback="Item sem nome" truncate />
+                                    </p>
+                                    <Money value={price as number} className="font-semibold text-ink shrink-0" />
+                                </div>
+                            ))}
+                        </div>
                     </Section>
                 </div>
             </div>

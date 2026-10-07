@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/layout/LoadingScreen';
 import { useToast } from '@/context/ToastContext';
 import { Icon } from '@/components/ui/Icon';
+import { ItemName } from '@/components/ui/ItemName';
 
 export interface InvoiceScanItem {
   id: string;
@@ -593,7 +594,7 @@ export function InvoiceScanSheet({
                         <div className="flex justify-between gap-2">
                           <div>
                             <p className="font-bold text-sm text-[var(--text-primary)]">
-                              {e.name}
+                              <ItemName name={e.name} />
                             </p>
                             <p className="text-xs text-[var(--text-muted)]">
                               {e.quantity} un. · {formatCurrency(e.unit_price)}/un
